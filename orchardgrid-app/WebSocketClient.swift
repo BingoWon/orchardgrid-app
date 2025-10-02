@@ -75,9 +75,7 @@ final class WebSocketClient {
       ?? ProcessInfo.processInfo.environment["ORCHARDGRID_SERVER_URL"]
       ?? "wss://orchardgrid-api.bingow.workers.dev/device/connect"
 
-    self.deviceID = deviceID
-      ?? ProcessInfo.processInfo.environment["ORCHARDGRID_DEVICE_ID"]
-      ?? UUID().uuidString
+    self.deviceID = deviceID ?? DeviceIdentifier.get()
 
     self.userID = userID
       ?? ProcessInfo.processInfo.environment["ORCHARDGRID_USER_ID"]
