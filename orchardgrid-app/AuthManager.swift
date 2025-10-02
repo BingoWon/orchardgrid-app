@@ -2,28 +2,24 @@
  * AuthManager.swift
  * OrchardGrid Authentication Manager
  *
- * Handles user authentication with Sign in with Apple
+ * Simplified email authentication for development
  */
 
-import AuthenticationServices
 import Foundation
 
 @MainActor
 @Observable
-final class AuthManager: NSObject {
+final class AuthManager {
   // Authentication state
   var isAuthenticated = false
   var currentUser: User?
   var authToken: String?
-
-  // Error handling
   var lastError: String?
 
   // API configuration
   private let apiURL = "https://orchardgrid-api.bingow.workers.dev"
 
-  override init() {
-    super.init()
+  init() {
     checkAuthStatus()
   }
 
@@ -37,15 +33,37 @@ final class AuthManager: NSObject {
     }
   }
 
-  // Sign in with Apple
-  func signInWithApple() {
-    let provider = ASAuthorizationAppleIDProvider()
-    let request = provider.createRequest()
-    request.requestedScopes = [.fullName, .email]
+  // Sign in with email
+  func signInWithEmail(_ email: String) async {
+    guard !email.isEmpty else {
+      lastError = "Email is required"
+      return
+    }
 
-    let controller = ASAuthorizationController(authorizationRequests: [request])
-    controller.delegate = self
-    controller.performRequests()
+    do {
+      let url = URL(string: "\(apiURL)/auth/email")!
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+      let body = ["email": email]
+      request.httpBody = try JSONEncoder().encode(body)
+
+      let (data, _) = try await URLSession.shared.data(for: request)
+      let response = try JSONDecoder().decode(AuthResponse.self, from: data)
+
+      // Save token
+      KeychainManager.saveToken(response.token)
+      authToken = response.token
+      currentUser = response.user
+      isAuthenticated = true
+      lastError = nil
+
+      print("✅ Authentication successful: \(response.user.email)")
+    } catch {
+      print("❌ Authentication failed: \(error)")
+      lastError = error.localizedDescription
+    }
   }
 
   // Fetch user info from API
@@ -76,87 +94,6 @@ final class AuthManager: NSObject {
     authToken = nil
     currentUser = nil
     isAuthenticated = false
-  }
-}
-
-// MARK: - ASAuthorizationControllerDelegate
-
-extension AuthManager: ASAuthorizationControllerDelegate {
-  func authorizationController(
-    controller _: ASAuthorizationController,
-    didCompleteWithAuthorization authorization: ASAuthorization
-  ) {
-    guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
-      return
-    }
-
-    guard let identityToken = credential.identityToken,
-          let tokenString = String(data: identityToken, encoding: .utf8)
-    else {
-      lastError = "Failed to get identity token"
-      return
-    }
-
-    Task {
-      await authenticateWithBackend(
-        identityToken: tokenString,
-        userIdentifier: credential.user,
-        fullName: credential.fullName,
-        email: credential.email
-      )
-    }
-  }
-
-  func authorizationController(
-    controller _: ASAuthorizationController,
-    didCompleteWithError error: Error
-  ) {
-    print("❌ Sign in with Apple failed: \(error)")
-    lastError = error.localizedDescription
-  }
-
-  // Authenticate with backend
-  private func authenticateWithBackend(
-    identityToken: String,
-    userIdentifier: String,
-    fullName: PersonNameComponents?,
-    email: String?
-  ) async {
-    do {
-      let url = URL(string: "\(apiURL)/auth/apple")!
-      var request = URLRequest(url: url)
-      request.httpMethod = "POST"
-      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-      let body: [String: Any] = [
-        "id_token": identityToken,
-        "user_identifier": userIdentifier,
-        "full_name": fullName.map {
-          [
-            "given_name": $0.givenName ?? "",
-            "family_name": $0.familyName ?? "",
-          ]
-        } ?? [:],
-        "email": email ?? "",
-      ]
-
-      request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-      let (data, _) = try await URLSession.shared.data(for: request)
-      let response = try JSONDecoder().decode(AuthResponse.self, from: data)
-
-      // Save token
-      KeychainManager.saveToken(response.token)
-      authToken = response.token
-      currentUser = response.user
-      isAuthenticated = true
-      lastError = nil
-
-      print("✅ Authentication successful: \(response.user.email)")
-    } catch {
-      print("❌ Backend authentication failed: \(error)")
-      lastError = error.localizedDescription
-    }
   }
 }
 

@@ -2,14 +2,14 @@
  * LoginView.swift
  * OrchardGrid Login Interface
  *
- * Sign in with Apple authentication
+ * Simplified email authentication
  */
 
-import AuthenticationServices
 import SwiftUI
 
 struct LoginView: View {
   @Environment(AuthManager.self) private var authManager
+  @State private var email = ""
 
   var body: some View {
     VStack(spacing: 40) {
@@ -27,25 +27,39 @@ struct LoginView: View {
           .foregroundStyle(.secondary)
       }
 
-      // Sign in button
-      SignInWithAppleButton(.signIn) { request in
-        request.requestedScopes = [.fullName, .email]
-      } onCompletion: { result in
-        switch result {
-        case let .success(authorization):
-          authManager.authorizationController(
-            controller: ASAuthorizationController(authorizationRequests: []),
-            didCompleteWithAuthorization: authorization
-          )
-        case let .failure(error):
-          authManager.authorizationController(
-            controller: ASAuthorizationController(authorizationRequests: []),
-            didCompleteWithError: error
-          )
+      VStack(spacing: 16) {
+        // Email input
+        TextField("Email", text: $email)
+          .textFieldStyle(.roundedBorder)
+          .frame(maxWidth: 300)
+          .textContentType(.emailAddress)
+
+        Button {
+          Task {
+            await authManager.signInWithEmail(email)
+          }
+        } label: {
+          Text("Sign In")
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
         }
+        .buttonStyle(.borderedProminent)
+        .disabled(email.isEmpty)
+
+        // Test account hint
+        VStack(spacing: 8) {
+          Text("For testing, use:")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+          Text("test@orchardgrid.com")
+            .font(.caption.monospaced())
+            .foregroundStyle(.blue)
+            .onTapGesture {
+              email = "test@orchardgrid.com"
+            }
+        }
+        .padding(.top, 8)
       }
-      .signInWithAppleButtonStyle(.black)
-      .frame(height: 50)
       .frame(maxWidth: 300)
 
       // Error message
