@@ -1,0 +1,27 @@
+# SwiftFormat Configuration
+# https://github.com/nicklockwood/SwiftFormat
+
+--swiftversion 5.9
+
+# Indentation
+--indent 2
+--tabwidth 2
+
+# Wrapping
+--maxwidth 100
+
+# Spacing
+--trimwhitespace always
+
+# Semicolons
+--semicolons never
+
+# Headers
+--header strip
+
+# Self
+--self remove
+
+# Disable rules
+--disable blankLinesAroundMark
+
