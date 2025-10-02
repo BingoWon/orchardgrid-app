@@ -70,12 +70,11 @@ final class WebSocketClient {
     deviceID: String? = nil,
     userID: String? = nil
   ) {
-    // Configuration from environment or defaults
     self.serverURL = serverURL
       ?? ProcessInfo.processInfo.environment["ORCHARDGRID_SERVER_URL"]
       ?? "wss://orchardgrid-api.bingow.workers.dev/device/connect"
 
-    self.deviceID = deviceID ?? DeviceIdentifier.get()
+    self.deviceID = deviceID ?? DeviceID.current
 
     self.userID = userID
       ?? ProcessInfo.processInfo.environment["ORCHARDGRID_USER_ID"]
