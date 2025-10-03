@@ -1,8 +1,6 @@
 /**
  * AuthManager.swift
  * OrchardGrid Authentication Manager
- *
- * Simplified email authentication for development
  */
 
 import Foundation
@@ -17,7 +15,10 @@ final class AuthManager {
   var lastError: String?
 
   // API configuration
-  private let apiURL = "https://orchardgrid-api.bingow.workers.dev"
+  private let apiURL = Config.apiBaseURL
+
+  // Callback for user ID changes
+  var onUserIDChanged: ((String) -> Void)?
 
   init() {
     checkAuthStatus()
@@ -33,20 +34,36 @@ final class AuthManager {
     }
   }
 
-  // Sign in with email
-  func signInWithEmail(_ email: String) async {
-    guard !email.isEmpty else {
-      lastError = "Email is required"
+  // Register with email and password
+  func register(email: String, password: String, confirmPassword: String, name: String?) async {
+    guard !email.isEmpty, !password.isEmpty else {
+      lastError = "Email and password are required"
+      return
+    }
+
+    guard password == confirmPassword else {
+      lastError = "Passwords do not match"
+      return
+    }
+
+    guard password.count >= 8 else {
+      lastError = "Password must be at least 8 characters"
       return
     }
 
     do {
-      let url = URL(string: "\(apiURL)/auth/email")!
+      let url = URL(string: "\(apiURL)/auth/register")!
       var request = URLRequest(url: url)
       request.httpMethod = "POST"
       request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-      let body = ["email": email]
+      var body: [String: String] = [
+        "email": email,
+        "password": password,
+      ]
+      if let name {
+        body["name"] = name
+      }
       request.httpBody = try JSONEncoder().encode(body)
 
       let (data, _) = try await URLSession.shared.data(for: request)
@@ -59,11 +76,52 @@ final class AuthManager {
       isAuthenticated = true
       lastError = nil
 
-      print("✅ Authentication successful: \(response.user.email)")
+      Logger.success(.auth, "Registration successful: \(response.user.email)")
+      onUserIDChanged?(response.user.id)
     } catch {
-      print("❌ Authentication failed: \(error)")
+      Logger.error(.auth, "Registration failed: \(error)")
       lastError = error.localizedDescription
     }
+  }
+
+  // Login with email and password
+  func login(email: String, password: String) async {
+    guard !email.isEmpty, !password.isEmpty else {
+      lastError = "Email and password are required"
+      return
+    }
+
+    do {
+      let url = URL(string: "\(apiURL)/auth/login")!
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+      let body = ["email": email, "password": password]
+      request.httpBody = try JSONEncoder().encode(body)
+
+      let (data, _) = try await URLSession.shared.data(for: request)
+      let response = try JSONDecoder().decode(AuthResponse.self, from: data)
+
+      // Save token
+      KeychainManager.saveToken(response.token)
+      authToken = response.token
+      currentUser = response.user
+      isAuthenticated = true
+      lastError = nil
+
+      Logger.success(.auth, "Login successful: \(response.user.email)")
+      onUserIDChanged?(response.user.id)
+    } catch {
+      Logger.error(.auth, "Login failed: \(error)")
+      lastError = error.localizedDescription
+    }
+  }
+
+  // Sign in with Google
+  func signInWithGoogle() async {
+    // TODO: Implement Google Sign In SDK integration
+    lastError = "Google Sign In not yet implemented"
   }
 
   // Fetch user info from API
@@ -81,8 +139,9 @@ final class AuthManager {
       currentUser = user
       isAuthenticated = true
       lastError = nil
+      onUserIDChanged?(user.id)
     } catch {
-      print("❌ Failed to fetch user info: \(error)")
+      Logger.error(.auth, "Failed to fetch user info: \(error)")
       lastError = error.localizedDescription
       logout()
     }
@@ -119,8 +178,15 @@ struct AuthResponse: Codable {
 // MARK: - Keychain Manager
 
 enum KeychainManager {
-  private static let service = "com.orchardgrid.app"
-  private static let account = "auth_token"
+  /// Use Bundle ID as service name for proper Keychain isolation
+  private static var service: String {
+    Bundle.main.bundleIdentifier ?? "com.orchardgrid.app"
+  }
+
+  /// Environment-specific account key
+  private static var account: String {
+    "auth_token_\(Config.environment.rawValue)"
+  }
 
   static func saveToken(_ token: String) {
     let data = Data(token.utf8)

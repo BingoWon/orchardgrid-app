@@ -39,15 +39,19 @@ struct ErrorMessage: Codable, Sendable {
   let error: String
 }
 
+struct HeartbeatMessage: Codable, Sendable {
+  let type: String // "heartbeat"
+}
+
 // MARK: - WebSocket Client
 
 @Observable
 @MainActor
-final class WebSocketClient {
+final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   // Configuration
   private let serverURL: String
   private let deviceID: String
-  private let userID: String
+  private(set) var userID: String?
   private let platform: String
   private let osVersion: String
 
@@ -55,30 +59,47 @@ final class WebSocketClient {
   private(set) var isConnected = false
   private(set) var lastError: String?
   private(set) var tasksProcessed = 0
+  var isEnabled = false {
+    didSet {
+      guard oldValue != isEnabled else { return }
+      UserDefaults.standard.set(isEnabled, forKey: "WebSocketClient.isEnabled")
+      if isEnabled {
+        if userID != nil {
+          connect()
+        }
+      } else {
+        disconnect()
+        lastError = nil // Clear error when user disables
+      }
+    }
+  }
 
   // WebSocket
   private var webSocketTask: URLSessionWebSocketTask?
   private var urlSession: URLSession?
+  private var shouldAutoReconnect = false
+  private var reconnectTask: Task<Void, Never>?
+  private var heartbeatTask: Task<Void, Never>?
 
   // LLM Processing
   private let model = SystemLanguageModel.default
   private let jsonEncoder = JSONEncoder()
   private let jsonDecoder = JSONDecoder()
 
-  init(
-    serverURL: String? = nil,
-    deviceID: String? = nil,
-    userID: String? = nil
-  ) {
+  // Constants
+  private let heartbeatInterval: TimeInterval = 30 // 30 seconds
+
+  override init() {
+    // Use Config.apiBaseURL and convert to WebSocket URL
+    let httpURL = Config.apiBaseURL
+    let wsURL = httpURL.replacingOccurrences(of: "https://", with: "wss://")
+    let serverURL = ProcessInfo.processInfo.environment["ORCHARDGRID_SERVER_URL"]
+      ?? "\(wsURL)/device/connect"
+    let deviceID = DeviceID.current
+
     self.serverURL = serverURL
-      ?? ProcessInfo.processInfo.environment["ORCHARDGRID_SERVER_URL"]
-      ?? "wss://orchardgrid-api.bingow.workers.dev/device/connect"
-
-    self.deviceID = deviceID ?? DeviceID.current
-
-    self.userID = userID
-      ?? ProcessInfo.processInfo.environment["ORCHARDGRID_USER_ID"]
-      ?? "anonymous"
+    self.deviceID = deviceID
+    userID = nil // Will be set when connecting
 
     #if os(macOS)
       platform = "macos"
@@ -90,14 +111,84 @@ final class WebSocketClient {
 
     osVersion = ProcessInfo.processInfo.operatingSystemVersionString
 
+    // Restore previous state
+    isEnabled = UserDefaults.standard.bool(forKey: "WebSocketClient.isEnabled")
+
+    super.init()
+
     jsonEncoder.keyEncodingStrategy = .convertToSnakeCase
     jsonDecoder.keyDecodingStrategy = .convertFromSnakeCase
+  }
+
+  func setUserID(_ userID: String) {
+    guard self.userID != userID else { return }
+    self.userID = userID
+    Logger.log(.websocket, "User ID set: \(userID)")
+    // Auto-connect if enabled
+    if isEnabled, !isConnected {
+      connect()
+    }
+  }
+
+  func retry() {
+    Logger.log(.websocket, "User requested retry")
+    lastError = nil
+    connect()
+  }
+
+  // MARK: - URLSessionWebSocketDelegate
+
+  nonisolated func urlSession(
+    _: URLSession,
+    webSocketTask _: URLSessionWebSocketTask,
+    didOpenWithProtocol _: String?
+  ) {
+    Task { @MainActor in
+      isConnected = true
+      lastError = nil
+      reconnectTask?.cancel()
+      reconnectTask = nil
+      startHeartbeat()
+      Logger.success(.websocket, "Connected")
+    }
+  }
+
+  nonisolated func urlSession(
+    _: URLSession,
+    webSocketTask _: URLSessionWebSocketTask,
+    didCloseWith closeCode: URLSessionWebSocketTask.CloseCode,
+    reason _: Data?
+  ) {
+    Task { @MainActor in
+      isConnected = false
+      stopHeartbeat()
+      Logger.log(.websocket, "Closed: \(closeCode.rawValue)")
+
+      if shouldAutoReconnect {
+        lastError = "Connection closed unexpectedly"
+        startReconnection()
+      }
+    }
   }
 
   // MARK: - Connection Management
 
   func connect() {
-    guard !isConnected else { return }
+    guard !isConnected else {
+      Logger.log(.websocket, "Already connected, skipping")
+      return
+    }
+    guard let userID else {
+      lastError = "User ID not set"
+      Logger.error(.websocket, "Cannot connect: User ID not set")
+      return
+    }
+
+    Logger.log(.websocket, "Starting connection...")
+    shouldAutoReconnect = true
+    reconnectTask?.cancel()
+    reconnectTask = nil
+    lastError = nil
 
     // Create URL with device ID, user ID, platform, and OS version
     guard var urlComponents = URLComponents(string: serverURL) else {
@@ -116,34 +207,45 @@ final class WebSocketClient {
       return
     }
 
-    // Create URLSession
+    // Create URLSession with delegate
     let configuration = URLSessionConfiguration.default
     configuration.timeoutIntervalForRequest = 30
     configuration.timeoutIntervalForResource = 300
-    urlSession = URLSession(configuration: configuration)
+    urlSession = URLSession(
+      configuration: configuration,
+      delegate: self,
+      delegateQueue: nil
+    )
 
     // Create WebSocket task
     webSocketTask = urlSession?.webSocketTask(with: url)
     webSocketTask?.resume()
 
-    isConnected = true
-    lastError = nil
-
-    print("🔌 Connecting to platform: \(url.absoluteString)")
-    print("📱 Device: \(deviceID), Platform: \(platform), OS: \(osVersion)")
+    Logger.log(.websocket, "Connecting to: \(url.absoluteString)")
+    Logger.log(
+      .websocket,
+      "Device: \(deviceID), User: \(userID), Platform: \(platform), OS: \(osVersion)"
+    )
 
     // Start receiving messages
     receiveMessage()
   }
 
   func disconnect() {
+    Logger.log(.websocket, "Disconnecting...")
+    shouldAutoReconnect = false
+    reconnectTask?.cancel()
+    reconnectTask = nil
+    stopHeartbeat()
+
     webSocketTask?.cancel(with: .goingAway, reason: nil)
     webSocketTask = nil
     urlSession?.invalidateAndCancel()
     urlSession = nil
     isConnected = false
+    lastError = nil
 
-    print("🔌 Disconnected from platform")
+    Logger.log(.websocket, "Disconnected")
   }
 
   // MARK: - Message Handling
@@ -182,60 +284,94 @@ final class WebSocketClient {
       let taskMessage = try jsonDecoder.decode(TaskMessage.self, from: data)
 
       guard taskMessage.type == "task" else {
-        print("⚠️ Unknown message type: \(taskMessage.type)")
+        Logger.log(.websocket, "Unknown message type: \(taskMessage.type)")
         return
       }
 
-      print("\n" + String(repeating: "=", count: 80))
-      print("📥 Received Task: \(taskMessage.id)")
-      print(String(repeating: "=", count: 80))
+      Logger.log(.websocket, "Received task: \(taskMessage.id)")
 
       // Process task
       await processTask(taskMessage)
 
     } catch {
-      print("❌ Failed to decode message: \(error)")
+      Logger.error(.websocket, "Failed to decode message: \(error)")
       lastError = "Message decode error: \(error.localizedDescription)"
     }
   }
 
   private func handleError(_ error: Error) {
-    print("❌ WebSocket error: \(error)")
+    Logger.error(.websocket, "\(error)")
     lastError = error.localizedDescription
     isConnected = false
+    // Don't modify isEnabled - let user control it
+  }
 
-    // Exponential backoff reconnection
-    Task { @MainActor in
+  // MARK: - Heartbeat
+
+  private func startHeartbeat() {
+    stopHeartbeat()
+
+    heartbeatTask = Task { @MainActor in
+      while !Task.isCancelled, isConnected {
+        try? await Task.sleep(for: .seconds(heartbeatInterval))
+
+        guard isConnected else { return }
+
+        let heartbeat = HeartbeatMessage(type: "heartbeat")
+        await sendMessage(heartbeat)
+        Logger.log(.websocket, "Heartbeat sent")
+      }
+    }
+  }
+
+  private func stopHeartbeat() {
+    heartbeatTask?.cancel()
+    heartbeatTask = nil
+  }
+
+  // MARK: - Reconnection
+
+  private func startReconnection() {
+    reconnectTask?.cancel()
+
+    reconnectTask = Task { @MainActor in
       var delay = 1.0
       var attempts = 0
       let maxAttempts = 10
 
-      while attempts < maxAttempts, !isConnected {
+      while attempts < maxAttempts, !isConnected, shouldAutoReconnect {
         attempts += 1
-        print(
-          "🔄 Reconnection attempt \(attempts)/\(maxAttempts) in \(String(format: "%.1f", delay))s..."
+        Logger.log(
+          .websocket,
+          "Reconnection attempt \(attempts)/\(maxAttempts) in \(String(format: "%.1f", delay))s..."
         )
 
         try? await Task.sleep(for: .seconds(delay))
 
-        if !isConnected {
-          connect()
-
-          // Wait a bit to check if connection succeeded
-          try? await Task.sleep(for: .seconds(1))
-
-          if isConnected {
-            print("✅ Reconnected successfully")
-            return
-          }
-
-          // Exponential backoff with max 60 seconds
-          delay = min(delay * 2, 60)
+        guard shouldAutoReconnect, !isConnected else {
+          Logger.log(.websocket, "Reconnection cancelled")
+          return
         }
+
+        // Reconnect
+        disconnect()
+        try? await Task.sleep(for: .seconds(0.5))
+        connect()
+
+        // Wait to check if connection succeeded
+        try? await Task.sleep(for: .seconds(2))
+
+        if isConnected {
+          Logger.success(.websocket, "Reconnected")
+          return
+        }
+
+        // Exponential backoff with max 60 seconds
+        delay = min(delay * 2, 60)
       }
 
-      if !isConnected {
-        print("❌ Max reconnection attempts reached")
+      if !isConnected, shouldAutoReconnect {
+        Logger.error(.websocket, "Max reconnection attempts reached")
         lastError = "Failed to reconnect after \(maxAttempts) attempts"
       }
     }
@@ -267,11 +403,10 @@ final class WebSocketClient {
       tasksProcessed += 1
 
       let duration = Date().timeIntervalSince(startTime)
-      print("✅ Task completed in \(String(format: "%.2f", duration))s")
-      print(String(repeating: "=", count: 80) + "\n")
+      Logger.success(.websocket, "Task completed in \(String(format: "%.2f", duration))s")
 
     } catch {
-      print("❌ Task failed: \(error)")
+      Logger.error(.websocket, "Task failed: \(error)")
 
       let errorMessage = ErrorMessage(
         id: taskMessage.id,
@@ -284,28 +419,24 @@ final class WebSocketClient {
   }
 
   private func generateStreamingResponse(for request: ChatRequest, taskId: String) async throws {
-    print("🌊 [Streaming] Starting streaming response for task: \(taskId)")
+    Logger.log(.websocket, "Starting streaming response for task: \(taskId)")
 
     guard case .available = model.availability else {
-      print("❌ [Streaming] Apple Intelligence not available")
       throw NSError(domain: "WebSocketClient", code: 1, userInfo: [
         NSLocalizedDescriptionKey: "Apple Intelligence not available",
       ])
     }
 
     guard let lastMessage = request.messages.last, lastMessage.role == "user" else {
-      print("❌ [Streaming] Last message must be from user")
       throw NSError(domain: "WebSocketClient", code: 2, userInfo: [
         NSLocalizedDescriptionKey: "Last message must be from user",
       ])
     }
 
-    print("🌊 [Streaming] Building transcript...")
     // Build transcript
     let transcript = buildTranscript(from: request.messages)
     let session = LanguageModelSession(transcript: transcript)
 
-    print("🌊 [Streaming] Starting stream...")
     // Stream response
     var previousContent = ""
 
@@ -314,19 +445,14 @@ final class WebSocketClient {
        let jsonSchema = responseFormat.json_schema
     {
       // Structured output streaming
-      print("🌊 [Streaming] Using structured output")
       let converter = SchemaConverter()
       let appleSchema = try converter.convert(jsonSchema)
       let stream = session.streamResponse(to: lastMessage.content, schema: appleSchema)
 
-      var chunkCount = 0
       for try await snapshot in stream {
-        chunkCount += 1
         let fullContent = snapshot.content.jsonString
         let delta = String(fullContent.dropFirst(previousContent.count))
 
-        print("🌊 [Streaming] Chunk \(chunkCount): delta length = \(delta.count)")
-
         if !delta.isEmpty {
           let chunkMessage = StreamChunkMessage(
             id: taskId,
@@ -334,27 +460,18 @@ final class WebSocketClient {
             delta: delta
           )
           await sendMessage(chunkMessage)
-          print("🌊 [Streaming] Sent chunk \(chunkCount)")
         }
 
         previousContent = fullContent
       }
-      print("🌊 [Streaming] Structured stream completed with \(chunkCount) chunks")
     } else {
       // Regular text streaming
-      print("🌊 [Streaming] Using regular text output")
       let stream = session.streamResponse(to: lastMessage.content)
 
-      var chunkCount = 0
       for try await snapshot in stream {
-        chunkCount += 1
         let fullContent = snapshot.content
         let delta = String(fullContent.dropFirst(previousContent.count))
 
-        print(
-          "🌊 [Streaming] Chunk \(chunkCount): delta length = \(delta.count), full length = \(fullContent.count)"
-        )
-
         if !delta.isEmpty {
           let chunkMessage = StreamChunkMessage(
             id: taskId,
@@ -362,22 +479,18 @@ final class WebSocketClient {
             delta: delta
           )
           await sendMessage(chunkMessage)
-          print("🌊 [Streaming] Sent chunk \(chunkCount)")
         }
 
         previousContent = fullContent
       }
-      print("🌊 [Streaming] Text stream completed with \(chunkCount) chunks")
     }
 
     // Send stream end
-    print("🌊 [Streaming] Sending stream end message")
     let endMessage = StreamEndMessage(
       id: taskId,
       type: "stream_end"
     )
     await sendMessage(endMessage)
-    print("🌊 [Streaming] Stream end message sent")
   }
 
   private func generateResponse(for request: ChatRequest) async throws -> ChatResponse {
@@ -484,7 +597,7 @@ final class WebSocketClient {
     do {
       let data = try jsonEncoder.encode(message)
       guard let text = String(data: data, encoding: .utf8) else {
-        print("❌ Failed to encode message as string")
+        Logger.error(.websocket, "Failed to encode message as string")
         return
       }
 
@@ -492,7 +605,7 @@ final class WebSocketClient {
       try await webSocketTask?.send(wsMessage)
 
     } catch {
-      print("❌ Failed to send message: \(error)")
+      Logger.error(.websocket, "Failed to send message: \(error)")
       lastError = "Send error: \(error.localizedDescription)"
     }
   }

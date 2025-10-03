@@ -154,6 +154,16 @@ final class APIServer {
   private(set) var lastRequest = ""
   private(set) var lastResponse = ""
   private(set) var errorMessage = ""
+  var isEnabled = false {
+    didSet {
+      UserDefaults.standard.set(isEnabled, forKey: "APIServer.isEnabled")
+      if isEnabled {
+        Task { await start() }
+      } else {
+        stop()
+      }
+    }
+  }
 
   let port: UInt16 = 8888
   private let model = SystemLanguageModel.default
@@ -163,6 +173,16 @@ final class APIServer {
 
   private let jsonEncoder = JSONEncoder()
   private let jsonDecoder = JSONDecoder()
+
+  init() {
+    // Restore previous state
+    isEnabled = UserDefaults.standard.bool(forKey: "APIServer.isEnabled")
+
+    // Auto-start if enabled
+    if isEnabled {
+      Task { await start() }
+    }
+  }
 
   nonisolated func start() async {
     await MainActor.run {

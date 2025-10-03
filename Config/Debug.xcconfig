@@ -1,0 +1,17 @@
+//
+// Debug.xcconfig
+// OrchardGrid Development Configuration
+//
+
+// API Configuration
+API_BASE_URL = https:/$()/orchardgrid-api-development.bingow.workers.dev
+GOOGLE_CLIENT_ID = YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com
+
+// App Configuration
+PRODUCT_BUNDLE_IDENTIFIER = com.orchardgrid.app.dev
+PRODUCT_NAME = OrchardGrid Dev
+
+// Info.plist Configuration
+INFOPLIST_FILE = orchardgrid-app/Info.plist
+GENERATE_INFOPLIST_FILE = NO
+

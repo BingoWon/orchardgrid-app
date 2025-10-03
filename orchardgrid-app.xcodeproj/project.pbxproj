@@ -6,14 +6,20 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
-		1F5D97D72E8CFE2C006FE734 /* orchardgrid-app.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = orchardgrid-app.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1F09A5D42E8F86E700C41C40 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
+		1F09A5D62E8F86F100C41C40 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		1F09A5D82E8F8A9200C41C40 /* Config */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Config; sourceTree = "<group>"; };
+		1F5D97D72E8CFE2C006FE734 /* orchardgrid-app.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "orchardgrid-app.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		1F5D97D92E8CFE2C006FE734 /* orchardgrid-app */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = orchardgrid-app;
+			path = "orchardgrid-app";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -34,6 +40,7 @@
 			children = (
 				1F5D97D92E8CFE2C006FE734 /* orchardgrid-app */,
 				1F5D97D82E8CFE2C006FE734 /* Products */,
+				1F09A5D82E8F8A9200C41C40 /* Config */,
 			);
 			sourceTree = "<group>";
 		};
@@ -43,6 +50,15 @@
 				1F5D97D72E8CFE2C006FE734 /* orchardgrid-app.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		1F09A5D82E8F8A9200C41C40 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				1F09A5D42E8F86E700C41C40 /* Debug.xcconfig */,
+				1F09A5D62E8F86F100C41C40 /* Release.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -63,10 +79,10 @@
 			fileSystemSynchronizedGroups = (
 				1F5D97D92E8CFE2C006FE734 /* orchardgrid-app */,
 			);
-			name = orchardgrid-app;
+			name = "orchardgrid-app";
 			packageProductDependencies = (
 			);
-			productName = orchardgrid-app;
+			productName = "orchardgrid-app";
 			productReference = 1F5D97D72E8CFE2C006FE734 /* orchardgrid-app.app */;
 			productType = "com.apple.product-type.application";
 		};
@@ -127,6 +143,7 @@
 /* Begin XCBuildConfiguration section */
 		1F5D97E02E8CFE2D006FE734 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1F09A5D42E8F86E700C41C40 /* Debug.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -191,6 +208,7 @@
 		};
 		1F5D97E12E8CFE2D006FE734 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1F09A5D62E8F86F100C41C40 /* Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -247,10 +265,11 @@
 		};
 		1F5D97E32E8CFE2D006FE734 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1F09A5D42E8F86E700C41C40 /* Debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = orchardgrid-app/orchardgrid-app.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "orchardgrid-app/orchardgrid-app.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -259,15 +278,12 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "binwang.giant-big";
-				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -280,10 +296,11 @@
 		};
 		1F5D97E42E8CFE2D006FE734 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1F09A5D62E8F86F100C41C40 /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = orchardgrid-app/orchardgrid-app.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "orchardgrid-app/orchardgrid-app.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -292,15 +309,12 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "binwang.giant-big";
-				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;

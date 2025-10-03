@@ -1,28 +1,21 @@
 /**
- * LoginView.swift
- * OrchardGrid Login Interface
+ * RegisterView.swift
+ * OrchardGrid Registration Interface
  */
 
 import SwiftUI
 
-struct LoginView: View {
+struct RegisterView: View {
   @Environment(AuthManager.self) private var authManager
   @State private var email = ""
   @State private var password = ""
+  @State private var confirmPassword = ""
+  @State private var name = ""
   @State private var showPassword = false
-  @State private var showRegister = false
+  @State private var showConfirmPassword = false
+  @Binding var showLogin: Bool
 
   var body: some View {
-    Group {
-      if showRegister {
-        RegisterView(showLogin: $showRegister)
-      } else {
-        loginContent
-      }
-    }
-  }
-
-  private var loginContent: some View {
     VStack(spacing: 32) {
       // Logo and title
       VStack(spacing: 16) {
@@ -30,16 +23,21 @@ struct LoginView: View {
           .font(.system(size: 64))
           .foregroundStyle(.blue.gradient)
 
-        Text("OrchardGrid")
+        Text("Create Account")
           .font(.system(size: 36, weight: .bold, design: .rounded))
 
-        Text("Distributed Apple Intelligence Computing")
+        Text("Join OrchardGrid")
           .font(.title3)
           .foregroundStyle(.secondary)
       }
 
-      // Login form
+      // Registration form
       VStack(spacing: 16) {
+        // Name input
+        TextField("Name (optional)", text: $name)
+          .textFieldStyle(.roundedBorder)
+          .textContentType(.name)
+
         // Email input
         TextField("Email", text: $email)
           .textFieldStyle(.roundedBorder)
@@ -52,10 +50,10 @@ struct LoginView: View {
         HStack {
           if showPassword {
             TextField("Password", text: $password)
-              .textContentType(.password)
+              .textContentType(.newPassword)
           } else {
             SecureField("Password", text: $password)
-              .textContentType(.password)
+              .textContentType(.newPassword)
           }
           Button {
             showPassword.toggle()
@@ -67,13 +65,43 @@ struct LoginView: View {
         }
         .textFieldStyle(.roundedBorder)
 
-        // Sign In button
+        // Confirm password input
+        HStack {
+          if showConfirmPassword {
+            TextField("Confirm Password", text: $confirmPassword)
+              .textContentType(.newPassword)
+          } else {
+            SecureField("Confirm Password", text: $confirmPassword)
+              .textContentType(.newPassword)
+          }
+          Button {
+            showConfirmPassword.toggle()
+          } label: {
+            Image(systemName: showConfirmPassword ? "eye.slash" : "eye")
+              .foregroundStyle(.secondary)
+          }
+          .buttonStyle(.plain)
+        }
+        .textFieldStyle(.roundedBorder)
+
+        // Password requirements
+        Text("Password must be at least 8 characters")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .frame(maxWidth: .infinity, alignment: .leading)
+
+        // Register button
         Button {
           Task {
-            await authManager.login(email: email, password: password)
+            await authManager.register(
+              email: email,
+              password: password,
+              confirmPassword: confirmPassword,
+              name: name.isEmpty ? nil : name
+            )
           }
         } label: {
-          Text("Sign In")
+          Text("Create Account")
             .frame(maxWidth: .infinity)
             .frame(height: 44)
         }
@@ -121,12 +149,12 @@ struct LoginView: View {
 
       Spacer()
 
-      // Switch to register
+      // Switch to login
       HStack {
-        Text("Don't have an account?")
+        Text("Already have an account?")
           .foregroundStyle(.secondary)
-        Button("Create Account") {
-          showRegister = true
+        Button("Sign In") {
+          showLogin = true
         }
       }
       .font(.callout)
@@ -137,11 +165,6 @@ struct LoginView: View {
   }
 
   private var isFormValid: Bool {
-    !email.isEmpty && !password.isEmpty
+    !email.isEmpty && !password.isEmpty && !confirmPassword.isEmpty && password.count >= 8
   }
-}
-
-#Preview {
-  LoginView()
-    .environment(AuthManager())
 }
