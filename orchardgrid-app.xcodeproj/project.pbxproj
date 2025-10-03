@@ -6,9 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
 		1F09A5D42E8F86E700C41C40 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		1F09A5D62E8F86F100C41C40 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
@@ -16,7 +13,11 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		1F5D97D92E8CFE2C006FE734 /* orchardgrid-app */ = {isa = PBXFileSystemSynchronizedRootGroup; path = "orchardgrid-app"; sourceTree = "<group>"; };
+		1F5D97D92E8CFE2C006FE734 /* orchardgrid-app */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "orchardgrid-app";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
