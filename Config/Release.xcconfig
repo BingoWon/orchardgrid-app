@@ -12,6 +12,6 @@ PRODUCT_BUNDLE_IDENTIFIER = com.orchardgrid.app
 PRODUCT_NAME = OrchardGrid
 
 // Info.plist Configuration
-INFOPLIST_FILE = orchardgrid-app/Info.plist
-GENERATE_INFOPLIST_FILE = NO
+// Use GENERATE_INFOPLIST_FILE = YES for multiplatform support
+GENERATE_INFOPLIST_FILE = YES
 

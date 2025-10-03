@@ -133,7 +133,11 @@ struct LoginView: View {
     }
     .padding()
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(Color(nsColor: .windowBackgroundColor))
+    #if os(macOS)
+      .background(Color(nsColor: .windowBackgroundColor))
+    #else
+      .background(Color(.systemBackground))
+    #endif
   }
 
   private var isFormValid: Bool {

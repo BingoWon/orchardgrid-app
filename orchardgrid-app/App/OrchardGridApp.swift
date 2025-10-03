@@ -39,9 +39,11 @@ struct OrchardGridApp: App {
         }
       }
     }
+    #if os(macOS)
     .commands {
       CommandGroup(replacing: .newItem) {}
     }
+    #endif
     .onChange(of: scenePhase) { _, newPhase in
       handleScenePhaseChange(newPhase)
     }

@@ -1,5 +1,9 @@
-import AppKit
 import SwiftUI
+#if os(macOS)
+  import AppKit
+#else
+  import UIKit
+#endif
 
 private let maskPrefixLength = 20
 private let maskSuffixLength = 4
@@ -158,8 +162,12 @@ struct APIKeysView: View {
   }
 
   private func copyKey(_ key: String) {
-    NSPasteboard.general.clearContents()
-    NSPasteboard.general.setString(key, forType: .string)
+    #if os(macOS)
+      NSPasteboard.general.clearContents()
+      NSPasteboard.general.setString(key, forType: .string)
+    #else
+      UIPasteboard.general.string = key
+    #endif
   }
 
   private func toggleKeyVisibility(_ key: String) {
@@ -176,19 +184,27 @@ struct APIKeysView: View {
   }
 
   private func deleteKey(_ key: APIKey) {
-    let alert = NSAlert()
-    alert.messageText = "Delete API Key"
-    alert.informativeText = "Are you sure you want to delete \"\(key.name ?? "this API key")\"?"
-    alert.alertStyle = .warning
-    alert.addButton(withTitle: "Cancel")
-    alert.addButton(withTitle: "Delete")
+    #if os(macOS)
+      let alert = NSAlert()
+      alert.messageText = "Delete API Key"
+      alert.informativeText = "Are you sure you want to delete \"\(key.name ?? "this API key")\"?"
+      alert.alertStyle = .warning
+      alert.addButton(withTitle: "Cancel")
+      alert.addButton(withTitle: "Delete")
 
-    if alert.runModal() == .alertSecondButtonReturn {
+      if alert.runModal() == .alertSecondButtonReturn {
+        Task {
+          guard let token = authManager.authToken else { return }
+          await manager.deleteAPIKey(key: key.key, authToken: token)
+        }
+      }
+    #else
+      // iOS: Use SwiftUI alert (simplified for now)
       Task {
         guard let token = authManager.authToken else { return }
         await manager.deleteAPIKey(key: key.key, authToken: token)
       }
-    }
+    #endif
   }
 
   private func formatDate(_ timestamp: Int) -> String {
