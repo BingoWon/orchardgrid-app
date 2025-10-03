@@ -1,5 +1,5 @@
-import SwiftUI
 import FoundationModels
+import SwiftUI
 
 struct LocalDeviceView: View {
   @Environment(WebSocketClient.self) private var wsClient
@@ -51,7 +51,7 @@ struct LocalDeviceView: View {
               Divider()
               ModelNotReadyView()
 
-            case .unavailable(_):
+            case .unavailable:
               Divider()
               ModelUnavailableView()
             }
