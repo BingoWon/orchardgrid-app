@@ -6,14 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
 		1F09A5D42E8F86E700C41C40 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		1F09A5D62E8F86F100C41C40 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
-		1F09A5D82E8F8A9200C41C40 /* Config */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Config; sourceTree = "<group>"; };
-		1F5D97D72E8CFE2C006FE734 /* orchardgrid-app.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "orchardgrid-app.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		1F5D97D72E8CFE2C006FE734 /* OrchardGrid Dev.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "OrchardGrid Dev.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -35,6 +31,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		1F09A5D82E8F8A9200C41C40 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				1F09A5D42E8F86E700C41C40 /* Debug.xcconfig */,
+				1F09A5D62E8F86F100C41C40 /* Release.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
 		1F5D97CE2E8CFE2C006FE734 = {
 			isa = PBXGroup;
 			children = (
@@ -47,18 +52,9 @@
 		1F5D97D82E8CFE2C006FE734 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				1F5D97D72E8CFE2C006FE734 /* orchardgrid-app.app */,
+				1F5D97D72E8CFE2C006FE734 /* OrchardGrid Dev.app */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		1F09A5D82E8F8A9200C41C40 /* Config */ = {
-			isa = PBXGroup;
-			children = (
-				1F09A5D42E8F86E700C41C40 /* Debug.xcconfig */,
-				1F09A5D62E8F86F100C41C40 /* Release.xcconfig */,
-			);
-			path = Config;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -83,7 +79,7 @@
 			packageProductDependencies = (
 			);
 			productName = "orchardgrid-app";
-			productReference = 1F5D97D72E8CFE2C006FE734 /* orchardgrid-app.app */;
+			productReference = 1F5D97D72E8CFE2C006FE734 /* OrchardGrid Dev.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
