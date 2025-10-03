@@ -8,40 +8,10 @@
 import Foundation
 @preconcurrency import FoundationModels
 
-// MARK: - Message Types
-
-struct TaskMessage: Codable, Sendable {
-  let id: String
-  let type: String // "task"
-  let payload: ChatRequest
-}
-
-struct ResponseMessage: Codable, Sendable {
-  let id: String
-  let type: String // "response"
-  let payload: ChatResponse
-}
-
-struct StreamChunkMessage: Codable, Sendable {
-  let id: String
-  let type: String // "stream"
-  let delta: String
-}
-
-struct StreamEndMessage: Codable, Sendable {
-  let id: String
-  let type: String // "stream_end"
-}
-
-struct ErrorMessage: Codable, Sendable {
-  let id: String
-  let type: String // "error"
-  let error: String
-}
-
-struct HeartbeatMessage: Codable, Sendable {
-  let type: String // "heartbeat"
-}
+// MARK: - WebSocket Message Types
+//
+// All shared types are now defined in SharedTypes.swift
+// This ensures proper type resolution by SourceKit and Swift compiler
 
 // MARK: - WebSocket Client
 
@@ -83,11 +53,11 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
   // LLM Processing
   private let model = SystemLanguageModel.default
-  private let jsonEncoder = JSONEncoder()
-  private let jsonDecoder = JSONDecoder()
 
   // Constants
   private let heartbeatInterval: TimeInterval = 30 // 30 seconds
+  private let heartbeatTimeout: TimeInterval = 90 // 90 seconds without response = timeout
+  private var lastHeartbeatResponse: Date?
 
   override init() {
     // Use Config.apiBaseURL and convert to WebSocket URL
@@ -115,9 +85,6 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     isEnabled = UserDefaults.standard.bool(forKey: "WebSocketClient.isEnabled")
 
     super.init()
-
-    jsonEncoder.keyEncodingStrategy = .convertToSnakeCase
-    jsonDecoder.keyDecodingStrategy = .convertFromSnakeCase
   }
 
   func setUserID(_ userID: String) {
@@ -146,6 +113,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     Task { @MainActor in
       isConnected = true
       lastError = nil
+      lastHeartbeatResponse = Date() // Initialize heartbeat timestamp
       reconnectTask?.cancel()
       reconnectTask = nil
       startHeartbeat()
@@ -209,8 +177,10 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
     // Create URLSession with delegate
     let configuration = URLSessionConfiguration.default
-    configuration.timeoutIntervalForRequest = 30
-    configuration.timeoutIntervalForResource = 300
+    configuration.timeoutIntervalForRequest = 60 // Increased for WebSocket
+    configuration.timeoutIntervalForResource = 0 // No limit for WebSocket
+    configuration.waitsForConnectivity = true // Wait for network
+    configuration.networkServiceType = .responsiveData // Responsive data
     urlSession = URLSession(
       configuration: configuration,
       delegate: self,
@@ -281,7 +251,25 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   private func handleMessage(_ text: String) async {
     do {
       let data = text.data(using: .utf8)!
-      let taskMessage = try jsonDecoder.decode(TaskMessage.self, from: data)
+
+      // Try to decode as generic message to check type
+      if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+         let type = json["type"] as? String
+      {
+        // Handle heartbeat response
+        if type == "heartbeat" || type == "pong" {
+          lastHeartbeatResponse = Date()
+          Logger.log(.websocket, "Heartbeat response received")
+          return
+        }
+      }
+
+      // Create local decoder for thread-safe decoding
+      let decoder = JSONDecoder()
+      decoder.keyDecodingStrategy = .convertFromSnakeCase
+
+      // Handle task message
+      let taskMessage = try decoder.decode(TaskMessage.self, from: data)
 
       guard taskMessage.type == "task" else {
         Logger.log(.websocket, "Unknown message type: \(taskMessage.type)")
@@ -317,6 +305,21 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
         guard isConnected else { return }
 
+        // Check for heartbeat timeout
+        if let lastResponse = lastHeartbeatResponse,
+           Date().timeIntervalSince(lastResponse) > heartbeatTimeout
+        {
+          Logger.error(.websocket, "Heartbeat timeout - connection appears dead")
+          lastError = "Connection timeout"
+          isConnected = false
+          stopHeartbeat()
+          if shouldAutoReconnect {
+            startReconnection()
+          }
+          return
+        }
+
+        // Send heartbeat
         let heartbeat = HeartbeatMessage(type: "heartbeat")
         await sendMessage(heartbeat)
         Logger.log(.websocket, "Heartbeat sent")
@@ -595,7 +598,11 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
   private func sendMessage(_ message: some Encodable) async {
     do {
-      let data = try jsonEncoder.encode(message)
+      // Create local encoder for thread-safe encoding
+      let encoder = JSONEncoder()
+      encoder.keyEncodingStrategy = .convertToSnakeCase
+
+      let data = try encoder.encode(message)
       guard let text = String(data: data, encoding: .utf8) else {
         Logger.error(.websocket, "Failed to encode message as string")
         return

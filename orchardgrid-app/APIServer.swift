@@ -3,101 +3,9 @@ import Foundation
 import Network
 
 // MARK: - Models
-
-struct ChatMessage: Codable, Sendable {
-  let role: String
-  let content: String
-}
-
-struct ChatRequest: Codable, Sendable {
-  let model: String
-  let messages: [ChatMessage]
-  let stream: Bool?
-  let response_format: ResponseFormat?
-}
-
-struct ResponseFormat: Codable, Sendable {
-  let type: String
-  let json_schema: JSONSchemaDefinition?
-}
-
-struct ChatResponse: Codable, Sendable {
-  let id: String
-  let object: String
-  let created: Int
-  let model: String
-  let choices: [Choice]
-  let usage: Usage
-
-  struct Choice: Codable, Sendable {
-    let index: Int
-    let message: ChatMessage
-    let finishReason: String
-
-    enum CodingKeys: String, CodingKey {
-      case index, message
-      case finishReason = "finish_reason"
-    }
-  }
-
-  struct Usage: Codable, Sendable {
-    let promptTokens: Int
-    let completionTokens: Int
-    let totalTokens: Int
-
-    enum CodingKeys: String, CodingKey {
-      case promptTokens = "prompt_tokens"
-      case completionTokens = "completion_tokens"
-      case totalTokens = "total_tokens"
-    }
-  }
-}
-
-struct StreamChunk: Codable, Sendable {
-  let id: String
-  let object: String
-  let created: Int
-  let model: String
-  let choices: [Choice]
-
-  struct Choice: Codable, Sendable {
-    let index: Int
-    let delta: ChatMessage
-    let finishReason: String?
-
-    enum CodingKeys: String, CodingKey {
-      case index, delta
-      case finishReason = "finish_reason"
-    }
-  }
-}
-
-struct ModelsResponse: Codable, Sendable {
-  let object: String
-  let data: [Model]
-
-  struct Model: Codable, Sendable {
-    let id: String
-    let object: String
-    let created: Int
-    let ownedBy: String
-
-    enum CodingKeys: String, CodingKey {
-      case id, object, created
-      case ownedBy = "owned_by"
-    }
-  }
-}
-
-struct ErrorResponse: Codable, Sendable {
-  let error: ErrorDetail
-
-  struct ErrorDetail: Codable, Sendable {
-    let message: String
-    let type: String
-    let code: String?
-  }
-}
+//
+// All shared types are now defined in SharedTypes.swift
+// This ensures proper type resolution by SourceKit and Swift compiler
 
 // MARK: - HTTP Request
 
@@ -171,7 +79,7 @@ final class APIServer {
 
   private var listener: NWListener?
 
-  private let jsonEncoder = JSONEncoder()
+  // JSONDecoder is thread-safe and can be used from any isolation context
   private let jsonDecoder = JSONDecoder()
 
   init() {
@@ -615,17 +523,14 @@ final class APIServer {
   }
 
   private nonisolated func send(_ response: some Encodable, to connection: NWConnection) async {
-    let (json, dataCount): (String?, Int) = await MainActor.run {
-      guard let data = try? jsonEncoder.encode(response),
-            let json = String(data: data, encoding: .utf8)
-      else {
-        return (nil, 0)
-      }
-      return (json, data.count)
-    }
+    // Create local encoder for thread-safe encoding without MainActor
+    let encoder = JSONEncoder()
+    encoder.keyEncodingStrategy = .convertToSnakeCase
 
-    guard let json else {
-      await sendError(.internalError, to: connection)
+    // Encode in a nonisolated context
+    guard let data = try? encoder.encode(response),
+          let json = String(data: data, encoding: .utf8)
+    else {
       return
     }
 
@@ -635,7 +540,7 @@ final class APIServer {
     let httpResponse = """
     HTTP/1.1 200 OK\r
     Content-Type: application/json\r
-    Content-Length: \(dataCount)\r
+    Content-Length: \(data.count)\r
     Connection: close\r
     \r
     \(json)
@@ -684,16 +589,13 @@ final class APIServer {
     _ chunk: some Encodable,
     to connection: NWConnection
   ) async {
-    let json = await MainActor.run {
-      guard let data = try? jsonEncoder.encode(chunk),
-            let json = String(data: data, encoding: .utf8)
-      else {
-        return nil as String?
-      }
-      return json
-    }
+    // Create local encoder for thread-safe encoding without MainActor
+    let encoder = JSONEncoder()
+    encoder.keyEncodingStrategy = .convertToSnakeCase
 
-    guard let json else {
+    guard let data = try? encoder.encode(chunk),
+          let json = String(data: data, encoding: .utf8)
+    else {
       return
     }
 
@@ -717,16 +619,13 @@ final class APIServer {
       )
     )
 
-    let (json, dataCount): (String?, Int) = await MainActor.run {
-      guard let data = try? jsonEncoder.encode(errorResponse),
-            let json = String(data: data, encoding: .utf8)
-      else {
-        return (nil, 0)
-      }
-      return (json, data.count)
-    }
+    // Create local encoder for thread-safe encoding without MainActor
+    let encoder = JSONEncoder()
+    encoder.keyEncodingStrategy = .convertToSnakeCase
 
-    guard let json else {
+    guard let data = try? encoder.encode(errorResponse),
+          let json = String(data: data, encoding: .utf8)
+    else {
       let fallback = """
       HTTP/1.1 \(error.statusCode) \(error.statusMessage)\r
       Connection: close\r
@@ -736,6 +635,8 @@ final class APIServer {
       await send(fallback, to: connection, closeAfter: true)
       return
     }
+
+    let dataCount = data.count
 
     let httpResponse = """
     HTTP/1.1 \(error.statusCode) \(error.statusMessage)\r

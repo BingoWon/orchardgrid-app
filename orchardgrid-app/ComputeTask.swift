@@ -38,16 +38,6 @@ struct ComputeTask: Identifiable, Codable {
     }
     return String(format: "%.2fs", Double(ms) / 1000)
   }
-
-  var statusColor: String {
-    switch status {
-    case "completed": "green"
-    case "failed": "red"
-    case "processing": "orange"
-    case "pending": "gray"
-    default: "gray"
-    }
-  }
 }
 
 struct TasksResponse: Codable {

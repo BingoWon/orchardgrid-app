@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct MainView: View {
-  @Environment(WebSocketClient.self) private var wsClient
   @State private var selectedItem: NavigationItem? = .localDevice
   @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
@@ -22,13 +21,6 @@ struct MainView: View {
       } else {
         Text("Select an item")
           .foregroundStyle(.secondary)
-      }
-    }
-    .task {
-      // Auto-connect if enabled and not connected
-      if wsClient.isEnabled, !wsClient.isConnected, wsClient.userID != nil {
-        Logger.log(.app, "Auto-connecting on app launch...")
-        wsClient.connect()
       }
     }
   }

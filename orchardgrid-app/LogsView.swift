@@ -39,13 +39,11 @@ struct LogsView: View {
       .padding()
 
       // Content
-      TabView(selection: $selectedTab) {
+      if selectedTab == 0 {
         consumingView
-          .tag(0)
+      } else {
         providingView
-          .tag(1)
       }
-      .tabViewStyle(.automatic)
     }
     .navigationTitle("Logs")
     .task {
@@ -54,215 +52,27 @@ struct LogsView: View {
   }
 
   private var consumingView: some View {
-    VStack(spacing: 16) {
-      // Filters
-      HStack {
-        Picker("Status", selection: $consumingStatus) {
-          ForEach(statusOptions, id: \.self) { status in
-            Text(status.capitalized).tag(status)
-          }
-        }
-        .frame(width: 150)
-        .onChange(of: consumingStatus) {
-          consumingPage = 1
-          Task { await loadConsumingTasks() }
-        }
-
-        Picker("Per Page", selection: $consumingPageSize) {
-          ForEach(pageSizeOptions, id: \.self) { size in
-            Text("\(size) / page").tag(size)
-          }
-        }
-        .frame(width: 120)
-        .onChange(of: consumingPageSize) {
-          consumingPage = 1
-          Task { await loadConsumingTasks() }
-        }
-
-        Spacer()
-      }
-      .padding(.horizontal)
-
-      // Table
-      if manager.isLoading {
-        ProgressView()
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-      } else if manager.consumingTasks.isEmpty {
-        Text("No logs found")
-          .foregroundStyle(.secondary)
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-      } else {
-        Table(manager.consumingTasks) {
-          TableColumn("Time") { task in
-            Text(task.createdDate, style: .date)
-              .font(.system(.body, design: .monospaced))
-          }
-          .width(min: 100, ideal: 150)
-
-          TableColumn("Task ID") { task in
-            Text(task.id.prefix(8) + "...")
-              .font(.system(.body, design: .monospaced))
-          }
-          .width(min: 100, ideal: 120)
-
-          TableColumn("Device") { task in
-            if let deviceId = task.deviceId {
-              Text(deviceId.prefix(8) + "...")
-                .font(.system(.body, design: .monospaced))
-            } else {
-              Text("-")
-            }
-          }
-          .width(min: 100, ideal: 120)
-
-          TableColumn("Status") { task in
-            Text(task.status.capitalized)
-              .foregroundStyle(Color(task.statusColor))
-          }
-          .width(min: 80, ideal: 100)
-
-          TableColumn("Duration") { task in
-            Text(task.durationText)
-              .font(.system(.body, design: .monospaced))
-          }
-          .width(min: 80, ideal: 100)
-        }
-
-        // Pagination
-        HStack {
-          Text(
-            "Showing \((consumingPage - 1) * consumingPageSize + 1) to \(min(consumingPage * consumingPageSize, manager.consumingTotal)) of \(manager.consumingTotal) logs"
-          )
-          .font(.caption)
-          .foregroundStyle(.secondary)
-
-          Spacer()
-
-          Button("Previous") {
-            consumingPage = max(1, consumingPage - 1)
-            Task { await loadConsumingTasks() }
-          }
-          .disabled(consumingPage == 1)
-
-          Text("Page \(consumingPage) of \(consumingTotalPages)")
-            .font(.caption)
-
-          Button("Next") {
-            consumingPage = min(consumingTotalPages, consumingPage + 1)
-            Task { await loadConsumingTasks() }
-          }
-          .disabled(consumingPage == consumingTotalPages)
-        }
-        .padding(.horizontal)
-      }
-    }
-    .padding()
+    taskListView(
+      tasks: manager.consumingTasks,
+      total: manager.consumingTotal,
+      status: $consumingStatus,
+      pageSize: $consumingPageSize,
+      page: $consumingPage,
+      totalPages: consumingTotalPages,
+      onReload: { Task { await loadConsumingTasks() } }
+    )
   }
 
   private var providingView: some View {
-    VStack(spacing: 16) {
-      // Filters
-      HStack {
-        Picker("Status", selection: $providingStatus) {
-          ForEach(statusOptions, id: \.self) { status in
-            Text(status.capitalized).tag(status)
-          }
-        }
-        .frame(width: 150)
-        .onChange(of: providingStatus) {
-          providingPage = 1
-          Task { await loadProvidingTasks() }
-        }
-
-        Picker("Per Page", selection: $providingPageSize) {
-          ForEach(pageSizeOptions, id: \.self) { size in
-            Text("\(size) / page").tag(size)
-          }
-        }
-        .frame(width: 120)
-        .onChange(of: providingPageSize) {
-          providingPage = 1
-          Task { await loadProvidingTasks() }
-        }
-
-        Spacer()
-      }
-      .padding(.horizontal)
-
-      // Table
-      if manager.isLoading {
-        ProgressView()
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-      } else if manager.providingTasks.isEmpty {
-        Text("No logs found")
-          .foregroundStyle(.secondary)
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-      } else {
-        Table(manager.providingTasks) {
-          TableColumn("Time") { task in
-            Text(task.createdDate, style: .date)
-              .font(.system(.body, design: .monospaced))
-          }
-          .width(min: 100, ideal: 150)
-
-          TableColumn("Task ID") { task in
-            Text(task.id.prefix(8) + "...")
-              .font(.system(.body, design: .monospaced))
-          }
-          .width(min: 100, ideal: 120)
-
-          TableColumn("Device") { task in
-            if let deviceId = task.deviceId {
-              Text(deviceId.prefix(8) + "...")
-                .font(.system(.body, design: .monospaced))
-            } else {
-              Text("-")
-            }
-          }
-          .width(min: 100, ideal: 120)
-
-          TableColumn("Status") { task in
-            Text(task.status.capitalized)
-              .foregroundStyle(Color(task.statusColor))
-          }
-          .width(min: 80, ideal: 100)
-
-          TableColumn("Duration") { task in
-            Text(task.durationText)
-              .font(.system(.body, design: .monospaced))
-          }
-          .width(min: 80, ideal: 100)
-        }
-
-        // Pagination
-        HStack {
-          Text(
-            "Showing \((providingPage - 1) * providingPageSize + 1) to \(min(providingPage * providingPageSize, manager.providingTotal)) of \(manager.providingTotal) logs"
-          )
-          .font(.caption)
-          .foregroundStyle(.secondary)
-
-          Spacer()
-
-          Button("Previous") {
-            providingPage = max(1, providingPage - 1)
-            Task { await loadProvidingTasks() }
-          }
-          .disabled(providingPage == 1)
-
-          Text("Page \(providingPage) of \(providingTotalPages)")
-            .font(.caption)
-
-          Button("Next") {
-            providingPage = min(providingTotalPages, providingPage + 1)
-            Task { await loadProvidingTasks() }
-          }
-          .disabled(providingPage == providingTotalPages)
-        }
-        .padding(.horizontal)
-      }
-    }
-    .padding()
+    taskListView(
+      tasks: manager.providingTasks,
+      total: manager.providingTotal,
+      status: $providingStatus,
+      pageSize: $providingPageSize,
+      page: $providingPage,
+      totalPages: providingTotalPages,
+      onReload: { Task { await loadProvidingTasks() } }
+    )
   }
 
   private var consumingTotalPages: Int {
@@ -271,6 +81,155 @@ struct LogsView: View {
 
   private var providingTotalPages: Int {
     max(1, Int(ceil(Double(manager.providingTotal) / Double(providingPageSize))))
+  }
+
+  @ViewBuilder
+  private func taskListView(
+    tasks: [ComputeTask],
+    total: Int,
+    status: Binding<String>,
+    pageSize: Binding<Int>,
+    page: Binding<Int>,
+    totalPages: Int,
+    onReload: @escaping () -> Void
+  ) -> some View {
+    VStack(spacing: 16) {
+      // Filters
+      HStack {
+        Picker("Status", selection: status) {
+          ForEach(statusOptions, id: \.self) { status in
+            Text(status.capitalized).tag(status)
+          }
+        }
+        .frame(width: 150)
+        .onChange(of: status.wrappedValue) {
+          page.wrappedValue = 1
+          onReload()
+        }
+
+        Picker("Per Page", selection: pageSize) {
+          ForEach(pageSizeOptions, id: \.self) { size in
+            Text("\(size) / page").tag(size)
+          }
+        }
+        .frame(width: 160)
+        .onChange(of: pageSize.wrappedValue) {
+          page.wrappedValue = 1
+          onReload()
+        }
+
+        Spacer()
+      }
+      .padding(.horizontal)
+
+      // Content
+      if manager.isLoading {
+        ProgressView()
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      } else if tasks.isEmpty {
+        Text("No logs found")
+          .foregroundStyle(.secondary)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      } else {
+        taskTable(tasks: tasks)
+        paginationBar(
+          page: page,
+          pageSize: pageSize.wrappedValue,
+          total: total,
+          totalPages: totalPages,
+          onReload: onReload
+        )
+      }
+    }
+    .padding()
+  }
+
+  @ViewBuilder
+  private func taskTable(tasks: [ComputeTask]) -> some View {
+    Table(tasks) {
+      TableColumn("Time") { task in
+        Text(task.createdDate, format: .dateTime.year().month().day().hour().minute().second())
+          .font(.system(.body, design: .monospaced))
+      }
+      .width(min: 150, ideal: 180)
+
+      TableColumn("Task ID") { task in
+        Text(task.id.prefix(8) + "...")
+          .font(.system(.body, design: .monospaced))
+      }
+      .width(min: 100, ideal: 120)
+
+      TableColumn("Device") { task in
+        if let deviceId = task.deviceId {
+          Text(deviceId.prefix(8) + "...")
+            .font(.system(.body, design: .monospaced))
+        } else {
+          Text("-")
+        }
+      }
+      .width(min: 100, ideal: 120)
+
+      TableColumn("Status") { task in
+        HStack(spacing: 4) {
+          Circle()
+            .fill(statusColor(for: task.status))
+            .frame(width: 8, height: 8)
+          Text(task.status.capitalized)
+        }
+      }
+      .width(min: 100, ideal: 120)
+
+      TableColumn("Duration") { task in
+        Text(task.durationText)
+          .font(.system(.body, design: .monospaced))
+      }
+      .width(min: 80, ideal: 100)
+    }
+  }
+
+  @ViewBuilder
+  private func paginationBar(
+    page: Binding<Int>,
+    pageSize: Int,
+    total: Int,
+    totalPages: Int,
+    onReload: @escaping () -> Void
+  ) -> some View {
+    HStack {
+      Text(
+        "Showing \((page.wrappedValue - 1) * pageSize + 1) to \(min(page.wrappedValue * pageSize, total)) of \(total) logs"
+      )
+      .font(.caption)
+      .foregroundStyle(.secondary)
+
+      Spacer()
+
+      Button("Previous") {
+        page.wrappedValue = max(1, page.wrappedValue - 1)
+        onReload()
+      }
+      .disabled(page.wrappedValue == 1)
+
+      Text("Page \(page.wrappedValue) of \(totalPages)")
+        .font(.caption)
+
+      Button("Next") {
+        page.wrappedValue = min(totalPages, page.wrappedValue + 1)
+        onReload()
+      }
+      .disabled(page.wrappedValue == totalPages)
+    }
+    .padding(.horizontal)
+  }
+
+  private func statusColor(for status: String) -> Color {
+    switch status {
+    case "completed": .green
+    case "failed": .red
+    case "processing": .orange
+    case "pending": .gray
+    default: .gray
+    }
   }
 
   private func loadData() async {
