@@ -57,81 +57,81 @@ struct APIKeysView: View {
           // API Keys Section
           Section {
             ForEach(manager.apiKeys) { key in
-            VStack(alignment: .leading, spacing: 8) {
-              HStack {
-                if editingKey == key.key {
-                  TextField("Name", text: $editingName)
-                    .textFieldStyle(.roundedBorder)
-                  Button("Save") {
-                    updateKeyName(key)
+              VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                  if editingKey == key.key {
+                    TextField("Name", text: $editingName)
+                      .textFieldStyle(.roundedBorder)
+                    Button("Save") {
+                      updateKeyName(key)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    Button("Cancel") {
+                      editingKey = nil
+                      editingName = ""
+                    }
+                  } else {
+                    Text(key.name ?? "Unnamed")
+                      .font(.headline)
+                    Button {
+                      editingKey = key.key
+                      editingName = key.name ?? ""
+                    } label: {
+                      Image(systemName: "pencil")
+                        .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
                   }
-                  .buttonStyle(.borderedProminent)
-                  Button("Cancel") {
-                    editingKey = nil
-                    editingName = ""
-                  }
-                } else {
-                  Text(key.name ?? "Unnamed")
-                    .font(.headline)
+                  Spacer()
                   Button {
-                    editingKey = key.key
-                    editingName = key.name ?? ""
+                    copyKey(key.key)
                   } label: {
-                    Image(systemName: "pencil")
+                    Image(systemName: "doc.on.doc")
+                      .foregroundColor(.blue)
+                  }
+                  .buttonStyle(.plain)
+                  Button {
+                    deleteKey(key)
+                  } label: {
+                    Image(systemName: "trash")
+                      .foregroundColor(.red)
+                  }
+                  .buttonStyle(.plain)
+                }
+
+                HStack {
+                  Text(visibleKeys.contains(key.key) ? key.key : maskKey(key.key))
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .textSelection(.enabled)
+                  Button {
+                    toggleKeyVisibility(key.key)
+                  } label: {
+                    Image(systemName: visibleKeys.contains(key.key) ? "eye.slash" : "eye")
                       .foregroundColor(.secondary)
                   }
                   .buttonStyle(.plain)
                 }
-                Spacer()
-                Button {
-                  copyKey(key.key)
-                } label: {
-                  Image(systemName: "doc.on.doc")
-                    .foregroundColor(.blue)
-                }
-                .buttonStyle(.plain)
-                Button {
-                  deleteKey(key)
-                } label: {
-                  Image(systemName: "trash")
-                    .foregroundColor(.red)
-                }
-                .buttonStyle(.plain)
-              }
 
-              HStack {
-                Text(visibleKeys.contains(key.key) ? key.key : maskKey(key.key))
-                  .font(.system(.caption, design: .monospaced))
-                  .foregroundColor(.secondary)
-                  .textSelection(.enabled)
-                Button {
-                  toggleKeyVisibility(key.key)
-                } label: {
-                  Image(systemName: visibleKeys.contains(key.key) ? "eye.slash" : "eye")
-                    .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-              }
-
-              HStack {
-                Text("Created: \(formatDate(key.created_at))")
-                  .font(.caption)
-                  .foregroundColor(.secondary)
-
-                Spacer()
-
-                if let lastUsed = key.last_used_at {
-                  Text("Last used: \(formatLastUsed(lastUsed))")
+                HStack {
+                  Text("Created: \(formatDate(key.created_at))")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                } else {
-                  Text("Never used")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+
+                  Spacer()
+
+                  if let lastUsed = key.last_used_at {
+                    Text("Last used: \(formatLastUsed(lastUsed))")
+                      .font(.caption)
+                      .foregroundColor(.secondary)
+                  } else {
+                    Text("Never used")
+                      .font(.caption)
+                      .foregroundColor(.secondary)
+                  }
                 }
               }
-            }
-            .padding(.vertical, 4)
+              .padding(.vertical, 4)
             }
           }
         }

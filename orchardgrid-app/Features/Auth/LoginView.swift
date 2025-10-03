@@ -58,10 +58,10 @@ struct LoginView: View {
             TextField("Email", text: $email)
               .textFieldStyle(.roundedBorder)
               .textContentType(.emailAddress)
-              #if os(iOS)
-                .autocapitalization(.none)
-                .keyboardType(.emailAddress)
-              #endif
+            #if os(iOS)
+              .autocapitalization(.none)
+              .keyboardType(.emailAddress)
+            #endif
 
             // Password input
             HStack {
