@@ -65,12 +65,8 @@ final class APIKeysManager {
     isLoading = false
   }
 
+  @discardableResult
   func createAPIKey(name: String, authToken: String) async -> APIKey? {
-    guard !name.isEmpty else {
-      lastError = "Name is required"
-      return nil
-    }
-
     do {
       let url = URL(string: "\(apiURL)/api-keys")!
       var request = URLRequest(url: url)
@@ -107,6 +103,40 @@ final class APIKeysManager {
       Logger.error(.api, "Failed to create API key: \(error.localizedDescription)")
       lastError = error.localizedDescription
       return nil
+    }
+  }
+
+  func updateAPIKey(key: String, name: String, authToken: String) async {
+    do {
+      let url = URL(string: "\(apiURL)/api-keys/\(key)")!
+      var request = URLRequest(url: url)
+      request.httpMethod = "PATCH"
+      request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+      let body = ["name": name]
+      request.httpBody = try JSONEncoder().encode(body)
+
+      Logger.log(.api, "Updating API key name: \(name)")
+
+      let (data, response) = try await URLSession.shared.data(for: request)
+
+      guard let httpResponse = response as? HTTPURLResponse else {
+        throw NSError(domain: "Invalid response", code: -1)
+      }
+
+      guard httpResponse.statusCode == 200 else {
+        let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
+        Logger.error(.api, "Failed to update API key: \(errorText)")
+        throw NSError(domain: errorText, code: httpResponse.statusCode)
+      }
+
+      Logger.success(.api, "Updated API key name")
+
+      await loadAPIKeys(authToken: authToken)
+    } catch {
+      Logger.error(.api, "Failed to update API key: \(error.localizedDescription)")
+      lastError = error.localizedDescription
     }
   }
 

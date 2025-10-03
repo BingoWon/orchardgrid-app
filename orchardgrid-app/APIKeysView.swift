@@ -1,13 +1,16 @@
 import AppKit
 import SwiftUI
 
+private let maskPrefixLength = 20
+private let maskSuffixLength = 4
+private let maskMinLength = 24
+
 struct APIKeysView: View {
   @Environment(AuthManager.self) private var authManager
   @State private var manager = APIKeysManager()
-  @State private var showCreateSheet = false
-  @State private var newKeyName = ""
-  @State private var createdKey: APIKey?
-  @State private var showKeyAlert = false
+  @State private var editingKey: String?
+  @State private var editingName = ""
+  @State private var visibleKeys: Set<String> = []
 
   var body: some View {
     VStack(spacing: 0) {
@@ -34,7 +37,7 @@ struct APIKeysView: View {
           Text("Create an API key to get started")
         } actions: {
           Button("Create API Key") {
-            showCreateSheet = true
+            createKey()
           }
           .buttonStyle(.borderedProminent)
         }
@@ -43,9 +46,37 @@ struct APIKeysView: View {
           ForEach(manager.apiKeys) { key in
             VStack(alignment: .leading, spacing: 8) {
               HStack {
-                Text(key.name ?? "Unnamed")
-                  .font(.headline)
+                if editingKey == key.key {
+                  TextField("Name", text: $editingName)
+                    .textFieldStyle(.roundedBorder)
+                  Button("Save") {
+                    updateKeyName(key)
+                  }
+                  .buttonStyle(.borderedProminent)
+                  Button("Cancel") {
+                    editingKey = nil
+                    editingName = ""
+                  }
+                } else {
+                  Text(key.name ?? "Unnamed")
+                    .font(.headline)
+                  Button {
+                    editingKey = key.key
+                    editingName = key.name ?? ""
+                  } label: {
+                    Image(systemName: "pencil")
+                      .foregroundColor(.secondary)
+                  }
+                  .buttonStyle(.plain)
+                }
                 Spacer()
+                Button {
+                  copyKey(key.key)
+                } label: {
+                  Image(systemName: "doc.on.doc")
+                    .foregroundColor(.blue)
+                }
+                .buttonStyle(.plain)
                 Button {
                   deleteKey(key)
                 } label: {
@@ -55,10 +86,19 @@ struct APIKeysView: View {
                 .buttonStyle(.plain)
               }
 
-              Text(key.key)
-                .font(.system(.caption, design: .monospaced))
-                .foregroundColor(.secondary)
-                .textSelection(.enabled)
+              HStack {
+                Text(visibleKeys.contains(key.key) ? key.key : maskKey(key.key))
+                  .font(.system(.caption, design: .monospaced))
+                  .foregroundColor(.secondary)
+                  .textSelection(.enabled)
+                Button {
+                  toggleKeyVisibility(key.key)
+                } label: {
+                  Image(systemName: visibleKeys.contains(key.key) ? "eye.slash" : "eye")
+                    .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+              }
 
               HStack {
                 Text("Created: \(formatDate(key.created_at))")
@@ -87,46 +127,11 @@ struct APIKeysView: View {
     .toolbar {
       ToolbarItem(placement: .primaryAction) {
         Button {
-          showCreateSheet = true
+          createKey()
         } label: {
           Label("Create API Key", systemImage: "plus")
         }
         .disabled(authManager.authToken == nil)
-      }
-    }
-    .sheet(isPresented: $showCreateSheet) {
-      CreateAPIKeySheet(
-        name: $newKeyName,
-        onCreate: {
-          Task {
-            guard let token = authManager.authToken else { return }
-            if let key = await manager.createAPIKey(name: newKeyName, authToken: token) {
-              createdKey = key
-              showKeyAlert = true
-              newKeyName = ""
-              showCreateSheet = false
-            }
-          }
-        },
-        onCancel: {
-          newKeyName = ""
-          showCreateSheet = false
-        }
-      )
-    }
-    .alert("API Key Created", isPresented: $showKeyAlert) {
-      Button("Copy") {
-        if let key = createdKey?.key {
-          NSPasteboard.general.clearContents()
-          NSPasteboard.general.setString(key, forType: .string)
-        }
-      }
-      Button("Done", role: .cancel) {
-        createdKey = nil
-      }
-    } message: {
-      if let key = createdKey {
-        Text("Save this key now. You won't be able to see it again!\n\n\(key.key)")
       }
     }
     .task {
@@ -135,15 +140,50 @@ struct APIKeysView: View {
     }
   }
 
+  private func createKey() {
+    Task {
+      guard let token = authManager.authToken else { return }
+      let defaultName = ISO8601DateFormatter().string(from: Date())
+      await manager.createAPIKey(name: defaultName, authToken: token)
+    }
+  }
+
+  private func updateKeyName(_ key: APIKey) {
+    Task {
+      guard let token = authManager.authToken else { return }
+      await manager.updateAPIKey(key: key.key, name: editingName, authToken: token)
+      editingKey = nil
+      editingName = ""
+    }
+  }
+
+  private func copyKey(_ key: String) {
+    NSPasteboard.general.clearContents()
+    NSPasteboard.general.setString(key, forType: .string)
+  }
+
+  private func toggleKeyVisibility(_ key: String) {
+    if visibleKeys.contains(key) {
+      visibleKeys.remove(key)
+    } else {
+      visibleKeys.insert(key)
+    }
+  }
+
+  private func maskKey(_ key: String) -> String {
+    guard key.count > maskMinLength else { return key }
+    return "\(key.prefix(maskPrefixLength))...\(key.suffix(maskSuffixLength))"
+  }
+
   private func deleteKey(_ key: APIKey) {
     let alert = NSAlert()
     alert.messageText = "Delete API Key"
     alert.informativeText = "Are you sure you want to delete \"\(key.name ?? "this API key")\"?"
     alert.alertStyle = .warning
-    alert.addButton(withTitle: "Delete")
     alert.addButton(withTitle: "Cancel")
+    alert.addButton(withTitle: "Delete")
 
-    if alert.runModal() == .alertFirstButtonReturn {
+    if alert.runModal() == .alertSecondButtonReturn {
       Task {
         guard let token = authManager.authToken else { return }
         await manager.deleteAPIKey(key: key.key, authToken: token)
@@ -172,49 +212,6 @@ struct APIKeysView: View {
     if hours > 0 { return "\(hours)h ago" }
     if minutes > 0 { return "\(minutes)m ago" }
     return "\(seconds)s ago"
-  }
-}
-
-struct CreateAPIKeySheet: View {
-  @Binding var name: String
-  let onCreate: () -> Void
-  let onCancel: () -> Void
-
-  var body: some View {
-    VStack(spacing: 20) {
-      Text("Create New API Key")
-        .font(.title2)
-        .fontWeight(.bold)
-
-      Text("Give your API key a descriptive name")
-        .font(.subheadline)
-        .foregroundColor(.secondary)
-
-      TextField("Name (required)", text: $name)
-        .textFieldStyle(.roundedBorder)
-        .onSubmit {
-          if !name.isEmpty {
-            onCreate()
-          }
-        }
-
-      HStack {
-        Button("Cancel") {
-          onCancel()
-        }
-        .keyboardShortcut(.cancelAction)
-
-        Spacer()
-
-        Button("Create") {
-          onCreate()
-        }
-        .keyboardShortcut(.defaultAction)
-        .disabled(name.isEmpty)
-      }
-    }
-    .padding()
-    .frame(width: 400)
   }
 }
 
