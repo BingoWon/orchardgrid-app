@@ -2,29 +2,16 @@
 """
 Add SharedTypes.swift to Xcode project
 """
-import subprocess
-import sys
+from pbxproj import XcodeProject
 
-# Use xcodebuild to add the file
-project_path = "orchardgrid-app.xcodeproj"
-file_path = "orchardgrid-app/SharedTypes.swift"
+# Open the project
+project = XcodeProject.load('orchardgrid-app.xcodeproj/project.pbxproj')
 
-# First, let's just rebuild the project to trigger SourceKit indexing
-print("Cleaning build folder...")
-subprocess.run([
-    "xcodebuild",
-    "-project", project_path,
-    "-scheme", "orchardgrid-app",
-    "clean"
-], check=True)
+# Add the file to the project (without parent, it will add to the root)
+project.add_file('orchardgrid-app/SharedTypes.swift')
 
-print("Building project...")
-subprocess.run([
-    "xcodebuild",
-    "-project", project_path,
-    "-scheme", "orchardgrid-app",
-    "build"
-], check=True)
+# Save the project
+project.save()
 
-print("Done!")
+print("Successfully added SharedTypes.swift to the project!")
 

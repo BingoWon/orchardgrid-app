@@ -6,18 +6,19 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		ECFE4C32B009B13740CA1B15 /* SharedTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 857C4EC084F3E93BB6255BF9 /* SharedTypes.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		1F09A5D42E8F86E700C41C40 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		1F09A5D62E8F86F100C41C40 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 		1F5D97D72E8CFE2C006FE734 /* OrchardGrid Dev.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "OrchardGrid Dev.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		857C4EC084F3E93BB6255BF9 /* SharedTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SharedTypes.swift; path = "orchardgrid-app/SharedTypes.swift"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		1F5D97D92E8CFE2C006FE734 /* orchardgrid-app */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "orchardgrid-app";
-			sourceTree = "<group>";
-		};
+		1F5D97D92E8CFE2C006FE734 /* orchardgrid-app */ = {isa = PBXFileSystemSynchronizedRootGroup; path = "orchardgrid-app"; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -46,6 +47,7 @@
 				1F5D97D92E8CFE2C006FE734 /* orchardgrid-app */,
 				1F5D97D82E8CFE2C006FE734 /* Products */,
 				1F09A5D82E8F8A9200C41C40 /* Config */,
+				857C4EC084F3E93BB6255BF9 /* SharedTypes.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -131,6 +133,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ECFE4C32B009B13740CA1B15 /* SharedTypes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
