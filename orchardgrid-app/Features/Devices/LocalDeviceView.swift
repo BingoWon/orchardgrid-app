@@ -102,13 +102,22 @@ struct LocalDeviceView: View {
                 Spacer()
               }
 
-              // Stats Row
+              // Server Information
               if apiServer.isRunning {
+                Divider()
+
+                VStack(alignment: .leading, spacing: 12) {
+                  InfoRow(label: "Model", value: "apple-intelligence")
+                  InfoRow(
+                    label: "Endpoint",
+                    value: "http://localhost:\(apiServer.port)/v1/chat/completions"
+                  )
+                }
+
                 Divider()
 
                 HStack(spacing: 40) {
                   StatView(title: "Requests Served", value: "\(apiServer.requestCount)")
-                  StatView(title: "Endpoint", value: "localhost:\(apiServer.port)")
                 }
               }
             }
@@ -138,6 +147,15 @@ struct LocalDeviceView: View {
         }
 
         Spacer()
+      }
+
+      Divider()
+
+      // Device Information
+      VStack(alignment: .leading, spacing: 12) {
+        InfoRow(label: "Device", value: DeviceInfo.deviceName)
+        InfoRow(label: "Chip", value: DeviceInfo.chipModel)
+        InfoRow(label: "Memory", value: DeviceInfo.formattedMemory)
       }
 
       Divider()
@@ -308,6 +326,27 @@ struct ModelUnavailableView: View {
 }
 
 // MARK: - Supporting Views
+
+struct InfoRow: View {
+  let label: String
+  let value: String
+
+  var body: some View {
+    HStack(alignment: .top, spacing: 8) {
+      Text(label)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .frame(width: 60, alignment: .leading)
+
+      Text(value)
+        .font(.caption)
+        .fontWeight(.medium)
+        .textSelection(.enabled)
+
+      Spacer()
+    }
+  }
+}
 
 struct StatView: View {
   let title: String
