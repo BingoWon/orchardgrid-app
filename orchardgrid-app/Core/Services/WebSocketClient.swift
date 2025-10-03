@@ -29,6 +29,19 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   private(set) var isConnected = false
   private(set) var lastError: String?
   private(set) var tasksProcessed = 0
+
+  // Model availability
+  var modelAvailability: SystemLanguageModel.Availability {
+    model.availability
+  }
+
+  var canEnable: Bool {
+    if case .available = model.availability {
+      return true
+    }
+    return false
+  }
+
   var isEnabled = false {
     didSet {
       guard oldValue != isEnabled else { return }
@@ -561,10 +574,22 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   private func buildTranscript(from messages: [ChatMessage]) -> Transcript {
     var entries: [Transcript.Entry] = []
 
+    // Extract system prompt from messages
+    let systemPrompt = messages.first(where: { $0.role == "system" })?.content
+      ?? "You are a helpful AI assistant."
+
+    // Add instructions to transcript
+    let instructions = Transcript.Instructions(
+      segments: [.text(.init(content: systemPrompt))],
+      toolDefinitions: []
+    )
+    entries.append(.instructions(instructions))
+
+    // Process remaining messages
     for message in messages {
       switch message.role {
       case "system":
-        // System messages are handled separately in LanguageModelSession
+        // Already handled above as instructions
         break
 
       case "user":

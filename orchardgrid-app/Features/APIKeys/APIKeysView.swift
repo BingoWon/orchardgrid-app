@@ -47,7 +47,16 @@ struct APIKeysView: View {
         }
       } else {
         List {
-          ForEach(manager.apiKeys) { key in
+          // Usage Instructions Section
+          Section {
+            UsageInstructionsView()
+          }
+          .listRowInsets(EdgeInsets())
+          .listRowBackground(Color.clear)
+
+          // API Keys Section
+          Section {
+            ForEach(manager.apiKeys) { key in
             VStack(alignment: .leading, spacing: 8) {
               HStack {
                 if editingKey == key.key {
@@ -123,6 +132,7 @@ struct APIKeysView: View {
               }
             }
             .padding(.vertical, 4)
+            }
           }
         }
       }
@@ -228,6 +238,104 @@ struct APIKeysView: View {
     if hours > 0 { return "\(hours)h ago" }
     if minutes > 0 { return "\(minutes)m ago" }
     return "\(seconds)s ago"
+  }
+}
+
+// MARK: - Usage Instructions View
+
+struct UsageInstructionsView: View {
+  @State private var isExpanded = false
+
+  var body: some View {
+    GroupBox {
+      VStack(alignment: .leading, spacing: 12) {
+        // Header
+        HStack {
+          Label("API Usage", systemImage: "info.circle.fill")
+            .font(.headline)
+            .foregroundStyle(.blue)
+
+          Spacer()
+
+          Button {
+            withAnimation {
+              isExpanded.toggle()
+            }
+          } label: {
+            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+              .foregroundStyle(.secondary)
+          }
+          .buttonStyle(.plain)
+        }
+
+        if isExpanded {
+          Divider()
+
+          // Model Name
+          VStack(alignment: .leading, spacing: 4) {
+            Text("Model")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+            HStack {
+              Text("apple-intelligence")
+                .font(.system(.body, design: .monospaced))
+                .textSelection(.enabled)
+              Button {
+                copyToClipboard("apple-intelligence")
+              } label: {
+                Image(systemName: "doc.on.doc")
+                  .foregroundStyle(.blue)
+              }
+              .buttonStyle(.plain)
+            }
+          }
+
+          Divider()
+
+          // API Endpoint
+          VStack(alignment: .leading, spacing: 4) {
+            Text("API Endpoint")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+            HStack {
+              Text(Config.apiBaseURL)
+                .font(.system(.caption, design: .monospaced))
+                .textSelection(.enabled)
+              Button {
+                copyToClipboard(Config.apiBaseURL)
+              } label: {
+                Image(systemName: "doc.on.doc")
+                  .foregroundStyle(.blue)
+              }
+              .buttonStyle(.plain)
+            }
+          }
+
+          Divider()
+
+          // Documentation Link
+          Link(destination: URL(string: "https://orchardgrid.com/docs")!) {
+            HStack {
+              Image(systemName: "book.fill")
+              Text("View Full Documentation")
+              Spacer()
+              Image(systemName: "arrow.up.right")
+            }
+            .font(.caption)
+          }
+        }
+      }
+      .padding()
+    }
+  }
+
+  private func copyToClipboard(_ text: String) {
+    #if os(macOS)
+      NSPasteboard.general.clearContents()
+      NSPasteboard.general.setString(text, forType: .string)
+    #else
+      UIPasteboard.general.string = text
+    #endif
   }
 }
 

@@ -7,6 +7,7 @@ import SwiftUI
 
 struct RegisterView: View {
   @Environment(AuthManager.self) private var authManager
+  @Environment(\.verticalSizeClass) private var verticalSizeClass
   @State private var email = ""
   @State private var password = ""
   @State private var confirmPassword = ""
@@ -16,24 +17,33 @@ struct RegisterView: View {
   @Binding var showLogin: Bool
 
   var body: some View {
-    ScrollView {
-      VStack(spacing: adaptiveSpacing) {
-        // Logo and title
-        VStack(spacing: 12) {
-          Image(systemName: "cpu.fill")
-            .font(.system(size: adaptiveLogoSize))
-            .foregroundStyle(.blue.gradient)
+    ZStack {
+      // 背景层 - 填充整个屏幕
+      #if os(macOS)
+        Color(nsColor: .windowBackgroundColor)
+      #else
+        Color(.systemBackground)
+      #endif
 
-          Text("Create Account")
-            .font(.system(size: adaptiveTitleSize, weight: .bold, design: .rounded))
+      // 内容层
+      ScrollView {
+        VStack(spacing: 24) {
+          // Logo and title
+          VStack(spacing: 12) {
+            Image(systemName: "cpu.fill")
+              .font(.system(size: 64))
+              .foregroundStyle(.blue.gradient)
+              .symbolEffect(.pulse)
 
-          Text("Join OrchardGrid")
-            .font(adaptiveSubtitleFont)
-            .foregroundStyle(.secondary)
-        }
-        .padding(.top, adaptiveTopPadding)
+            Text("Create Account")
+              .font(.system(size: 36, weight: .bold, design: .rounded))
 
-          // Registration form
+            Text("Join OrchardGrid")
+              .font(.title3)
+              .foregroundStyle(.secondary)
+          }
+          .padding(.top, verticalSizeClass == .compact ? 20 : 40)
+
           // Registration form
           VStack(spacing: 16) {
             // Name input
@@ -151,77 +161,26 @@ struct RegisterView: View {
               .padding(.horizontal)
           }
 
-        // Switch to login
-        HStack {
-          Text("Already have an account?")
-            .foregroundStyle(.secondary)
-          Button("Sign In") {
-            showLogin = true
+          // Switch to login
+          HStack {
+            Text("Already have an account?")
+              .foregroundStyle(.secondary)
+            Button("Sign In") {
+              showLogin = true
+            }
           }
+          .font(.callout)
+          .padding(.top, 20)
+          .padding(.bottom, verticalSizeClass == .compact ? 20 : 40)
         }
-        .font(.callout)
-        .padding(.top, 20)
-        .padding(.bottom, adaptiveBottomPadding)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 20)
       }
-      .padding()
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    #if os(macOS)
-      .background(Color(nsColor: .windowBackgroundColor))
-    #else
-      .background(Color(.systemBackground))
-    #endif
+    .ignoresSafeArea()
   }
 
-  // MARK: - Adaptive Layout
-
-  private var adaptiveSpacing: CGFloat {
-    #if os(iOS)
-      return UIScreen.main.bounds.height < 700 ? 16 : 24
-    #else
-      return 32
-    #endif
-  }
-
-  private var adaptiveLogoSize: CGFloat {
-    #if os(iOS)
-      return UIScreen.main.bounds.height < 700 ? 48 : 64
-    #else
-      return 64
-    #endif
-  }
-
-  private var adaptiveTitleSize: CGFloat {
-    #if os(iOS)
-      return UIScreen.main.bounds.height < 700 ? 28 : 36
-    #else
-      return 36
-    #endif
-  }
-
-  private var adaptiveSubtitleFont: Font {
-    #if os(iOS)
-      return UIScreen.main.bounds.height < 700 ? .caption : .title3
-    #else
-      return .title3
-    #endif
-  }
-
-  private var adaptiveTopPadding: CGFloat {
-    #if os(iOS)
-      return UIScreen.main.bounds.height < 700 ? 8 : 20
-    #else
-      return 0
-    #endif
-  }
-
-  private var adaptiveBottomPadding: CGFloat {
-    #if os(iOS)
-      return UIScreen.main.bounds.height < 700 ? 8 : 20
-    #else
-      return 0
-    #endif
-  }
+  // MARK: - Validation
 
   private var isFormValid: Bool {
     !email.isEmpty && !password.isEmpty && !confirmPassword.isEmpty && password.count >= 8
