@@ -26,7 +26,7 @@ final class AuthManager {
 
   // Check if user is already authenticated
   func checkAuthStatus() {
-    if let token = KeychainManager.getToken() {
+    if let token = UserDefaultsManager.getToken() {
       authToken = token
       Task {
         await fetchUserInfo()
@@ -70,7 +70,7 @@ final class AuthManager {
       let response = try JSONDecoder().decode(AuthResponse.self, from: data)
 
       // Save token
-      KeychainManager.saveToken(response.token)
+      UserDefaultsManager.saveToken(response.token)
       authToken = response.token
       currentUser = response.user
       isAuthenticated = true
@@ -104,7 +104,7 @@ final class AuthManager {
       let response = try JSONDecoder().decode(AuthResponse.self, from: data)
 
       // Save token
-      KeychainManager.saveToken(response.token)
+      UserDefaultsManager.saveToken(response.token)
       authToken = response.token
       currentUser = response.user
       isAuthenticated = true
@@ -149,7 +149,7 @@ final class AuthManager {
 
   // Logout
   func logout() {
-    KeychainManager.deleteToken()
+    UserDefaultsManager.deleteToken()
     authToken = nil
     currentUser = nil
     isAuthenticated = false
@@ -175,60 +175,32 @@ struct AuthResponse: Codable {
   let user: User
 }
 
-// MARK: - Keychain Manager
+// MARK: - UserDefaults Manager
 
-enum KeychainManager {
-  /// Use Bundle ID as service name for proper Keychain isolation
-  private static var service: String {
-    Bundle.main.bundleIdentifier ?? "com.orchardgrid.app"
-  }
-
-  /// Environment-specific account key
-  private static var account: String {
+/// Simple token storage using UserDefaults
+/// ⚠️ WARNING: This stores tokens in plain text and is NOT secure.
+/// Only use this for development environments.
+/// For production, use Keychain or other secure storage.
+enum UserDefaultsManager {
+  /// Environment-specific key for token storage
+  private static var tokenKey: String {
     "auth_token_\(Config.environment.rawValue)"
   }
 
+  /// Save authentication token to UserDefaults
   static func saveToken(_ token: String) {
-    let data = Data(token.utf8)
-    let query: [String: Any] = [
-      kSecClass as String: kSecClassGenericPassword,
-      kSecAttrService as String: service,
-      kSecAttrAccount as String: account,
-      kSecValueData as String: data,
-    ]
-
-    SecItemDelete(query as CFDictionary)
-    SecItemAdd(query as CFDictionary, nil)
+    UserDefaults.standard.set(token, forKey: tokenKey)
+    UserDefaults.standard.synchronize()
   }
 
+  /// Retrieve authentication token from UserDefaults
   static func getToken() -> String? {
-    let query: [String: Any] = [
-      kSecClass as String: kSecClassGenericPassword,
-      kSecAttrService as String: service,
-      kSecAttrAccount as String: account,
-      kSecReturnData as String: true,
-    ]
-
-    var result: AnyObject?
-    let status = SecItemCopyMatching(query as CFDictionary, &result)
-
-    guard status == errSecSuccess,
-          let data = result as? Data,
-          let token = String(data: data, encoding: .utf8)
-    else {
-      return nil
-    }
-
-    return token
+    UserDefaults.standard.string(forKey: tokenKey)
   }
 
+  /// Delete authentication token from UserDefaults
   static func deleteToken() {
-    let query: [String: Any] = [
-      kSecClass as String: kSecClassGenericPassword,
-      kSecAttrService as String: service,
-      kSecAttrAccount as String: account,
-    ]
-
-    SecItemDelete(query as CFDictionary)
+    UserDefaults.standard.removeObject(forKey: tokenKey)
+    UserDefaults.standard.synchronize()
   }
 }

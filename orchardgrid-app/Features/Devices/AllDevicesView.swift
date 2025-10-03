@@ -147,15 +147,50 @@ struct DeviceCard: View {
 
         // Info
         VStack(alignment: .leading, spacing: 4) {
-          Text(device.platform.capitalized)
-            .font(.headline)
-
-          if let osVersion = device.osVersion {
-            Text(osVersion)
-              .font(.subheadline)
-              .foregroundStyle(.secondary)
+          // Device name
+          if let deviceName = device.deviceName {
+            Text(deviceName)
+              .font(.headline)
           }
 
+          // Platform and OS version
+          HStack(spacing: 4) {
+            Text(device.platform)
+              .font(device.deviceName != nil ? .subheadline : .headline)
+              .foregroundStyle(device.deviceName != nil ? .secondary : .primary)
+
+            if let osVersion = device.osVersion {
+              Text("•")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+              Text(osVersion)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+          }
+
+          // Chip model and memory
+          HStack(spacing: 4) {
+            if let chipModel = device.chipModel {
+              Text(chipModel)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            if device.chipModel != nil, device.memoryGb != nil {
+              Text("•")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            if let memoryGb = device.memoryGb {
+              Text("\(Int(memoryGb)) GB")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+          }
+
+          // Status and last seen
           HStack(spacing: 8) {
             Circle()
               .fill(statusColor)

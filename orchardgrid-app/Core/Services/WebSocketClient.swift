@@ -85,9 +85,9 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     userID = nil // Will be set when connecting
 
     #if os(macOS)
-      platform = "macos"
+      platform = "macOS"
     #elseif os(iOS)
-      platform = "ios"
+      platform = "iOS"
     #else
       platform = "unknown"
     #endif
@@ -171,7 +171,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     reconnectTask = nil
     lastError = nil
 
-    // Create URL with device ID, user ID, platform, and OS version
+    // Create URL with device ID, user ID, platform, OS version, and hardware info
     guard var urlComponents = URLComponents(string: serverURL) else {
       lastError = "Invalid server URL"
       return
@@ -181,6 +181,12 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       URLQueryItem(name: "user_id", value: userID),
       URLQueryItem(name: "platform", value: platform),
       URLQueryItem(name: "os_version", value: osVersion),
+      URLQueryItem(name: "device_name", value: DeviceInfo.deviceName),
+      URLQueryItem(name: "chip_model", value: DeviceInfo.chipModel),
+      URLQueryItem(
+        name: "memory_gb",
+        value: String(format: "%.0f", DeviceInfo.totalMemoryGB)
+      ),
     ]
 
     guard let url = urlComponents.url else {

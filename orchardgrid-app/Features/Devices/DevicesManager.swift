@@ -7,6 +7,9 @@ struct Device: Codable, Identifiable {
   let userId: String
   let platform: String
   let osVersion: String?
+  let deviceName: String?
+  let chipModel: String?
+  let memoryGb: Double?
   let status: String
   let lastHeartbeat: Int?
   let tasksProcessed: Int
@@ -19,6 +22,9 @@ struct Device: Codable, Identifiable {
     case userId = "user_id"
     case platform
     case osVersion = "os_version"
+    case deviceName = "device_name"
+    case chipModel = "chip_model"
+    case memoryGb = "memory_gb"
     case status
     case lastHeartbeat = "last_heartbeat"
     case tasksProcessed = "tasks_processed"
