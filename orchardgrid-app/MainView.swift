@@ -42,10 +42,8 @@ struct MainView: View {
       AllDevicesView()
     case .apiKeys:
       APIKeysView()
-    case .usage:
-      UsageView()
-    case .earnings:
-      EarningsView()
+    case .logs:
+      LogsView()
     case .account:
       AccountView()
     }

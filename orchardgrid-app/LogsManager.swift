@@ -1,0 +1,108 @@
+import Foundation
+import Observation
+
+@Observable
+final class LogsManager {
+  var consumingTasks: [ComputeTask] = []
+  var providingTasks: [ComputeTask] = []
+  var consumingTotal = 0
+  var providingTotal = 0
+  var isLoading = false
+  var errorMessage: String?
+
+  private let apiURL: String
+
+  init() {
+    apiURL = Config.apiBaseURL
+  }
+
+  func loadConsumingTasks(
+    limit: Int = 50,
+    offset: Int = 0,
+    status: String? = nil,
+    authToken: String
+  ) async {
+    isLoading = true
+    errorMessage = nil
+
+    do {
+      var components = URLComponents(string: "\(apiURL)/tasks")!
+      components.queryItems = [
+        URLQueryItem(name: "limit", value: "\(limit)"),
+        URLQueryItem(name: "offset", value: "\(offset)"),
+      ]
+      if let status, status != "all" {
+        components.queryItems?.append(URLQueryItem(name: "status", value: status))
+      }
+
+      var request = URLRequest(url: components.url!)
+      request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+
+      let (data, response) = try await URLSession.shared.data(for: request)
+
+      guard let httpResponse = response as? HTTPURLResponse,
+            httpResponse.statusCode == 200
+      else {
+        throw NSError(
+          domain: "LogsManager",
+          code: -1,
+          userInfo: [NSLocalizedDescriptionKey: "Failed to load consuming tasks"]
+        )
+      }
+
+      let result = try JSONDecoder().decode(TasksResponse.self, from: data)
+      consumingTasks = result.tasks
+      consumingTotal = result.total
+    } catch {
+      errorMessage = error.localizedDescription
+      Logger.log(.app, "Load consuming tasks error: \(error)")
+    }
+
+    isLoading = false
+  }
+
+  func loadProvidingTasks(
+    limit: Int = 50,
+    offset: Int = 0,
+    status: String? = nil,
+    authToken: String
+  ) async {
+    isLoading = true
+    errorMessage = nil
+
+    do {
+      var components = URLComponents(string: "\(apiURL)/tasks/providing")!
+      components.queryItems = [
+        URLQueryItem(name: "limit", value: "\(limit)"),
+        URLQueryItem(name: "offset", value: "\(offset)"),
+      ]
+      if let status, status != "all" {
+        components.queryItems?.append(URLQueryItem(name: "status", value: status))
+      }
+
+      var request = URLRequest(url: components.url!)
+      request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+
+      let (data, response) = try await URLSession.shared.data(for: request)
+
+      guard let httpResponse = response as? HTTPURLResponse,
+            httpResponse.statusCode == 200
+      else {
+        throw NSError(
+          domain: "LogsManager",
+          code: -1,
+          userInfo: [NSLocalizedDescriptionKey: "Failed to load providing tasks"]
+        )
+      }
+
+      let result = try JSONDecoder().decode(TasksResponse.self, from: data)
+      providingTasks = result.tasks
+      providingTotal = result.total
+    } catch {
+      errorMessage = error.localizedDescription
+      Logger.log(.app, "Load providing tasks error: \(error)")
+    }
+
+    isLoading = false
+  }
+}
