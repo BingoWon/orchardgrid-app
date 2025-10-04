@@ -75,13 +75,19 @@ struct Device: Codable, Identifiable {
 @Observable
 final class DevicesManager {
   private(set) var devices: [Device] = []
-  private(set) var isLoading = false
+  private(set) var isInitialLoading = true
+  private(set) var isRefreshing = false
   private(set) var lastError: String?
 
   private let apiURL = Config.apiBaseURL
 
-  func fetchDevices(authToken: String) async {
-    isLoading = true
+  func fetchDevices(authToken: String, isManualRefresh: Bool = false) async {
+    // Only show loading on initial load or manual refresh
+    if isInitialLoading {
+      isInitialLoading = true
+    } else if isManualRefresh {
+      isRefreshing = true
+    }
     lastError = nil
 
     do {
@@ -133,7 +139,8 @@ final class DevicesManager {
       devices = []
     }
 
-    isLoading = false
+    isInitialLoading = false
+    isRefreshing = false
   }
 
   var onlineDevices: [Device] {

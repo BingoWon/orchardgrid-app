@@ -16,20 +16,6 @@ struct LogsView: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      // Header
-      VStack(alignment: .leading, spacing: 8) {
-        Text("Logs")
-          .font(.largeTitle)
-          .fontWeight(.bold)
-        Text("Detailed logs for providing and consuming computing resources")
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-      }
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .padding()
-
-      Divider()
-
       // Tabs
       Picker("", selection: $selectedTab) {
         Text("Consuming").tag(0)
@@ -46,6 +32,29 @@ struct LogsView: View {
       }
     }
     .navigationTitle("Logs")
+    .toolbar {
+      ToolbarItem(placement: .primaryAction) {
+        Button {
+          Task {
+            if selectedTab == 0 {
+              await loadConsumingTasks()
+            } else {
+              await loadProvidingTasks()
+            }
+          }
+        } label: {
+          Image(systemName: "arrow.clockwise")
+            .rotationEffect(.degrees(manager.isLoading ? 360 : 0))
+            .animation(
+              manager.isLoading
+                ? .linear(duration: 1).repeatForever(autoreverses: false)
+                : .default,
+              value: manager.isLoading
+            )
+        }
+        .disabled(manager.isLoading)
+      }
+    }
     .task {
       await loadData()
     }
@@ -146,45 +155,121 @@ struct LogsView: View {
 
   @ViewBuilder
   private func taskTable(tasks: [ComputeTask]) -> some View {
-    Table(tasks) {
-      TableColumn("Time") { task in
-        Text(task.createdDate, format: .dateTime.year().month().day().hour().minute().second())
-          .font(.system(.body, design: .monospaced))
-      }
-      .width(min: 150, ideal: 180)
-
-      TableColumn("Task ID") { task in
-        Text(task.id.prefix(8) + "...")
-          .font(.system(.body, design: .monospaced))
-      }
-      .width(min: 100, ideal: 120)
-
-      TableColumn("Device") { task in
-        if let deviceId = task.deviceId {
-          Text(deviceId.prefix(8) + "...")
+    #if os(macOS)
+      // macOS: Use Table for better desktop experience
+      Table(tasks) {
+        TableColumn("Time") { task in
+          Text(task.createdDate, format: .dateTime.year().month().day().hour().minute().second())
             .font(.system(.body, design: .monospaced))
-        } else {
-          Text("-")
         }
-      }
-      .width(min: 100, ideal: 120)
+        .width(min: 150, ideal: 180)
 
-      TableColumn("Status") { task in
-        HStack(spacing: 4) {
+        TableColumn("Task ID") { task in
+          Text(task.id.prefix(8) + "...")
+            .font(.system(.body, design: .monospaced))
+        }
+        .width(min: 100, ideal: 120)
+
+        TableColumn("Device") { task in
+          if let deviceId = task.deviceId {
+            Text(deviceId.prefix(8) + "...")
+              .font(.system(.body, design: .monospaced))
+          } else {
+            Text("-")
+          }
+        }
+        .width(min: 100, ideal: 120)
+
+        TableColumn("Status") { task in
+          HStack(spacing: 4) {
+            Circle()
+              .fill(statusColor(for: task.status))
+              .frame(width: 8, height: 8)
+            Text(task.status.capitalized)
+          }
+        }
+        .width(min: 100, ideal: 120)
+
+        TableColumn("Duration") { task in
+          Text(task.durationText)
+            .font(.system(.body, design: .monospaced))
+        }
+        .width(min: 80, ideal: 100)
+      }
+    #else
+      // iOS/iPadOS: Use List for better mobile experience
+      ScrollView {
+        LazyVStack(spacing: 12) {
+          ForEach(tasks) { task in
+            taskCard(task: task)
+          }
+        }
+        .padding()
+      }
+    #endif
+  }
+
+  @ViewBuilder
+  private func taskCard(task: ComputeTask) -> some View {
+    VStack(alignment: .leading, spacing: 12) {
+      // Header: Status and Time
+      HStack {
+        HStack(spacing: 6) {
           Circle()
             .fill(statusColor(for: task.status))
-            .frame(width: 8, height: 8)
+            .frame(width: 10, height: 10)
           Text(task.status.capitalized)
+            .font(.subheadline)
+            .fontWeight(.medium)
+        }
+
+        Spacer()
+
+        Text(task.createdDate, format: .dateTime.month().day().hour().minute())
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+
+      // Details
+      VStack(alignment: .leading, spacing: 8) {
+        HStack {
+          Text("Task ID")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(width: 70, alignment: .leading)
+          Text(task.id.prefix(12) + "...")
+            .font(.system(.caption, design: .monospaced))
+        }
+
+        if let deviceId = task.deviceId {
+          HStack {
+            Text("Device")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .frame(width: 70, alignment: .leading)
+            Text(deviceId.prefix(12) + "...")
+              .font(.system(.caption, design: .monospaced))
+          }
+        }
+
+        HStack {
+          Text("Duration")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(width: 70, alignment: .leading)
+          Text(task.durationText)
+            .font(.system(.caption, design: .monospaced))
         }
       }
-      .width(min: 100, ideal: 120)
-
-      TableColumn("Duration") { task in
-        Text(task.durationText)
-          .font(.system(.body, design: .monospaced))
-      }
-      .width(min: 80, ideal: 100)
     }
+    .padding()
+    #if os(macOS)
+      .background(Color(nsColor: .controlBackgroundColor))
+    #else
+      .background(Color(uiColor: .systemBackground))
+    #endif
+      .cornerRadius(12)
+      .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
   }
 
   @ViewBuilder

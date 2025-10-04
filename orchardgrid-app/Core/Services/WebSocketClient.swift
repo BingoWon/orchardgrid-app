@@ -70,6 +70,11 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       UserDefaults.standard.set(isEnabled, forKey: "WebSocketClient.isEnabled")
       if isEnabled {
         if userID != nil {
+          // Cancel any existing reconnection tasks to avoid conflicts
+          reconnectTask?.cancel()
+          reconnectTask = nil
+          retryTimerTask?.cancel()
+          retryTimerTask = nil
           connect()
         }
       } else {
@@ -175,10 +180,12 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   // MARK: - Connection Management
 
   func connect() {
+    // Prevent concurrent connections
     guard !isConnected else {
       Logger.log(.websocket, "Already connected, skipping")
       return
     }
+
     guard let userID else {
       connectionState = .failed("User ID not set")
       Logger.error(.websocket, "Cannot connect: User ID not set")
@@ -188,6 +195,8 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     Logger.log(.websocket, "Starting connection...")
     connectionState = .connecting
     shouldAutoReconnect = true
+
+    // Cancel any existing reconnection tasks
     reconnectTask?.cancel()
     reconnectTask = nil
     retryTimerTask?.cancel()
@@ -333,6 +342,16 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   }
 
   private func handleError(_ error: Error) {
+    // Check if this is a cancellation error (Code=-999)
+    let nsError = error as NSError
+    if nsError.domain == NSURLErrorDomain, nsError.code == -999 {
+      // Code=-999: Request cancelled
+      // This is usually caused by concurrent connection attempts or system cancellation
+      Logger.log(.websocket, "Connection cancelled (Code=-999), likely due to concurrent attempts")
+      // Don't change connection state, let the new connection proceed
+      return
+    }
+
     Logger.error(.websocket, "\(error)")
     connectionState = .failed(error.localizedDescription)
     // Don't modify isEnabled - let user control it
@@ -385,7 +404,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       var delay = 1.0
       var attempts = 0
 
-      while !isConnected, shouldAutoReconnect {
+      while !isConnected, shouldAutoReconnect, !Task.isCancelled {
         attempts += 1
 
         // Update state with retry countdown
@@ -395,10 +414,10 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
           "Reconnection attempt \(attempts) in \(String(format: "%.1f", delay))s..."
         )
 
-        // Countdown timer
+        // Countdown timer (wait before next attempt)
         await startRetryCountdown(delay)
 
-        guard shouldAutoReconnect, !isConnected else {
+        guard !Task.isCancelled, shouldAutoReconnect, !isConnected else {
           Logger.log(.websocket, "Reconnection cancelled")
           return
         }
@@ -409,8 +428,9 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
         try? await Task.sleep(for: .seconds(0.5))
         connect()
 
-        // Wait to check if connection succeeded
-        try? await Task.sleep(for: .seconds(2))
+        // Wait for connection result (delegate callbacks will update connectionState)
+        // Use a shorter timeout to detect failures faster
+        try? await Task.sleep(for: .seconds(5))
 
         if isConnected {
           Logger.success(.websocket, "Reconnected after \(attempts) attempts")

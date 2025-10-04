@@ -65,15 +65,13 @@ struct OrchardGridApp: App {
     switch phase {
     case .active:
       Logger.log(.app, "App became active")
-      // Auto-reconnect if enabled and not connected
-      if wsClient.isEnabled, !wsClient.isConnected, wsClient.userID != nil {
-        Logger.log(.app, "Auto-reconnecting on app activation...")
-        wsClient.connect()
-      }
+    // No need to manually call connect() here
+    // startReconnection() already handles reconnection logic
     case .inactive:
       Logger.log(.app, "App became inactive")
     case .background:
       Logger.log(.app, "App entered background")
+    // Don't pause reconnection - maintain aggressive connection strategy
     @unknown default:
       break
     }

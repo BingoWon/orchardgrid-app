@@ -59,7 +59,7 @@ struct AllDevicesView: View {
           }
 
           // Empty State
-          if devicesManager.devices.isEmpty, !devicesManager.isLoading {
+          if devicesManager.devices.isEmpty, !devicesManager.isInitialLoading {
             VStack(spacing: 16) {
               Image(systemName: "server.rack")
                 .font(.system(size: 48))
@@ -109,13 +109,20 @@ struct AllDevicesView: View {
         Button {
           Task {
             if let token = authManager.authToken {
-              await devicesManager.fetchDevices(authToken: token)
+              await devicesManager.fetchDevices(authToken: token, isManualRefresh: true)
             }
           }
         } label: {
           Image(systemName: "arrow.clockwise")
+            .rotationEffect(.degrees(devicesManager.isRefreshing ? 360 : 0))
+            .animation(
+              devicesManager.isRefreshing
+                ? .linear(duration: 1).repeatForever(autoreverses: false)
+                : .default,
+              value: devicesManager.isRefreshing
+            )
         }
-        .disabled(devicesManager.isLoading)
+        .disabled(devicesManager.isRefreshing)
       }
     }
     .task {
@@ -128,15 +135,16 @@ struct AllDevicesView: View {
       Logger.log(.devices, "Fetching devices with token")
       await devicesManager.fetchDevices(authToken: token)
 
-      // Auto-refresh
+      // Auto-refresh in background (no loading indicator)
       while !Task.isCancelled {
         try? await Task.sleep(for: .seconds(DeviceConfig.deviceListRefreshInterval))
         guard !Task.isCancelled else { break }
-        await devicesManager.fetchDevices(authToken: token)
+        await devicesManager.fetchDevices(authToken: token, isManualRefresh: false)
       }
     }
     .overlay {
-      if devicesManager.isLoading {
+      // Only show loading on initial load
+      if devicesManager.isInitialLoading {
         ProgressView()
           .scaleEffect(1.5)
           .frame(maxWidth: .infinity, maxHeight: .infinity)
