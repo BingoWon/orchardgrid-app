@@ -10,7 +10,7 @@ struct Device: Codable, Identifiable {
   let deviceName: String?
   let chipModel: String?
   let memoryGb: Double?
-  let status: String
+  let isOnline: Bool
   let lastHeartbeat: Int?
   let tasksProcessed: Int
   let failureCount: Int
@@ -25,7 +25,7 @@ struct Device: Codable, Identifiable {
     case deviceName = "device_name"
     case chipModel = "chip_model"
     case memoryGb = "memory_gb"
-    case status
+    case isOnline = "is_online"
     case lastHeartbeat = "last_heartbeat"
     case tasksProcessed = "tasks_processed"
     case failureCount = "failure_count"
@@ -33,16 +33,13 @@ struct Device: Codable, Identifiable {
     case updatedAt = "updated_at"
   }
 
-  var isOnline: Bool {
-    // Check status first (immediate update on disconnect)
-    guard status.lowercased() == "online" || status.lowercased() == "busy" else {
-      return false
-    }
+  var isActuallyOnline: Bool {
+    // Check is_online first (immediate update on disconnect)
+    guard isOnline else { return false }
     // Then verify heartbeat (fallback for stale connections)
     guard let heartbeat = lastHeartbeat else { return false }
     let now = Int(Date().timeIntervalSince1970 * 1000)
-    // Online if heartbeat within 45 seconds (matches backend threshold)
-    return now - heartbeat < 45000
+    return now - heartbeat < DeviceConfig.staleThreshold
   }
 
   var platformIcon: String {
@@ -55,12 +52,11 @@ struct Device: Codable, Identifiable {
   }
 
   var statusColor: String {
-    switch status.lowercased() {
-    case "online": "green"
-    case "busy": "orange"
-    case "offline": "gray"
-    default: "gray"
-    }
+    isActuallyOnline ? "green" : "gray"
+  }
+
+  var statusText: String {
+    isActuallyOnline ? "Online" : "Offline"
   }
 
   var lastSeenText: String {
@@ -83,7 +79,6 @@ final class DevicesManager {
   private(set) var lastError: String?
 
   private let apiURL = Config.apiBaseURL
-  private let urlSession = NetworkManager.shared
 
   func fetchDevices(authToken: String) async {
     isLoading = true
@@ -97,7 +92,7 @@ final class DevicesManager {
       Logger.log(.devices, "Fetching from: \(url.absoluteString)")
       Logger.log(.devices, "Token: \(String(authToken.prefix(20)))...")
 
-      let (data, response) = try await urlSession.data(for: request)
+      let (data, response) = try await Config.urlSession.data(for: request)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw URLError(.badServerResponse)

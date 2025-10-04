@@ -11,7 +11,7 @@ final class LogsManager {
   var errorMessage: String?
 
   private let apiURL = Config.apiBaseURL
-  private let urlSession = NetworkManager.shared
+  private let urlSession = Config.urlSession
 
   func loadConsumingTasks(
     limit: Int = 50,

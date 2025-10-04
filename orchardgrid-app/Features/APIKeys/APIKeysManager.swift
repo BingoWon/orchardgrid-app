@@ -22,7 +22,7 @@ final class APIKeysManager {
   var lastError: String?
 
   private let apiURL = Config.apiBaseURL
-  private let urlSession = NetworkManager.shared
+  private let urlSession = Config.urlSession
 
   func loadAPIKeys(authToken: String) async {
     isLoading = true

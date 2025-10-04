@@ -30,7 +30,7 @@ final class AuthManager {
 
   // API configuration
   private let apiURL = Config.apiBaseURL
-  private let urlSession = NetworkManager.shared
+  private let urlSession = Config.urlSession
 
   // Callback for user ID changes
   var onUserIDChanged: ((String) -> Void)?

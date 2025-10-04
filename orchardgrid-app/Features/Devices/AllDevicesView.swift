@@ -128,9 +128,9 @@ struct AllDevicesView: View {
       Logger.log(.devices, "Fetching devices with token")
       await devicesManager.fetchDevices(authToken: token)
 
-      // Auto-refresh every 30 seconds
+      // Auto-refresh
       while !Task.isCancelled {
-        try? await Task.sleep(for: .seconds(30))
+        try? await Task.sleep(for: .seconds(DeviceConfig.deviceListRefreshInterval))
         guard !Task.isCancelled else { break }
         await devicesManager.fetchDevices(authToken: token)
       }
@@ -210,7 +210,7 @@ struct DeviceCard: View {
             .fill(statusColor)
             .frame(width: 8, height: 8)
 
-          Text(device.status.capitalized)
+          Text(device.statusText)
             .font(.caption)
             .foregroundStyle(.secondary)
 
@@ -241,12 +241,7 @@ struct DeviceCard: View {
   }
 
   private var statusColor: Color {
-    switch device.statusColor {
-    case "green": .green
-    case "orange": .orange
-    case "gray": .gray
-    default: .gray
-    }
+    device.statusColor == "green" ? .green : .gray
   }
 }
 

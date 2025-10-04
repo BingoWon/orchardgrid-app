@@ -89,9 +89,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   // LLM Processing
   private let model = SystemLanguageModel.default
 
-  // Constants
-  private let heartbeatInterval: TimeInterval = 15 // 15 seconds
-  private let heartbeatTimeout: TimeInterval = 45 // 45 seconds (3x interval)
+  // Heartbeat tracking
   private var lastHeartbeatResponse: Date?
 
   override init() {
@@ -347,13 +345,13 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
     heartbeatTask = Task { @MainActor in
       while !Task.isCancelled, isConnected {
-        try? await Task.sleep(for: .seconds(heartbeatInterval))
+        try? await Task.sleep(for: .seconds(DeviceConfig.heartbeatInterval))
 
         guard isConnected else { return }
 
         // Check for heartbeat timeout
         if let lastResponse = lastHeartbeatResponse,
-           Date().timeIntervalSince(lastResponse) > heartbeatTimeout
+           Date().timeIntervalSince(lastResponse) > DeviceConfig.heartbeatTimeout
         {
           Logger.error(.websocket, "Heartbeat timeout - connection appears dead")
           connectionState = .disconnected

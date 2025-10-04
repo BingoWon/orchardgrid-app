@@ -62,4 +62,12 @@ enum Config {
       }
     }
   }
+
+  /// Shared URLSession with optimized timeout configuration
+  static let urlSession: URLSession = {
+    let configuration = URLSessionConfiguration.default
+    configuration.timeoutIntervalForRequest = 10 // 10 seconds per request
+    configuration.timeoutIntervalForResource = 30 // 30 seconds for entire resource
+    return URLSession(configuration: configuration)
+  }()
 }
