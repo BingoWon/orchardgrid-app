@@ -3,154 +3,181 @@ import SwiftUI
 struct AllDevicesView: View {
   @Environment(DevicesManager.self) private var devicesManager
   @Environment(AuthManager.self) private var authManager
+  @State private var showAccountSheet = false
 
   var body: some View {
     ScrollView {
       GlassEffectContainer {
         VStack(alignment: .leading, spacing: 24) {
           // Summary Card
-          VStack(alignment: .leading, spacing: 12) {
-            Text("Summary")
-              .font(.headline)
-              .foregroundStyle(.secondary)
-
-            HStack(spacing: 40) {
-              StatView(
-                title: "Total Devices",
-                value: "\(devicesManager.devices.count)"
-              )
-              StatView(
-                title: "Online",
-                value: "\(devicesManager.onlineDevices.count)"
-              )
-              StatView(
-                title: "Total Tasks",
-                value: "\(devicesManager.totalTasksProcessed)"
-              )
-            }
-          }
-          .padding()
-          .glassEffect(in: .rect(cornerRadius: 12))
+          summaryCard
 
           // Online Devices
           if !devicesManager.onlineDevices.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-              Text("Online Devices")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-
-              ForEach(devicesManager.onlineDevices) { device in
-                DeviceCard(device: device)
-              }
-            }
+            deviceSection(title: "Online Devices", devices: devicesManager.onlineDevices)
           }
 
           // Offline Devices
           if !devicesManager.offlineDevices.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-              Text("Offline Devices")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-
-              ForEach(devicesManager.offlineDevices) { device in
-                DeviceCard(device: device)
-              }
-            }
+            deviceSection(title: "Offline Devices", devices: devicesManager.offlineDevices)
           }
 
           // Empty State
           if devicesManager.devices.isEmpty, !devicesManager.isInitialLoading {
-            VStack(spacing: 16) {
-              Image(systemName: "server.rack")
-                .font(.system(size: 48))
-                .foregroundStyle(.secondary)
-
-              Text("No Devices")
-                .font(.title2)
-                .fontWeight(.semibold)
-
-              Text("Connect a device to get started")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 60)
+            emptyState
           }
 
           // Error State
           if let error = devicesManager.lastError {
-            HStack {
-              Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
-
-              Text(error)
-                .font(.subheadline)
-
-              Spacer()
-
-              Button("Retry") {
-                Task {
-                  if let token = authManager.authToken {
-                    await devicesManager.fetchDevices(authToken: token)
-                  }
-                }
-              }
-            }
-            .padding()
-            .glassEffect(in: .rect(cornerRadius: 12))
+            errorState(error: error)
           }
         }
         .padding()
       }
     }
     .navigationTitle("All Devices")
+    .toolbarRole(.editor)
+    .toolbarTitleDisplayMode(.inlineLarge)
     .toolbar {
-      ToolbarItem(placement: .primaryAction) {
+      ToolbarItem { refreshButton }
+      ToolbarSpacer(.fixed)
+      ToolbarItem {
         Button {
-          Task {
-            if let token = authManager.authToken {
-              await devicesManager.fetchDevices(authToken: token, isManualRefresh: true)
+          showAccountSheet = true
+        } label: {
+          Label("Account", systemImage: "person.circle")
+            .labelStyle(.iconOnly)
+        }
+      }
+    }
+    .sheet(isPresented: $showAccountSheet) {
+      NavigationStack {
+        AccountView()
+          .navigationBarTitleDisplayMode(.inline)
+          .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+              Button(role: .close) {
+                showAccountSheet = false
+              }
             }
           }
-        } label: {
-          Image(systemName: "arrow.clockwise")
-            .rotationEffect(.degrees(devicesManager.isRefreshing ? 360 : 0))
-            .animation(
-              devicesManager.isRefreshing
-                ? .linear(duration: 1).repeatForever(autoreverses: false)
-                : .default,
-              value: devicesManager.isRefreshing
-            )
-        }
-        .disabled(devicesManager.isRefreshing)
       }
+      .presentationDetents([.large])
+      .presentationDragIndicator(.visible)
     }
     .task {
-      guard let token = authManager.authToken else {
-        Logger.error(.devices, "No auth token available")
-        return
-      }
-
-      // Initial fetch
-      Logger.log(.devices, "Fetching devices with token")
-      await devicesManager.fetchDevices(authToken: token)
-
-      // Auto-refresh in background (no loading indicator)
-      while !Task.isCancelled {
-        try? await Task.sleep(for: .seconds(DeviceConfig.deviceListRefreshInterval))
-        guard !Task.isCancelled else { break }
-        await devicesManager.fetchDevices(authToken: token, isManualRefresh: false)
+      if let token = authManager.authToken {
+        await devicesManager.fetchDevices(authToken: token)
       }
     }
-    .overlay {
-      // Only show loading on initial load
-      if devicesManager.isInitialLoading {
-        ProgressView()
-          .scaleEffect(1.5)
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .background(.ultraThinMaterial)
+  }
+
+  // MARK: - Summary Card
+
+  private var summaryCard: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Text("Summary")
+        .font(.headline)
+        .foregroundStyle(.secondary)
+
+      HStack(spacing: 40) {
+        StatView(
+          title: "Total Devices",
+          value: "\(devicesManager.devices.count)"
+        )
+        StatView(
+          title: "Online",
+          value: "\(devicesManager.onlineDevices.count)"
+        )
+        StatView(
+          title: "Total Tasks",
+          value: "\(devicesManager.totalTasksProcessed)"
+        )
       }
     }
+    .padding()
+    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
+  }
+
+  // MARK: - Device Section
+
+  private func deviceSection(title: String, devices: [Device]) -> some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Text(title)
+        .font(.headline)
+        .foregroundStyle(.secondary)
+
+      ForEach(devices) { device in
+        DeviceCard(device: device)
+      }
+    }
+  }
+
+  // MARK: - Empty State
+
+  private var emptyState: some View {
+    VStack(spacing: 16) {
+      Image(systemName: "server.rack")
+        .font(.system(size: 48))
+        .foregroundStyle(.secondary)
+
+      Text("No Devices")
+        .font(.title2)
+        .fontWeight(.semibold)
+
+      Text("Connect a device to get started")
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+    }
+    .frame(maxWidth: .infinity)
+    .padding(.vertical, 60)
+  }
+
+  // MARK: - Error State
+
+  private func errorState(error: String) -> some View {
+    HStack {
+      Image(systemName: "exclamationmark.triangle.fill")
+        .foregroundStyle(.orange)
+
+      Text(error)
+        .font(.subheadline)
+
+      Spacer()
+
+      Button("Retry") {
+        Task {
+          if let token = authManager.authToken {
+            await devicesManager.fetchDevices(authToken: token)
+          }
+        }
+      }
+      .buttonStyle(.glass)
+    }
+    .padding()
+    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
+  }
+
+  // MARK: - Refresh Button
+
+  private var refreshButton: some View {
+    Button {
+      Task {
+        if let token = authManager.authToken {
+          await devicesManager.fetchDevices(authToken: token, isManualRefresh: true)
+        }
+      }
+    } label: {
+      Image(systemName: "arrow.clockwise")
+        .rotationEffect(.degrees(devicesManager.isRefreshing ? 360 : 0))
+        .animation(
+          devicesManager.isRefreshing
+            ? .linear(duration: 1).repeatForever(autoreverses: false)
+            : .default,
+          value: devicesManager.isRefreshing
+        )
+    }
+    .disabled(devicesManager.isRefreshing)
   }
 }
 
@@ -245,7 +272,7 @@ struct DeviceCard: View {
       }
     }
     .padding()
-    .glassEffect(in: .rect(cornerRadius: 12))
+    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
   }
 
   private var statusColor: Color {

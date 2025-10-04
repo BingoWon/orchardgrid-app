@@ -1,59 +1,47 @@
 import SwiftUI
 
 enum NavigationItem: String, CaseIterable, Identifiable {
-  case localDevice = "Local Device"
   case allDevices = "All Devices"
   case apiKeys = "API Keys"
   case logs = "Logs"
-  case account = "Account"
+  case search = "Search"
 
   var id: String { rawValue }
 
-  /// Sidebar display title (platform-specific)
-  var sidebarTitle: String {
-    switch self {
-    case .localDevice:
-      #if os(macOS)
-        return "This Mac"
-      #elseif os(iOS)
-        return "This iPhone"
-      #else
-        return "This iPad"
-      #endif
-    default:
-      return rawValue
-    }
+  /// Display title for Tab/Sidebar
+  var title: String {
+    rawValue
   }
 
-  /// Navigation bar title (device name)
-  var navigationTitle: String {
-    switch self {
-    case .localDevice:
-      DeviceInfo.deviceName
-    default:
-      rawValue
-    }
+  /// Platform-specific title for local device (used in accessory)
+  static var localDeviceTitle: String {
+    #if os(macOS)
+      return "This Mac"
+    #else
+      return UIDevice.current.userInterfaceIdiom == .pad ? "This iPad" : "This iPhone"
+    #endif
   }
 
-  /// SF Symbol icon (platform-specific)
+  /// Icon for local device (used in accessory)
+  static var localDeviceIcon: String {
+    #if os(macOS)
+      return "desktopcomputer"
+    #else
+      return UIDevice.current.userInterfaceIdiom == .pad ? "ipad" : "iphone"
+    #endif
+  }
+
+  /// SF Symbol icon
   var icon: String {
     switch self {
-    case .localDevice:
-      #if os(macOS)
-        return "laptopcomputer"
-      #elseif os(iOS)
-        return "iphone.gen3"
-      #else
-        return "ipad.gen2"
-      #endif
     case .allDevices:
-      return "server.rack"
+      "server.rack"
     case .apiKeys:
-      return "key.fill"
+      "key.fill"
     case .logs:
-      return "list.bullet.rectangle"
-    case .account:
-      return "person.circle.fill"
+      "list.bullet.rectangle"
+    case .search:
+      "magnifyingglass"
     }
   }
 }

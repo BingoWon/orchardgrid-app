@@ -152,7 +152,7 @@ struct RegisterView: View {
               .buttonStyle(.bordered)
             }
             .padding(32)
-            .glassEffect(in: .rect(cornerRadius: 16))
+            .glassEffect(in: .rect(cornerRadius: 16, style: .continuous))
           }
           .frame(maxWidth: 400)
 

@@ -10,124 +10,134 @@ struct LocalDeviceView: View {
       GlassEffectContainer {
         VStack(alignment: .leading, spacing: 24) {
           // Platform Connection Card
-          VStack(alignment: .leading, spacing: 16) {
-            // Toggle Row
-            HStack {
-              VStack(alignment: .leading, spacing: 4) {
-                Text("Platform Connection")
-                  .font(.headline)
-                Text("Share computing power with OrchardGrid")
-                  .font(.caption)
-                  .foregroundStyle(.secondary)
-              }
-
-              Spacer()
-
-              Toggle("", isOn: Binding(
-                get: { wsClient.isEnabled },
-                set: { wsClient.isEnabled = $0 }
-              ))
-              .toggleStyle(.switch)
-              .disabled(!wsClient.canEnable)
-            }
-
-            // Content based on model availability
-            switch wsClient.modelAvailability {
-            case .available:
-              if wsClient.isEnabled {
-                Divider()
-                availableContent
-              }
-
-            case .unavailable(.deviceNotEligible):
-              Divider()
-              DeviceNotEligibleView()
-
-            case .unavailable(.appleIntelligenceNotEnabled):
-              Divider()
-              AppleIntelligenceNotEnabledView()
-
-            case .unavailable(.modelNotReady):
-              Divider()
-              ModelNotReadyView()
-
-            case .unavailable:
-              Divider()
-              ModelUnavailableView()
-            }
-          }
-          .padding()
-          .glassEffect(in: .rect(cornerRadius: 12))
+          platformConnectionCard
 
           // API Server Card
-          VStack(alignment: .leading, spacing: 16) {
-            // Toggle Row
-            HStack {
-              VStack(alignment: .leading, spacing: 4) {
-                Text("Local API Server")
-                  .font(.headline)
-                Text("OpenAI-compatible API for local development")
-                  .font(.caption)
-                  .foregroundStyle(.secondary)
-              }
-
-              Spacer()
-
-              Toggle("", isOn: Binding(
-                get: { apiServer.isEnabled },
-                set: { apiServer.isEnabled = $0 }
-              ))
-              .toggleStyle(.switch)
-            }
-
-            // Status Row
-            if apiServer.isEnabled {
-              Divider()
-
-              HStack {
-                Image(systemName: apiServer
-                  .isRunning ? "checkmark.circle.fill" : "hourglass.circle.fill")
-                  .foregroundStyle(apiServer.isRunning ? .green : .orange)
-
-                VStack(alignment: .leading, spacing: 2) {
-                  Text(apiServer.isRunning ? "Running" : "Starting...")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                  Text("Port \(apiServer.port)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-              }
-
-              // Server Information
-              if apiServer.isRunning {
-                Divider()
-
-                VStack(alignment: .leading, spacing: 12) {
-                  InfoRow(label: "Model", value: "apple-intelligence")
-                  InfoRow(
-                    label: "Endpoint",
-                    value: "http://localhost:\(apiServer.port)/v1/chat/completions"
-                  )
-                }
-
-                Divider()
-
-                HStack(spacing: 40) {
-                  StatView(title: "Requests Served", value: "\(apiServer.requestCount)")
-                }
-              }
-            }
-          }
-          .padding()
-          .glassEffect(in: .rect(cornerRadius: 12))
+          apiServerCard
         }
         .padding()
       }
     }
-    .navigationTitle(NavigationItem.localDevice.navigationTitle)
+    .navigationTitle(DeviceInfo.deviceName)
+  }
+
+  // MARK: - Platform Connection Card
+
+  private var platformConnectionCard: some View {
+    VStack(alignment: .leading, spacing: 16) {
+      // Header with Toggle
+      HStack {
+        VStack(alignment: .leading, spacing: 4) {
+          Text("Platform Connection")
+            .font(.headline)
+          Text("Share computing power with OrchardGrid")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+
+        Spacer()
+
+        Toggle("", isOn: Binding(
+          get: { wsClient.isEnabled },
+          set: { wsClient.isEnabled = $0 }
+        ))
+        .toggleStyle(.switch)
+        .disabled(!wsClient.canEnable)
+      }
+
+      // Content based on model availability
+      switch wsClient.modelAvailability {
+      case .available:
+        if wsClient.isEnabled {
+          Divider()
+          availableContent
+        }
+
+      case .unavailable(.deviceNotEligible):
+        Divider()
+        DeviceNotEligibleView()
+
+      case .unavailable(.appleIntelligenceNotEnabled):
+        Divider()
+        AppleIntelligenceNotEnabledView()
+
+      case .unavailable(.modelNotReady):
+        Divider()
+        ModelNotReadyView()
+
+      case .unavailable:
+        Divider()
+        ModelUnavailableView()
+      }
+    }
+    .padding()
+    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
+  }
+
+  // MARK: - API Server Card
+
+  private var apiServerCard: some View {
+    VStack(alignment: .leading, spacing: 16) {
+      // Header with Toggle
+      HStack {
+        VStack(alignment: .leading, spacing: 4) {
+          Text("Local API Server")
+            .font(.headline)
+          Text("OpenAI-compatible API for local development")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+
+        Spacer()
+
+        Toggle("", isOn: Binding(
+          get: { apiServer.isEnabled },
+          set: { apiServer.isEnabled = $0 }
+        ))
+        .toggleStyle(.switch)
+      }
+
+      // Status and Information
+      if apiServer.isEnabled {
+        Divider()
+
+        HStack {
+          Image(systemName: apiServer.isRunning ? "checkmark.circle.fill" : "hourglass.circle.fill")
+            .foregroundStyle(apiServer.isRunning ? .green : .orange)
+
+          VStack(alignment: .leading, spacing: 2) {
+            Text(apiServer.isRunning ? "Running" : "Starting...")
+              .font(.subheadline)
+              .fontWeight(.medium)
+            Text("Port \(apiServer.port)")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+
+          Spacer()
+        }
+
+        if apiServer.isRunning {
+          Divider()
+
+          VStack(alignment: .leading, spacing: 12) {
+            InfoRow(label: "Model", value: "apple-intelligence")
+            InfoRow(
+              label: "Endpoint",
+              value: "http://localhost:\(apiServer.port)/v1/chat/completions"
+            )
+          }
+
+          Divider()
+
+          HStack(spacing: 40) {
+            StatView(title: "Requests Served", value: "\(apiServer.requestCount)")
+          }
+        }
+      }
+    }
+    .padding()
+    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
   }
 
   @ViewBuilder
