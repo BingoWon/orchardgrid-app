@@ -45,110 +45,114 @@ struct RegisterView: View {
           .padding(.top, verticalSizeClass == .compact ? 20 : 40)
 
           // Registration form
-          VStack(spacing: 16) {
-            // Name input
-            TextField("Name (optional)", text: $name)
+          VStack(spacing: 20) {
+            VStack(spacing: 16) {
+              // Name input
+              TextField("Name (optional)", text: $name)
+                .textFieldStyle(.roundedBorder)
+                .textContentType(.name)
+
+              // Email input
+              TextField("Email", text: $email)
+                .textFieldStyle(.roundedBorder)
+                .textContentType(.emailAddress)
+              #if os(iOS)
+                .autocapitalization(.none)
+                .keyboardType(.emailAddress)
+              #endif
+
+              // Password input
+              HStack {
+                if showPassword {
+                  TextField("Password", text: $password)
+                    .textContentType(.newPassword)
+                } else {
+                  SecureField("Password", text: $password)
+                    .textContentType(.newPassword)
+                }
+                Button {
+                  showPassword.toggle()
+                } label: {
+                  Image(systemName: showPassword ? "eye.slash" : "eye")
+                    .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+              }
               .textFieldStyle(.roundedBorder)
-              .textContentType(.name)
 
-            // Email input
-            TextField("Email", text: $email)
+              // Confirm password input
+              HStack {
+                if showConfirmPassword {
+                  TextField("Confirm Password", text: $confirmPassword)
+                    .textContentType(.newPassword)
+                } else {
+                  SecureField("Confirm Password", text: $confirmPassword)
+                    .textContentType(.newPassword)
+                }
+                Button {
+                  showConfirmPassword.toggle()
+                } label: {
+                  Image(systemName: showConfirmPassword ? "eye.slash" : "eye")
+                    .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+              }
               .textFieldStyle(.roundedBorder)
-              .textContentType(.emailAddress)
-            #if os(iOS)
-              .autocapitalization(.none)
-              .keyboardType(.emailAddress)
-            #endif
 
-            // Password input
-            HStack {
-              if showPassword {
-                TextField("Password", text: $password)
-                  .textContentType(.newPassword)
-              } else {
-                SecureField("Password", text: $password)
-                  .textContentType(.newPassword)
-              }
-              Button {
-                showPassword.toggle()
-              } label: {
-                Image(systemName: showPassword ? "eye.slash" : "eye")
-                  .foregroundStyle(.secondary)
-              }
-              .buttonStyle(.plain)
-            }
-            .textFieldStyle(.roundedBorder)
-
-            // Confirm password input
-            HStack {
-              if showConfirmPassword {
-                TextField("Confirm Password", text: $confirmPassword)
-                  .textContentType(.newPassword)
-              } else {
-                SecureField("Confirm Password", text: $confirmPassword)
-                  .textContentType(.newPassword)
-              }
-              Button {
-                showConfirmPassword.toggle()
-              } label: {
-                Image(systemName: showConfirmPassword ? "eye.slash" : "eye")
-                  .foregroundStyle(.secondary)
-              }
-              .buttonStyle(.plain)
-            }
-            .textFieldStyle(.roundedBorder)
-
-            // Password requirements
-            Text("Password must be at least 8 characters")
-              .font(.caption)
-              .foregroundStyle(.secondary)
-              .frame(maxWidth: .infinity, alignment: .leading)
-
-            // Register button
-            Button {
-              Task {
-                await authManager.register(
-                  email: email,
-                  password: password,
-                  confirmPassword: confirmPassword,
-                  name: name.isEmpty ? nil : name
-                )
-              }
-            } label: {
-              Text("Create Account")
-                .frame(maxWidth: .infinity)
-                .frame(height: 44)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!isFormValid)
-
-            // Divider
-            HStack {
-              Rectangle()
-                .fill(Color.secondary.opacity(0.3))
-                .frame(height: 1)
-              Text("or")
+              // Password requirements
+              Text("Password must be at least 8 characters")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-              Rectangle()
-                .fill(Color.secondary.opacity(0.3))
-                .frame(height: 1)
-            }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Google Sign In button
-            Button {
-              Task {
-                await authManager.signInWithGoogle()
+              // Register button
+              Button {
+                Task {
+                  await authManager.register(
+                    email: email,
+                    password: password,
+                    confirmPassword: confirmPassword,
+                    name: name.isEmpty ? nil : name
+                  )
+                }
+              } label: {
+                Text("Create Account")
+                  .frame(maxWidth: .infinity)
+                  .frame(height: 44)
               }
-            } label: {
+              .buttonStyle(.borderedProminent)
+              .disabled(!isFormValid)
+
+              // Divider
               HStack {
-                Image(systemName: "globe")
-                Text("Continue with Google")
+                Rectangle()
+                  .fill(Color.secondary.opacity(0.3))
+                  .frame(height: 1)
+                Text("or")
+                  .font(.caption)
+                  .foregroundStyle(.secondary)
+                Rectangle()
+                  .fill(Color.secondary.opacity(0.3))
+                  .frame(height: 1)
               }
-              .frame(maxWidth: .infinity)
-              .frame(height: 44)
+
+              // Google Sign In button
+              Button {
+                Task {
+                  await authManager.signInWithGoogle()
+                }
+              } label: {
+                HStack {
+                  Image(systemName: "globe")
+                  Text("Continue with Google")
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+              }
+              .buttonStyle(.bordered)
             }
-            .buttonStyle(.bordered)
+            .padding(32)
+            .glassEffect(in: .rect(cornerRadius: 16))
           }
           .frame(maxWidth: 400)
 

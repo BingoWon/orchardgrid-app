@@ -9,7 +9,7 @@ struct MainView: View {
       // Sidebar
       List(NavigationItem.allCases, selection: $selectedItem) { item in
         NavigationLink(value: item) {
-          Label(item.rawValue, systemImage: item.icon)
+          Label(item.sidebarTitle, systemImage: item.icon)
         }
       }
       .navigationTitle("OrchardGrid")
@@ -18,6 +18,7 @@ struct MainView: View {
       // Detail
       if let selectedItem {
         detailView(for: selectedItem)
+          .backgroundExtensionEffect()
       } else {
         Text("Select an item")
           .foregroundStyle(.secondary)

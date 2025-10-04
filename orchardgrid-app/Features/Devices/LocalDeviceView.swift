@@ -7,9 +7,9 @@ struct LocalDeviceView: View {
 
   var body: some View {
     ScrollView {
-      VStack(alignment: .leading, spacing: 24) {
-        // Platform Connection Card
-        GroupBox {
+      GlassEffectContainer {
+        VStack(alignment: .leading, spacing: 24) {
+          // Platform Connection Card
           VStack(alignment: .leading, spacing: 16) {
             // Toggle Row
             HStack {
@@ -57,10 +57,9 @@ struct LocalDeviceView: View {
             }
           }
           .padding()
-        }
+          .glassEffect(in: .rect(cornerRadius: 12))
 
-        // API Server Card
-        GroupBox {
+          // API Server Card
           VStack(alignment: .leading, spacing: 16) {
             // Toggle Row
             HStack {
@@ -123,16 +122,52 @@ struct LocalDeviceView: View {
             }
           }
           .padding()
+          .glassEffect(in: .rect(cornerRadius: 12))
         }
+        .padding()
       }
-      .padding()
     }
-    .navigationTitle("This Mac")
+    .navigationTitle(NavigationItem.localDevice.navigationTitle)
   }
 
   @ViewBuilder
   private var availableContent: some View {
-    if wsClient.isConnected {
+    switch wsClient.connectionState {
+    case .disconnected:
+      HStack {
+        Image(systemName: "circle")
+          .foregroundStyle(.secondary)
+
+        VStack(alignment: .leading, spacing: 2) {
+          Text("Disconnected")
+            .font(.subheadline)
+            .fontWeight(.medium)
+          Text("Enable to start connecting")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+
+        Spacer()
+      }
+
+    case .connecting:
+      HStack {
+        ProgressView()
+          .controlSize(.small)
+
+        VStack(alignment: .leading, spacing: 2) {
+          Text("Connecting...")
+            .font(.subheadline)
+            .fontWeight(.medium)
+          Text("Establishing connection")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+
+        Spacer()
+      }
+
+    case .connected:
       HStack {
         Image(systemName: "checkmark.circle.fill")
           .foregroundStyle(.green)
@@ -164,7 +199,39 @@ struct LocalDeviceView: View {
         StatView(title: "Tasks Processed", value: "\(wsClient.tasksProcessed)")
         StatView(title: "Device ID", value: String(DeviceID.current.prefix(8)))
       }
-    } else if let error = wsClient.lastError {
+
+    case let .reconnecting(attempt, nextRetryIn):
+      VStack(alignment: .leading, spacing: 12) {
+        HStack {
+          ProgressView()
+            .controlSize(.small)
+
+          VStack(alignment: .leading, spacing: 2) {
+            Text("Reconnecting...")
+              .font(.subheadline)
+              .fontWeight(.medium)
+            if let nextRetryIn {
+              Text("Attempt \(attempt), next retry in \(Int(nextRetryIn))s")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            } else {
+              Text("Attempt \(attempt)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+          }
+
+          Spacer()
+        }
+
+        Button("Retry Now") {
+          wsClient.retry()
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+      }
+
+    case let .failed(error):
       VStack(alignment: .leading, spacing: 12) {
         HStack {
           Image(systemName: "exclamationmark.triangle.fill")
@@ -187,22 +254,6 @@ struct LocalDeviceView: View {
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.small)
-      }
-    } else {
-      HStack {
-        ProgressView()
-          .controlSize(.small)
-
-        VStack(alignment: .leading, spacing: 2) {
-          Text("Connecting...")
-            .font(.subheadline)
-            .fontWeight(.medium)
-          Text("Establishing connection")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-
-        Spacer()
       }
     }
   }

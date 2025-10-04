@@ -9,10 +9,24 @@ import Foundation
 @Observable
 final class AuthManager {
   // Authentication state
-  var isAuthenticated = false
+  enum AuthState: Equatable {
+    case loading
+    case authenticated(User)
+    case unauthenticated
+  }
+
+  var authState: AuthState = .loading
   var currentUser: User?
   var authToken: String?
   var lastError: String?
+
+  // Computed property for backward compatibility
+  var isAuthenticated: Bool {
+    if case .authenticated = authState {
+      return true
+    }
+    return false
+  }
 
   // API configuration
   private let apiURL = Config.apiBaseURL
@@ -31,6 +45,8 @@ final class AuthManager {
       Task {
         await fetchUserInfo()
       }
+    } else {
+      authState = .unauthenticated
     }
   }
 
@@ -72,8 +88,8 @@ final class AuthManager {
       // Save token
       UserDefaultsManager.saveToken(response.token)
       authToken = response.token
+      authState = .authenticated(response.user)
       currentUser = response.user
-      isAuthenticated = true
       lastError = nil
 
       Logger.success(.auth, "Registration successful: \(response.user.email)")
@@ -81,6 +97,7 @@ final class AuthManager {
     } catch {
       Logger.error(.auth, "Registration failed: \(error)")
       lastError = error.localizedDescription
+      authState = .unauthenticated
     }
   }
 
@@ -106,8 +123,8 @@ final class AuthManager {
       // Save token
       UserDefaultsManager.saveToken(response.token)
       authToken = response.token
+      authState = .authenticated(response.user)
       currentUser = response.user
-      isAuthenticated = true
       lastError = nil
 
       Logger.success(.auth, "Login successful: \(response.user.email)")
@@ -115,6 +132,7 @@ final class AuthManager {
     } catch {
       Logger.error(.auth, "Login failed: \(error)")
       lastError = error.localizedDescription
+      authState = .unauthenticated
     }
   }
 
@@ -136,13 +154,14 @@ final class AuthManager {
       let (data, _) = try await URLSession.shared.data(for: request)
       let user = try JSONDecoder().decode(User.self, from: data)
 
+      authState = .authenticated(user)
       currentUser = user
-      isAuthenticated = true
       lastError = nil
       onUserIDChanged?(user.id)
     } catch {
       Logger.error(.auth, "Failed to fetch user info: \(error)")
       lastError = error.localizedDescription
+      authState = .unauthenticated
       logout()
     }
   }
@@ -152,13 +171,14 @@ final class AuthManager {
     UserDefaultsManager.deleteToken()
     authToken = nil
     currentUser = nil
-    isAuthenticated = false
+    authState = .unauthenticated
+    Logger.log(.auth, "User logged out")
   }
 }
 
 // MARK: - Models
 
-struct User: Codable {
+struct User: Codable, Equatable {
   let id: String
   let email: String
   let name: String?

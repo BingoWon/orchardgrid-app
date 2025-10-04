@@ -6,74 +6,79 @@ struct AllDevicesView: View {
 
   var body: some View {
     ScrollView {
-      VStack(alignment: .leading, spacing: 24) {
-        // Summary Card
-        GroupBox("Summary") {
-          HStack(spacing: 40) {
-            StatView(
-              title: "Total Devices",
-              value: "\(devicesManager.devices.count)"
-            )
-            StatView(
-              title: "Online",
-              value: "\(devicesManager.onlineDevices.count)"
-            )
-            StatView(
-              title: "Total Tasks",
-              value: "\(devicesManager.totalTasksProcessed)"
-            )
+      GlassEffectContainer {
+        VStack(alignment: .leading, spacing: 24) {
+          // Summary Card
+          VStack(alignment: .leading, spacing: 12) {
+            Text("Summary")
+              .font(.headline)
+              .foregroundStyle(.secondary)
+
+            HStack(spacing: 40) {
+              StatView(
+                title: "Total Devices",
+                value: "\(devicesManager.devices.count)"
+              )
+              StatView(
+                title: "Online",
+                value: "\(devicesManager.onlineDevices.count)"
+              )
+              StatView(
+                title: "Total Tasks",
+                value: "\(devicesManager.totalTasksProcessed)"
+              )
+            }
           }
           .padding()
-        }
+          .glassEffect(in: .rect(cornerRadius: 12))
 
-        // Online Devices
-        if !devicesManager.onlineDevices.isEmpty {
-          VStack(alignment: .leading, spacing: 12) {
-            Text("Online Devices")
-              .font(.headline)
-              .foregroundStyle(.secondary)
+          // Online Devices
+          if !devicesManager.onlineDevices.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+              Text("Online Devices")
+                .font(.headline)
+                .foregroundStyle(.secondary)
 
-            ForEach(devicesManager.onlineDevices) { device in
-              DeviceCard(device: device)
+              ForEach(devicesManager.onlineDevices) { device in
+                DeviceCard(device: device)
+              }
             }
           }
-        }
 
-        // Offline Devices
-        if !devicesManager.offlineDevices.isEmpty {
-          VStack(alignment: .leading, spacing: 12) {
-            Text("Offline Devices")
-              .font(.headline)
-              .foregroundStyle(.secondary)
+          // Offline Devices
+          if !devicesManager.offlineDevices.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+              Text("Offline Devices")
+                .font(.headline)
+                .foregroundStyle(.secondary)
 
-            ForEach(devicesManager.offlineDevices) { device in
-              DeviceCard(device: device)
+              ForEach(devicesManager.offlineDevices) { device in
+                DeviceCard(device: device)
+              }
             }
           }
-        }
 
-        // Empty State
-        if devicesManager.devices.isEmpty, !devicesManager.isLoading {
-          VStack(spacing: 16) {
-            Image(systemName: "server.rack")
-              .font(.system(size: 48))
-              .foregroundStyle(.secondary)
+          // Empty State
+          if devicesManager.devices.isEmpty, !devicesManager.isLoading {
+            VStack(spacing: 16) {
+              Image(systemName: "server.rack")
+                .font(.system(size: 48))
+                .foregroundStyle(.secondary)
 
-            Text("No Devices")
-              .font(.title2)
-              .fontWeight(.semibold)
+              Text("No Devices")
+                .font(.title2)
+                .fontWeight(.semibold)
 
-            Text("Connect a device to get started")
-              .font(.subheadline)
-              .foregroundStyle(.secondary)
+              Text("Connect a device to get started")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 60)
           }
-          .frame(maxWidth: .infinity)
-          .padding(.vertical, 60)
-        }
 
-        // Error State
-        if let error = devicesManager.lastError {
-          GroupBox {
+          // Error State
+          if let error = devicesManager.lastError {
             HStack {
               Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
@@ -92,10 +97,11 @@ struct AllDevicesView: View {
               }
             }
             .padding()
+            .glassEffect(in: .rect(cornerRadius: 12))
           }
         }
+        .padding()
       }
-      .padding()
     }
     .navigationTitle("All Devices")
     .toolbar {
@@ -137,93 +143,92 @@ struct DeviceCard: View {
   let device: Device
 
   var body: some View {
-    GroupBox {
-      HStack(spacing: 16) {
-        // Icon
-        Image(systemName: device.platformIcon)
-          .font(.system(size: 32))
-          .foregroundStyle(.blue)
-          .frame(width: 48, height: 48)
+    HStack(spacing: 16) {
+      // Icon
+      Image(systemName: device.platformIcon)
+        .font(.system(size: 32))
+        .foregroundStyle(.blue)
+        .frame(width: 48, height: 48)
 
-        // Info
-        VStack(alignment: .leading, spacing: 4) {
-          // Device name
-          if let deviceName = device.deviceName {
-            Text(deviceName)
-              .font(.headline)
-          }
+      // Info
+      VStack(alignment: .leading, spacing: 4) {
+        // Device name
+        if let deviceName = device.deviceName {
+          Text(deviceName)
+            .font(.headline)
+        }
 
-          // Platform and OS version
-          HStack(spacing: 4) {
-            Text(device.platform)
-              .font(device.deviceName != nil ? .subheadline : .headline)
-              .foregroundStyle(device.deviceName != nil ? .secondary : .primary)
+        // Platform and OS version
+        HStack(spacing: 4) {
+          Text(device.platform)
+            .font(device.deviceName != nil ? .subheadline : .headline)
+            .foregroundStyle(device.deviceName != nil ? .secondary : .primary)
 
-            if let osVersion = device.osVersion {
-              Text("•")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-              Text(osVersion)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-          }
-
-          // Chip model and memory
-          HStack(spacing: 4) {
-            if let chipModel = device.chipModel {
-              Text(chipModel)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-
-            if device.chipModel != nil, device.memoryGb != nil {
-              Text("•")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-
-            if let memoryGb = device.memoryGb {
-              Text("\(Int(memoryGb)) GB")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-          }
-
-          // Status and last seen
-          HStack(spacing: 8) {
-            Circle()
-              .fill(statusColor)
-              .frame(width: 8, height: 8)
-
-            Text(device.status.capitalized)
+          if let osVersion = device.osVersion {
+            Text("•")
               .font(.caption)
               .foregroundStyle(.secondary)
-
-            Text("•")
-              .foregroundStyle(.secondary)
-
-            Text(device.lastSeenText)
+            Text(osVersion)
               .font(.caption)
               .foregroundStyle(.secondary)
           }
         }
 
-        Spacer()
+        // Chip model and memory
+        HStack(spacing: 4) {
+          if let chipModel = device.chipModel {
+            Text(chipModel)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
 
-        // Stats
-        VStack(alignment: .trailing, spacing: 4) {
-          Text("\(device.tasksProcessed)")
-            .font(.title2)
-            .fontWeight(.semibold)
+          if device.chipModel != nil, device.memoryGb != nil {
+            Text("•")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
 
-          Text("tasks")
+          if let memoryGb = device.memoryGb {
+            Text("\(Int(memoryGb)) GB")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+        }
+
+        // Status and last seen
+        HStack(spacing: 8) {
+          Circle()
+            .fill(statusColor)
+            .frame(width: 8, height: 8)
+
+          Text(device.status.capitalized)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+          Text("•")
+            .foregroundStyle(.secondary)
+
+          Text(device.lastSeenText)
             .font(.caption)
             .foregroundStyle(.secondary)
         }
       }
-      .padding()
+
+      Spacer()
+
+      // Stats
+      VStack(alignment: .trailing, spacing: 4) {
+        Text("\(device.tasksProcessed)")
+          .font(.title2)
+          .fontWeight(.semibold)
+
+        Text("tasks")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
     }
+    .padding()
+    .glassEffect(in: .rect(cornerRadius: 12))
   }
 
   private var statusColor: Color {

@@ -27,13 +27,25 @@ struct OrchardGridApp: App {
   var body: some Scene {
     WindowGroup {
       Group {
-        if authManager.isAuthenticated {
+        switch authManager.authState {
+        case .loading:
+          VStack(spacing: 16) {
+            ProgressView()
+              .controlSize(.large)
+            Text("Loading...")
+              .font(.headline)
+              .foregroundStyle(.secondary)
+          }
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+        case .authenticated:
           MainView()
             .environment(authManager)
             .environment(wsClient)
             .environment(apiServer)
             .environment(devicesManager)
-        } else {
+
+        case .unauthenticated:
           LoginView()
             .environment(authManager)
         }

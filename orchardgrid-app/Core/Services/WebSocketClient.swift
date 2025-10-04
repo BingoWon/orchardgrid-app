@@ -25,10 +25,32 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   private let platform: String
   private let osVersion: String
 
-  // State
-  private(set) var isConnected = false
-  private(set) var lastError: String?
+  // Connection state
+  enum ConnectionState: Equatable {
+    case disconnected
+    case connecting
+    case connected
+    case reconnecting(attempt: Int, nextRetryIn: TimeInterval?)
+    case failed(String)
+  }
+
+  private(set) var connectionState: ConnectionState = .disconnected
   private(set) var tasksProcessed = 0
+
+  // Computed properties for backward compatibility
+  var isConnected: Bool {
+    if case .connected = connectionState {
+      return true
+    }
+    return false
+  }
+
+  var lastError: String? {
+    if case let .failed(error) = connectionState {
+      return error
+    }
+    return nil
+  }
 
   // Model availability
   var modelAvailability: SystemLanguageModel.Availability {
@@ -52,7 +74,6 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
         }
       } else {
         disconnect()
-        lastError = nil // Clear error when user disables
       }
     }
   }
@@ -63,13 +84,14 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   private var shouldAutoReconnect = false
   private var reconnectTask: Task<Void, Never>?
   private var heartbeatTask: Task<Void, Never>?
+  private var retryTimerTask: Task<Void, Never>?
 
   // LLM Processing
   private let model = SystemLanguageModel.default
 
   // Constants
   private let heartbeatInterval: TimeInterval = 30 // 30 seconds
-  private let heartbeatTimeout: TimeInterval = 90 // 90 seconds without response = timeout
+  private let heartbeatTimeout: TimeInterval = 60 // 60 seconds (2x interval)
   private var lastHeartbeatResponse: Date?
 
   override init() {
@@ -112,7 +134,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
   func retry() {
     Logger.log(.websocket, "User requested retry")
-    lastError = nil
+    connectionState = .connecting
     connect()
   }
 
@@ -124,11 +146,12 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     didOpenWithProtocol _: String?
   ) {
     Task { @MainActor in
-      isConnected = true
-      lastError = nil
-      lastHeartbeatResponse = Date() // Initialize heartbeat timestamp
+      connectionState = .connected
+      lastHeartbeatResponse = Date()
       reconnectTask?.cancel()
       reconnectTask = nil
+      retryTimerTask?.cancel()
+      retryTimerTask = nil
       startHeartbeat()
       Logger.success(.websocket, "Connected")
     }
@@ -141,12 +164,11 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     reason _: Data?
   ) {
     Task { @MainActor in
-      isConnected = false
+      connectionState = .disconnected
       stopHeartbeat()
       Logger.log(.websocket, "Closed: \(closeCode.rawValue)")
 
       if shouldAutoReconnect {
-        lastError = "Connection closed unexpectedly"
         startReconnection()
       }
     }
@@ -160,20 +182,22 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       return
     }
     guard let userID else {
-      lastError = "User ID not set"
+      connectionState = .failed("User ID not set")
       Logger.error(.websocket, "Cannot connect: User ID not set")
       return
     }
 
     Logger.log(.websocket, "Starting connection...")
+    connectionState = .connecting
     shouldAutoReconnect = true
     reconnectTask?.cancel()
     reconnectTask = nil
-    lastError = nil
+    retryTimerTask?.cancel()
+    retryTimerTask = nil
 
     // Create URL with device ID, user ID, platform, OS version, and hardware info
     guard var urlComponents = URLComponents(string: serverURL) else {
-      lastError = "Invalid server URL"
+      connectionState = .failed("Invalid server URL")
       return
     }
     urlComponents.queryItems = [
@@ -190,7 +214,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     ]
 
     guard let url = urlComponents.url else {
-      lastError = "Failed to construct URL"
+      connectionState = .failed("Failed to construct URL")
       return
     }
 
@@ -225,16 +249,20 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     shouldAutoReconnect = false
     reconnectTask?.cancel()
     reconnectTask = nil
-    stopHeartbeat()
+    retryTimerTask?.cancel()
+    retryTimerTask = nil
+    cleanupConnection()
+    connectionState = .disconnected
 
+    Logger.log(.websocket, "Disconnected")
+  }
+
+  private func cleanupConnection() {
+    stopHeartbeat()
     webSocketTask?.cancel(with: .goingAway, reason: nil)
     webSocketTask = nil
     urlSession?.invalidateAndCancel()
     urlSession = nil
-    isConnected = false
-    lastError = nil
-
-    Logger.log(.websocket, "Disconnected")
   }
 
   // MARK: - Message Handling
@@ -302,14 +330,13 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
     } catch {
       Logger.error(.websocket, "Failed to decode message: \(error)")
-      lastError = "Message decode error: \(error.localizedDescription)"
+      // Don't change connection state for message decode errors
     }
   }
 
   private func handleError(_ error: Error) {
     Logger.error(.websocket, "\(error)")
-    lastError = error.localizedDescription
-    isConnected = false
+    connectionState = .failed(error.localizedDescription)
     // Don't modify isEnabled - let user control it
   }
 
@@ -329,8 +356,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
            Date().timeIntervalSince(lastResponse) > heartbeatTimeout
         {
           Logger.error(.websocket, "Heartbeat timeout - connection appears dead")
-          lastError = "Connection timeout"
-          isConnected = false
+          connectionState = .disconnected
           stopHeartbeat()
           if shouldAutoReconnect {
             startReconnection()
@@ -355,20 +381,24 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
   private func startReconnection() {
     reconnectTask?.cancel()
+    retryTimerTask?.cancel()
 
     reconnectTask = Task { @MainActor in
       var delay = 1.0
       var attempts = 0
-      let maxAttempts = 10
 
-      while attempts < maxAttempts, !isConnected, shouldAutoReconnect {
+      while !isConnected, shouldAutoReconnect {
         attempts += 1
+
+        // Update state with retry countdown
+        connectionState = .reconnecting(attempt: attempts, nextRetryIn: delay)
         Logger.log(
           .websocket,
-          "Reconnection attempt \(attempts)/\(maxAttempts) in \(String(format: "%.1f", delay))s..."
+          "Reconnection attempt \(attempts) in \(String(format: "%.1f", delay))s..."
         )
 
-        try? await Task.sleep(for: .seconds(delay))
+        // Countdown timer
+        await startRetryCountdown(delay)
 
         guard shouldAutoReconnect, !isConnected else {
           Logger.log(.websocket, "Reconnection cancelled")
@@ -376,7 +406,8 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
         }
 
         // Reconnect
-        disconnect()
+        connectionState = .connecting
+        cleanupConnection()
         try? await Task.sleep(for: .seconds(0.5))
         connect()
 
@@ -384,19 +415,39 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
         try? await Task.sleep(for: .seconds(2))
 
         if isConnected {
-          Logger.success(.websocket, "Reconnected")
+          Logger.success(.websocket, "Reconnected after \(attempts) attempts")
           return
         }
 
-        // Exponential backoff with max 60 seconds
-        delay = min(delay * 2, 60)
-      }
-
-      if !isConnected, shouldAutoReconnect {
-        Logger.error(.websocket, "Max reconnection attempts reached")
-        lastError = "Failed to reconnect after \(maxAttempts) attempts"
+        // Two-phase backoff strategy:
+        // Phase 1 (attempts 1-10): Fast reconnection (1s → 60s)
+        // Phase 2 (attempts 11+): Slow reconnection (5 minutes)
+        if attempts < 10 {
+          delay = min(delay * 2, 60) // Exponential backoff, max 60s
+        } else {
+          delay = 300 // 5 minutes for long-term disconnection
+        }
       }
     }
+  }
+
+  private func startRetryCountdown(_ totalSeconds: TimeInterval) async {
+    retryTimerTask?.cancel()
+
+    retryTimerTask = Task { @MainActor in
+      var remaining = totalSeconds
+
+      while remaining > 0, !Task.isCancelled {
+        if case let .reconnecting(attempt, _) = connectionState {
+          connectionState = .reconnecting(attempt: attempt, nextRetryIn: remaining)
+        }
+
+        try? await Task.sleep(for: .seconds(1))
+        remaining -= 1
+      }
+    }
+
+    await retryTimerTask?.value
   }
 
   // MARK: - Task Processing
@@ -644,7 +695,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
     } catch {
       Logger.error(.websocket, "Failed to send message: \(error)")
-      lastError = "Send error: \(error.localizedDescription)"
+      // Don't change connection state for send errors
     }
   }
 }

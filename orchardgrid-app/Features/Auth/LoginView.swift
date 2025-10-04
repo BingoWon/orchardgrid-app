@@ -53,75 +53,79 @@ struct LoginView: View {
           .padding(.top, verticalSizeClass == .compact ? 20 : 40)
 
           // Login form
-          VStack(spacing: 16) {
-            // Email input
-            TextField("Email", text: $email)
+          VStack(spacing: 20) {
+            VStack(spacing: 16) {
+              // Email input
+              TextField("Email", text: $email)
+                .textFieldStyle(.roundedBorder)
+                .textContentType(.emailAddress)
+              #if os(iOS)
+                .autocapitalization(.none)
+                .keyboardType(.emailAddress)
+              #endif
+
+              // Password input
+              HStack {
+                if showPassword {
+                  TextField("Password", text: $password)
+                    .textContentType(.password)
+                } else {
+                  SecureField("Password", text: $password)
+                    .textContentType(.password)
+                }
+                Button {
+                  showPassword.toggle()
+                } label: {
+                  Image(systemName: showPassword ? "eye.slash" : "eye")
+                    .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+              }
               .textFieldStyle(.roundedBorder)
-              .textContentType(.emailAddress)
-            #if os(iOS)
-              .autocapitalization(.none)
-              .keyboardType(.emailAddress)
-            #endif
 
-            // Password input
-            HStack {
-              if showPassword {
-                TextField("Password", text: $password)
-                  .textContentType(.password)
-              } else {
-                SecureField("Password", text: $password)
-                  .textContentType(.password)
-              }
+              // Sign In button
               Button {
-                showPassword.toggle()
+                Task {
+                  await authManager.login(email: email, password: password)
+                }
               } label: {
-                Image(systemName: showPassword ? "eye.slash" : "eye")
-                  .foregroundStyle(.secondary)
+                Text("Sign In")
+                  .frame(maxWidth: .infinity)
+                  .frame(height: 44)
               }
-              .buttonStyle(.plain)
-            }
-            .textFieldStyle(.roundedBorder)
+              .buttonStyle(.borderedProminent)
+              .disabled(!isFormValid)
 
-            // Sign In button
-            Button {
-              Task {
-                await authManager.login(email: email, password: password)
+              // Divider
+              HStack {
+                Rectangle()
+                  .fill(Color.secondary.opacity(0.3))
+                  .frame(height: 1)
+                Text("or")
+                  .font(.caption)
+                  .foregroundStyle(.secondary)
+                Rectangle()
+                  .fill(Color.secondary.opacity(0.3))
+                  .frame(height: 1)
               }
-            } label: {
-              Text("Sign In")
+
+              // Google Sign In button
+              Button {
+                Task {
+                  await authManager.signInWithGoogle()
+                }
+              } label: {
+                HStack {
+                  Image(systemName: "globe")
+                  Text("Continue with Google")
+                }
                 .frame(maxWidth: .infinity)
                 .frame(height: 44)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!isFormValid)
-
-            // Divider
-            HStack {
-              Rectangle()
-                .fill(Color.secondary.opacity(0.3))
-                .frame(height: 1)
-              Text("or")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-              Rectangle()
-                .fill(Color.secondary.opacity(0.3))
-                .frame(height: 1)
-            }
-
-            // Google Sign In button
-            Button {
-              Task {
-                await authManager.signInWithGoogle()
               }
-            } label: {
-              HStack {
-                Image(systemName: "globe")
-                Text("Continue with Google")
-              }
-              .frame(maxWidth: .infinity)
-              .frame(height: 44)
+              .buttonStyle(.bordered)
             }
-            .buttonStyle(.bordered)
+            .padding(32)
+            .glassEffect(in: .rect(cornerRadius: 16))
           }
           .frame(maxWidth: 400)
 
