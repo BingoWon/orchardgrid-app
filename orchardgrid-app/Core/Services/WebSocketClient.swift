@@ -90,8 +90,8 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   private let model = SystemLanguageModel.default
 
   // Constants
-  private let heartbeatInterval: TimeInterval = 30 // 30 seconds
-  private let heartbeatTimeout: TimeInterval = 60 // 60 seconds (2x interval)
+  private let heartbeatInterval: TimeInterval = 15 // 15 seconds
+  private let heartbeatTimeout: TimeInterval = 45 // 45 seconds (3x interval)
   private var lastHeartbeatResponse: Date?
 
   override init() {

@@ -34,11 +34,15 @@ struct Device: Codable, Identifiable {
   }
 
   var isOnline: Bool {
+    // Check status first (immediate update on disconnect)
+    guard status.lowercased() == "online" || status.lowercased() == "busy" else {
+      return false
+    }
+    // Then verify heartbeat (fallback for stale connections)
     guard let heartbeat = lastHeartbeat else { return false }
-    // Backend returns milliseconds, convert to milliseconds for comparison
     let now = Int(Date().timeIntervalSince1970 * 1000)
-    // Online if heartbeat within 90 seconds (matches backend threshold)
-    return now - heartbeat < 90000
+    // Online if heartbeat within 45 seconds (matches backend threshold)
+    return now - heartbeat < 45000
   }
 
   var platformIcon: String {

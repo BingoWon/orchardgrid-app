@@ -119,11 +119,20 @@ struct AllDevicesView: View {
       }
     }
     .task {
-      if let token = authManager.authToken {
-        Logger.log(.devices, "Fetching devices with token")
-        await devicesManager.fetchDevices(authToken: token)
-      } else {
+      guard let token = authManager.authToken else {
         Logger.error(.devices, "No auth token available")
+        return
+      }
+
+      // Initial fetch
+      Logger.log(.devices, "Fetching devices with token")
+      await devicesManager.fetchDevices(authToken: token)
+
+      // Auto-refresh every 30 seconds
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .seconds(30))
+        guard !Task.isCancelled else { break }
+        await devicesManager.fetchDevices(authToken: token)
       }
     }
     .overlay {
