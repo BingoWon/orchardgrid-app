@@ -10,11 +10,8 @@ final class LogsManager {
   var isLoading = false
   var errorMessage: String?
 
-  private let apiURL: String
-
-  init() {
-    apiURL = Config.apiBaseURL
-  }
+  private let apiURL = Config.apiBaseURL
+  private let urlSession = NetworkManager.shared
 
   func loadConsumingTasks(
     limit: Int = 50,
@@ -76,7 +73,7 @@ final class LogsManager {
       var request = URLRequest(url: components.url!)
       request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
 
-      let (data, response) = try await URLSession.shared.data(for: request)
+      let (data, response) = try await urlSession.data(for: request)
 
       guard let httpResponse = response as? HTTPURLResponse,
             httpResponse.statusCode == 200

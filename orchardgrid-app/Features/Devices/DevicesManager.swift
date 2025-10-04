@@ -79,6 +79,7 @@ final class DevicesManager {
   private(set) var lastError: String?
 
   private let apiURL = Config.apiBaseURL
+  private let urlSession = NetworkManager.shared
 
   func fetchDevices(authToken: String) async {
     isLoading = true
@@ -92,7 +93,7 @@ final class DevicesManager {
       Logger.log(.devices, "Fetching from: \(url.absoluteString)")
       Logger.log(.devices, "Token: \(String(authToken.prefix(20)))...")
 
-      let (data, response) = try await URLSession.shared.data(for: request)
+      let (data, response) = try await urlSession.data(for: request)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw URLError(.badServerResponse)

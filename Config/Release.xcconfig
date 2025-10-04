@@ -4,7 +4,7 @@
 //
 
 // API Configuration
-API_BASE_URL = https:/$()/orchardgrid-api.bingow.workers.dev
+API_BASE_URL = https://orchardgrid-api.bingow.workers.dev
 GOOGLE_CLIENT_ID = YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com
 
 // App Configuration

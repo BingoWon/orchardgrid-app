@@ -18,7 +18,6 @@ struct MainView: View {
       // Detail
       if let selectedItem {
         detailView(for: selectedItem)
-          .backgroundExtensionEffect()
       } else {
         Text("Select an item")
           .foregroundStyle(.secondary)

@@ -30,6 +30,7 @@ final class AuthManager {
 
   // API configuration
   private let apiURL = Config.apiBaseURL
+  private let urlSession = NetworkManager.shared
 
   // Callback for user ID changes
   var onUserIDChanged: ((String) -> Void)?
@@ -82,7 +83,7 @@ final class AuthManager {
       }
       request.httpBody = try JSONEncoder().encode(body)
 
-      let (data, _) = try await URLSession.shared.data(for: request)
+      let (data, _) = try await urlSession.data(for: request)
       let response = try JSONDecoder().decode(AuthResponse.self, from: data)
 
       // Save token
@@ -113,24 +114,22 @@ final class AuthManager {
       var request = URLRequest(url: url)
       request.httpMethod = "POST"
       request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.httpBody = try JSONEncoder().encode(["email": email, "password": password])
 
-      let body = ["email": email, "password": password]
-      request.httpBody = try JSONEncoder().encode(body)
+      let (data, _) = try await urlSession.data(for: request)
+      let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
 
-      let (data, _) = try await URLSession.shared.data(for: request)
-      let response = try JSONDecoder().decode(AuthResponse.self, from: data)
-
-      // Save token
-      UserDefaultsManager.saveToken(response.token)
-      authToken = response.token
-      authState = .authenticated(response.user)
-      currentUser = response.user
+      // Save token and update state
+      UserDefaultsManager.saveToken(authResponse.token)
+      authToken = authResponse.token
+      authState = .authenticated(authResponse.user)
+      currentUser = authResponse.user
       lastError = nil
 
-      Logger.success(.auth, "Login successful: \(response.user.email)")
-      onUserIDChanged?(response.user.id)
+      Logger.success(.auth, "Login successful: \(authResponse.user.email)")
+      onUserIDChanged?(authResponse.user.id)
     } catch {
-      Logger.error(.auth, "Login failed: \(error)")
+      Logger.error(.auth, "Login failed: \(error.localizedDescription)")
       lastError = error.localizedDescription
       authState = .unauthenticated
     }
@@ -151,7 +150,7 @@ final class AuthManager {
       var request = URLRequest(url: url)
       request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
-      let (data, _) = try await URLSession.shared.data(for: request)
+      let (data, _) = try await urlSession.data(for: request)
       let user = try JSONDecoder().decode(User.self, from: data)
 
       authState = .authenticated(user)

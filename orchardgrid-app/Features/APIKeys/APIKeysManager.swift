@@ -22,6 +22,7 @@ final class APIKeysManager {
   var lastError: String?
 
   private let apiURL = Config.apiBaseURL
+  private let urlSession = NetworkManager.shared
 
   func loadAPIKeys(authToken: String) async {
     isLoading = true
@@ -34,7 +35,7 @@ final class APIKeysManager {
 
       Logger.log(.api, "Fetching API keys from: \(url.absoluteString)")
 
-      let (data, response) = try await URLSession.shared.data(for: request)
+      let (data, response) = try await urlSession.data(for: request)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw NSError(domain: "Invalid response", code: -1)
@@ -79,7 +80,7 @@ final class APIKeysManager {
 
       Logger.log(.api, "Creating API key: \(name)")
 
-      let (data, response) = try await URLSession.shared.data(for: request)
+      let (data, response) = try await urlSession.data(for: request)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw NSError(domain: "Invalid response", code: -1)
@@ -119,7 +120,7 @@ final class APIKeysManager {
 
       Logger.log(.api, "Updating API key name: \(name)")
 
-      let (data, response) = try await URLSession.shared.data(for: request)
+      let (data, response) = try await urlSession.data(for: request)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw NSError(domain: "Invalid response", code: -1)
@@ -149,7 +150,7 @@ final class APIKeysManager {
 
       Logger.log(.api, "Deleting API key: \(key)")
 
-      let (data, response) = try await URLSession.shared.data(for: request)
+      let (data, response) = try await urlSession.data(for: request)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw NSError(domain: "Invalid response", code: -1)
