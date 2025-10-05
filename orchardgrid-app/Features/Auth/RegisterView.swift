@@ -42,7 +42,11 @@ struct RegisterView: View {
               .font(.title3)
               .foregroundStyle(.secondary)
           }
+          #if os(macOS)
+          .padding(.top, 40)
+          #else
           .padding(.top, verticalSizeClass == .compact ? 20 : 40)
+          #endif
 
           // Registration form
           VStack(spacing: 20) {

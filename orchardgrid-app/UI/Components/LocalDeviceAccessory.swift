@@ -14,6 +14,8 @@ struct LocalDeviceAccessory: View {
         inlineView
       case .expanded, nil:
         expandedView
+      @unknown default:
+        expandedView
       }
     }
     .contentShape(Rectangle())
@@ -23,17 +25,29 @@ struct LocalDeviceAccessory: View {
     .sheet(isPresented: $showDeviceSheet) {
       NavigationStack {
         LocalDeviceView()
+        #if !os(macOS)
           .navigationBarTitleDisplayMode(.inline)
+        #endif
           .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-              Button(role: .close) {
-                showDeviceSheet = false
+            #if os(macOS)
+              ToolbarItem(placement: .automatic) {
+                Button("Close") {
+                  showDeviceSheet = false
+                }
               }
-            }
+            #else
+              ToolbarItem(placement: .topBarTrailing) {
+                Button(role: .close) {
+                  showDeviceSheet = false
+                }
+              }
+            #endif
           }
       }
+      #if !os(macOS)
       .presentationDetents([.large])
       .presentationDragIndicator(.visible)
+      #endif
     }
   }
 

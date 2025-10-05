@@ -27,21 +27,27 @@ struct MainView: View {
       ) {
         NavigationStack {
           AllDevicesView()
+          #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
+          #endif
         }
       }
 
       Tab(NavigationItem.apiKeys.title, systemImage: NavigationItem.apiKeys.icon, value: .apiKeys) {
         NavigationStack {
           APIKeysView()
+          #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
+          #endif
         }
       }
 
       Tab(NavigationItem.logs.title, systemImage: NavigationItem.logs.icon, value: .logs) {
         NavigationStack {
           LogsView()
+          #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
+          #endif
         }
       }
 
@@ -49,10 +55,12 @@ struct MainView: View {
         SearchView()
       }
     }
+    #if !os(macOS)
     .tabBarMinimizeBehavior(.onScrollDown)
     .tabViewBottomAccessory {
       LocalDeviceAccessory()
     }
+    #endif
   }
 
   // MARK: - Split View (iPad & Mac)
@@ -70,11 +78,15 @@ struct MainView: View {
       .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 300)
       .navigationDestination(for: NavigationItem.self) { item in
         detailView(for: item)
+        #if !os(macOS)
           .navigationBarTitleDisplayMode(.inline)
+        #endif
       }
     } detail: {
       detailView(for: selectedItem)
+      #if !os(macOS)
         .navigationBarTitleDisplayMode(.inline)
+      #endif
     }
   }
 

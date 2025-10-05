@@ -23,17 +23,29 @@ struct WithAccountToolbar<LeadingContent: View>: ViewModifier {
       .sheet(isPresented: $showAccountSheet) {
         NavigationStack {
           AccountView()
+          #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
+          #endif
             .toolbar {
-              ToolbarItem(placement: .topBarTrailing) {
-                Button(role: .close) {
-                  showAccountSheet = false
+              #if os(macOS)
+                ToolbarItem(placement: .automatic) {
+                  Button("Close") {
+                    showAccountSheet = false
+                  }
                 }
-              }
+              #else
+                ToolbarItem(placement: .topBarTrailing) {
+                  Button(role: .close) {
+                    showAccountSheet = false
+                  }
+                }
+              #endif
             }
         }
+        #if !os(macOS)
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
+        #endif
       }
   }
 }

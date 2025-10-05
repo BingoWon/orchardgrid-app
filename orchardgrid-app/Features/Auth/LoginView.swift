@@ -37,7 +37,11 @@ struct LoginView: View {
         VStack(spacing: 24) {
           // Logo and Title
           headerView
-            .padding(.top, verticalSizeClass == .compact ? 20 : 40)
+          #if os(macOS)
+          .padding(.top, 40)
+          #else
+          .padding(.top, verticalSizeClass == .compact ? 20 : 40)
+          #endif
 
           // Login Form
           loginForm
