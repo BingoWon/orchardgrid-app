@@ -1,6 +1,7 @@
 import SwiftUI
 
 enum NavigationItem: String, CaseIterable, Identifiable {
+  case localDevice = "Local Device"
   case allDevices = "All Devices"
   case apiKeys = "API Keys"
   case logs = "Logs"
@@ -10,10 +11,15 @@ enum NavigationItem: String, CaseIterable, Identifiable {
 
   /// Display title for Tab/Sidebar
   var title: String {
-    rawValue
+    switch self {
+    case .localDevice:
+      Self.localDeviceTitle
+    default:
+      rawValue
+    }
   }
 
-  /// Platform-specific title for local device (used in accessory)
+  /// Platform-specific title for local device
   static var localDeviceTitle: String {
     #if os(macOS)
       return "This Mac"
@@ -25,14 +31,20 @@ enum NavigationItem: String, CaseIterable, Identifiable {
   /// SF Symbol icon
   var icon: String {
     switch self {
+    case .localDevice:
+      #if os(macOS)
+        return "desktopcomputer"
+      #else
+        return UIDevice.current.userInterfaceIdiom == .pad ? "ipad" : "iphone"
+      #endif
     case .allDevices:
-      "server.rack"
+      return "server.rack"
     case .apiKeys:
-      "key.fill"
+      return "key.fill"
     case .logs:
-      "list.bullet.rectangle"
+      return "list.bullet.rectangle"
     case .search:
-      "magnifyingglass"
+      return "magnifyingglass"
     }
   }
 }

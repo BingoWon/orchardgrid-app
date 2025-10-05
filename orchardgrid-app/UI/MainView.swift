@@ -20,39 +20,21 @@ struct MainView: View {
 
   private var tabView: some View {
     TabView(selection: $selectedItem) {
-      Tab(
-        NavigationItem.allDevices.title,
-        systemImage: NavigationItem.allDevices.icon,
-        value: .allDevices
-      ) {
-        NavigationStack {
-          AllDevicesView()
-          #if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
-          #endif
+      ForEach(NavigationItem.allCases.filter { $0 != .localDevice }) { item in
+        if item == .search {
+          Tab(value: item, role: .search) {
+            SearchView()
+          }
+        } else {
+          Tab(item.title, systemImage: item.icon, value: item) {
+            NavigationStack {
+              detailView(for: item)
+              #if !os(macOS)
+                .navigationBarTitleDisplayMode(.inline)
+              #endif
+            }
+          }
         }
-      }
-
-      Tab(NavigationItem.apiKeys.title, systemImage: NavigationItem.apiKeys.icon, value: .apiKeys) {
-        NavigationStack {
-          APIKeysView()
-          #if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
-          #endif
-        }
-      }
-
-      Tab(NavigationItem.logs.title, systemImage: NavigationItem.logs.icon, value: .logs) {
-        NavigationStack {
-          LogsView()
-          #if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
-          #endif
-        }
-      }
-
-      Tab(value: .search, role: .search) {
-        SearchView()
       }
     }
     #if !os(macOS)
@@ -95,6 +77,8 @@ struct MainView: View {
   @ViewBuilder
   private func detailView(for item: NavigationItem) -> some View {
     switch item {
+    case .localDevice:
+      LocalDeviceView()
     case .allDevices:
       AllDevicesView()
     case .apiKeys:
