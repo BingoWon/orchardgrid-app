@@ -22,15 +22,6 @@ enum NavigationItem: String, CaseIterable, Identifiable {
     #endif
   }
 
-  /// Icon for local device (used in accessory)
-  static var localDeviceIcon: String {
-    #if os(macOS)
-      return "desktopcomputer"
-    #else
-      return UIDevice.current.userInterfaceIdiom == .pad ? "ipad" : "iphone"
-    #endif
-  }
-
   /// SF Symbol icon
   var icon: String {
     switch self {

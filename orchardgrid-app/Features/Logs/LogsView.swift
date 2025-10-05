@@ -35,52 +35,26 @@ struct LogsView: View {
     .navigationTitle("Logs")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
-    .toolbar {
-      ToolbarItem {
-        Button {
-          Task {
-            if selectedTab == 0 {
-              await loadConsumingTasks()
-            } else {
-              await loadProvidingTasks()
-            }
+    .withAccountToolbar(showAccountSheet: $showAccountSheet) {
+      Button {
+        Task {
+          if selectedTab == 0 {
+            await loadConsumingTasks()
+          } else {
+            await loadProvidingTasks()
           }
-        } label: {
-          Image(systemName: "arrow.clockwise")
-            .rotationEffect(.degrees(manager.isLoading ? 360 : 0))
-            .animation(
-              manager.isLoading
-                ? .linear(duration: 1).repeatForever(autoreverses: false)
-                : .default,
-              value: manager.isLoading
-            )
         }
-        .disabled(manager.isLoading)
+      } label: {
+        Image(systemName: "arrow.clockwise")
+          .rotationEffect(.degrees(manager.isLoading ? 360 : 0))
+          .animation(
+            manager.isLoading
+              ? .linear(duration: 1).repeatForever(autoreverses: false)
+              : .default,
+            value: manager.isLoading
+          )
       }
-      ToolbarSpacer(.fixed)
-      ToolbarItem {
-        Button {
-          showAccountSheet = true
-        } label: {
-          Label("Account", systemImage: "person.circle")
-            .labelStyle(.iconOnly)
-        }
-      }
-    }
-    .sheet(isPresented: $showAccountSheet) {
-      NavigationStack {
-        AccountView()
-          .navigationBarTitleDisplayMode(.inline)
-          .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-              Button(role: .close) {
-                showAccountSheet = false
-              }
-            }
-          }
-      }
-      .presentationDetents([.large])
-      .presentationDragIndicator(.visible)
+      .disabled(manager.isLoading)
     }
     .task {
       await loadData()

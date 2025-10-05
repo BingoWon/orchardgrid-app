@@ -141,39 +141,13 @@ struct APIKeysView: View {
     .navigationTitle("API Keys")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
-    .toolbar {
-      ToolbarItem {
-        Button {
-          createKey()
-        } label: {
-          Label("Create API Key", systemImage: "plus")
-        }
-        .disabled(authManager.authToken == nil)
+    .withAccountToolbar(showAccountSheet: $showAccountSheet) {
+      Button {
+        createKey()
+      } label: {
+        Label("Create API Key", systemImage: "plus")
       }
-      ToolbarSpacer(.fixed)
-      ToolbarItem {
-        Button {
-          showAccountSheet = true
-        } label: {
-          Label("Account", systemImage: "person.circle")
-            .labelStyle(.iconOnly)
-        }
-      }
-    }
-    .sheet(isPresented: $showAccountSheet) {
-      NavigationStack {
-        AccountView()
-          .navigationBarTitleDisplayMode(.inline)
-          .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-              Button(role: .close) {
-                showAccountSheet = false
-              }
-            }
-          }
-      }
-      .presentationDetents([.large])
-      .presentationDragIndicator(.visible)
+      .disabled(authManager.authToken == nil)
     }
     .task {
       guard let token = authManager.authToken else { return }

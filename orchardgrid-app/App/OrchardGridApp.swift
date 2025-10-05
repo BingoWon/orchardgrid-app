@@ -6,6 +6,7 @@ struct OrchardGridApp: App {
   @State private var wsClient: WebSocketClient
   @State private var apiServer = APIServer()
   @State private var devicesManager = DevicesManager()
+  @State private var windowSize: CGSize = .zero
   @Environment(\.scenePhase) private var scenePhase
 
   init() {
@@ -44,12 +45,18 @@ struct OrchardGridApp: App {
             .environment(wsClient)
             .environment(apiServer)
             .environment(devicesManager)
+            .onGeometryChange(for: CGSize.self) { geometry in
+              geometry.size
+            } action: {
+              windowSize = $0
+            }
 
         case .unauthenticated:
           LoginView()
             .environment(authManager)
         }
       }
+      .frame(minWidth: 375.0, minHeight: 375.0)
     }
     #if os(macOS)
     .commands {

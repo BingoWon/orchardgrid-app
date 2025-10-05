@@ -8,16 +8,18 @@ struct LocalDeviceAccessory: View {
   @State private var showDeviceSheet = false
 
   var body: some View {
-    Button {
-      showDeviceSheet = true
-    } label: {
-      if placement == .inline {
+    Group {
+      switch placement {
+      case .inline:
         inlineView
-      } else {
+      case .expanded, nil:
         expandedView
       }
     }
-    .buttonStyle(.plain)
+    .contentShape(Rectangle())
+    .onTapGesture {
+      showDeviceSheet = true
+    }
     .sheet(isPresented: $showDeviceSheet) {
       NavigationStack {
         LocalDeviceView()
@@ -38,67 +40,56 @@ struct LocalDeviceAccessory: View {
   // MARK: - Inline View
 
   private var inlineView: some View {
-    GeometryReader { geometry in
-      HStack(spacing: 10) {
-        HStack(spacing: 8) {
-          connectionIndicator(size: 8)
-          Text(NavigationItem.localDeviceTitle)
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(.primary)
-        }
-        .padding(.leading, geometry.size.height / 2)
+    HStack {
+      connectionIndicator(size: 8)
 
-        Spacer()
+      Spacer()
 
-        Text(connectionStatusText)
-          .font(.system(size: 14, weight: .medium))
-          .foregroundStyle(.secondary)
-          .padding(.trailing, geometry.size.height / 2)
-      }
-      .frame(width: geometry.size.width, height: geometry.size.height)
-      .glassEffect(in: Capsule())
+      Text(connectionStatusText)
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+
+      Spacer()
+
+      Image(systemName: "chevron.right")
+        .font(.caption)
+        .foregroundStyle(.tertiary)
     }
+    .padding(.horizontal)
   }
 
   // MARK: - Expanded View
 
   private var expandedView: some View {
-    GeometryReader { geometry in
-      HStack(spacing: 12) {
-        HStack(spacing: 8) {
-          connectionIndicator(size: 10)
-          Text(NavigationItem.localDeviceTitle)
-            .font(.system(size: 16, weight: .semibold))
-            .foregroundStyle(.primary)
-        }
-        .padding(.leading, geometry.size.height / 2)
-
-        Spacer(minLength: 12)
-
-        HStack(spacing: 8) {
-          Text(connectionStatusText)
-            .font(.system(size: 14, weight: .medium))
-            .foregroundStyle(.secondary)
-
-          if wsClient.isConnected {
-            Text("•")
-              .font(.system(size: 12))
-              .foregroundStyle(.tertiary)
-
-            Text("\(wsClient.tasksProcessed)")
-              .font(.system(size: 14, weight: .semibold))
-              .foregroundStyle(.primary)
-          }
-        }
-
-        Image(systemName: "chevron.right")
-          .font(.system(size: 13, weight: .semibold))
-          .foregroundStyle(.tertiary)
-          .padding(.trailing, geometry.size.height / 2)
+    HStack {
+      HStack(spacing: 8) {
+        connectionIndicator(size: 10)
+        Text(NavigationItem.localDeviceTitle)
+          .font(.headline)
       }
-      .frame(width: geometry.size.width, height: geometry.size.height)
-      .glassEffect(in: Capsule())
+
+      Spacer()
+
+      HStack(spacing: 8) {
+        Text(connectionStatusText)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+
+        if wsClient.isConnected {
+          Text("•")
+            .foregroundStyle(.tertiary)
+
+          Text("\(wsClient.tasksProcessed)")
+            .font(.subheadline)
+            .fontWeight(.semibold)
+        }
+      }
+
+      Image(systemName: "chevron.right")
+        .font(.caption)
+        .foregroundStyle(.tertiary)
     }
+    .padding(.horizontal)
   }
 
   // MARK: - Helpers
