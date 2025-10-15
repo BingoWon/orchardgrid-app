@@ -287,6 +287,7 @@ struct UsageInstructionsView: View {
             Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
               .foregroundStyle(.secondary)
           }
+          .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
 
