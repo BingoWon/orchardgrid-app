@@ -33,9 +33,6 @@ struct AllDevicesView: View {
           if let error = devicesManager.lastError {
             errorState(error: error)
           }
-
-          // Placeholder Images for Scrolling Test
-          placeholderImagesSection
         }
         .padding(Constants.standardPadding)
       }
@@ -168,82 +165,6 @@ struct AllDevicesView: View {
         )
     }
     .disabled(devicesManager.isRefreshing)
-  }
-
-  // MARK: - Placeholder Images Section
-
-  private var placeholderImagesSection: some View {
-    VStack(alignment: .leading, spacing: Constants.summaryCardSpacing) {
-      Text("Gallery")
-        .font(.headline)
-        .foregroundStyle(.secondary)
-
-      ForEach(placeholderImageURLs, id: \.self) { imageURL in
-        AsyncImage(url: imageURL) { phase in
-          switch phase {
-          case .empty:
-            ProgressView()
-              .frame(height: 200)
-          case let .success(image):
-            image
-              .resizable()
-              .aspectRatio(contentMode: .fill)
-              .frame(height: 200)
-              .clipped()
-          case .failure:
-            Image(systemName: "photo")
-              .resizable()
-              .aspectRatio(contentMode: .fit)
-              .frame(height: 200)
-              .foregroundStyle(.secondary)
-          @unknown default:
-            EmptyView()
-          }
-        }
-        .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
-      }
-    }
-  }
-
-  private var placeholderImageURLs: [URL] {
-    [
-      URL(
-        string:
-        "https://images.unsplash.com/photo-1756142008570-a3dfb507b037?q=80&w=2370&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDF8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-      )!,
-      URL(
-        string:
-        "https://images.unsplash.com/photo-1759503408354-8cfa8a13115e?q=80&w=2370&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-      )!,
-      URL(
-        string:
-        "https://images.unsplash.com/photo-1758914476570-fb84df0e67ab?q=80&w=2370&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-      )!,
-      URL(
-        string:
-        "https://images.unsplash.com/photo-1756143058430-c71365889d82?q=80&w=2371&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDF8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-      )!,
-      URL(
-        string:
-        "https://images.unsplash.com/photo-1759193591199-78621f7b426d?q=80&w=1287&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-      )!,
-      URL(
-        string:
-        "https://images.unsplash.com/photo-1759327718818-0cfee2207279?q=80&w=2456&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-      )!,
-      URL(
-        string:
-        "https://images.unsplash.com/photo-1759434225861-e834192ccdaf?q=80&w=2370&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-      )!,
-      URL(
-        string:
-        "https://images.unsplash.com/photo-1759329172782-3ef4cec55000?q=80&w=1287&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-      )!,
-      URL(
-        string:
-        "https://images.unsplash.com/photo-1759392658577-4324fb89b991?q=80&w=2370&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-      )!,
-    ]
   }
 }
 
