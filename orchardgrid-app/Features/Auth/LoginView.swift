@@ -100,7 +100,7 @@ struct LoginView: View {
             Spacer(minLength: geometry.size.height * 0.1)
           }
           .padding(.horizontal, 20)
-          .frame(minHeight: geometry.size.height)
+          .frame(maxWidth: .infinity, minHeight: geometry.size.height)
         }
       }
     }
