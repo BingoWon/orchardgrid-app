@@ -271,24 +271,24 @@ struct UsageInstructionsView: View {
   var body: some View {
     GroupBox {
       VStack(alignment: .leading, spacing: 12) {
-        // Header
-        HStack {
-          Label("API Usage", systemImage: "info.circle.fill")
-            .font(.headline)
-            .foregroundStyle(.blue)
+        // Header - Entire area is clickable
+        Button {
+          withAnimation {
+            isExpanded.toggle()
+          }
+        } label: {
+          HStack {
+            Label("API Usage", systemImage: "info.circle.fill")
+              .font(.headline)
+              .foregroundStyle(.blue)
 
-          Spacer()
+            Spacer()
 
-          Button {
-            withAnimation {
-              isExpanded.toggle()
-            }
-          } label: {
             Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
               .foregroundStyle(.secondary)
           }
-          .buttonStyle(.plain)
         }
+        .buttonStyle(.plain)
 
         if isExpanded {
           Divider()
@@ -321,7 +321,7 @@ struct UsageInstructionsView: View {
               .foregroundStyle(.secondary)
             HStack {
               Text(Config.apiBaseURL)
-                .font(.system(.caption, design: .monospaced))
+                .font(.system(.body, design: .monospaced))
                 .textSelection(.enabled)
               Button {
                 copyToClipboard(Config.apiBaseURL)
@@ -331,19 +331,6 @@ struct UsageInstructionsView: View {
               }
               .buttonStyle(.plain)
             }
-          }
-
-          Divider()
-
-          // Documentation Link
-          Link(destination: URL(string: "https://orchardgrid.com/docs")!) {
-            HStack {
-              Image(systemName: "book.fill")
-              Text("View Full Documentation")
-              Spacer()
-              Image(systemName: "arrow.up.right")
-            }
-            .font(.caption)
           }
         }
       }
