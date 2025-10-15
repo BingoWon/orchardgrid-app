@@ -15,7 +15,6 @@ struct APIKeysView: View {
   @State private var editingKey: String?
   @State private var editingName = ""
   @State private var visibleKeys: Set<String> = []
-  @State private var showAccountSheet = false
 
   var body: some View {
     VStack(spacing: 0) {
@@ -148,7 +147,7 @@ struct APIKeysView: View {
     .navigationTitle("API Keys")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
-    .withPlatformToolbar(showAccountSheet: $showAccountSheet) {
+    .withPlatformToolbar {
       Button {
         createKey()
       } label: {

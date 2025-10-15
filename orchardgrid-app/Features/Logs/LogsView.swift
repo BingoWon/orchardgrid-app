@@ -10,7 +10,6 @@ struct LogsView: View {
   @State private var providingPageSize = 50
   @State private var consumingPage = 1
   @State private var providingPage = 1
-  @State private var showAccountSheet = false
 
   private let statusOptions = ["all", "completed", "failed", "processing", "pending"]
   private let pageSizeOptions = [10, 25, 50, 100]
@@ -43,7 +42,7 @@ struct LogsView: View {
     .navigationTitle("Logs")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
-    .withPlatformToolbar(showAccountSheet: $showAccountSheet) {
+    .withPlatformToolbar {
       Button {
         Task {
           if selectedTab == 0 {

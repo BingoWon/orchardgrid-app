@@ -3,7 +3,6 @@ import SwiftUI
 struct AllDevicesView: View {
   @Environment(DevicesManager.self) private var devicesManager
   @Environment(AuthManager.self) private var authManager
-  @State private var showAccountSheet = false
 
   var body: some View {
     ScrollView {
@@ -49,7 +48,7 @@ struct AllDevicesView: View {
     .navigationTitle("All Devices")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
-    .withPlatformToolbar(showAccountSheet: $showAccountSheet) {
+    .withPlatformToolbar {
       refreshButton
     }
     .task {
