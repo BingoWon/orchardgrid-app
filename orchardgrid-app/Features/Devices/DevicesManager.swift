@@ -85,8 +85,8 @@ final class DevicesManager: AutoRefreshable {
   private let apiURL = Config.apiBaseURL
 
   func fetchDevices(authToken: String, isManualRefresh: Bool = false) async {
-    // Only show loading on initial load or manual refresh
-    if isInitialLoading {
+    // Only show loading indicator for initial load
+    if devices.isEmpty {
       isInitialLoading = true
     } else if isManualRefresh {
       isRefreshing = true
