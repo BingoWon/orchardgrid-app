@@ -14,6 +14,10 @@ final class LogsManager: AutoRefreshable {
 
   var autoRefreshTask: Task<Void, Never>?
 
+  // Save current filter and pagination state for auto-refresh
+  private var currentConsumingParams: (limit: Int, offset: Int, status: String?) = (50, 0, nil)
+  private var currentProvidingParams: (limit: Int, offset: Int, status: String?) = (50, 0, nil)
+
   private let apiURL = Config.apiBaseURL
   private let urlSession = Config.urlSession
 
@@ -23,6 +27,9 @@ final class LogsManager: AutoRefreshable {
     status: String? = nil,
     authToken: String
   ) async {
+    // Save current parameters for auto-refresh
+    currentConsumingParams = (limit, offset, status)
+
     await loadTasks(
       endpoint: "/tasks",
       limit: limit,
@@ -41,6 +48,9 @@ final class LogsManager: AutoRefreshable {
     status: String? = nil,
     authToken: String
   ) async {
+    // Save current parameters for auto-refresh
+    currentProvidingParams = (limit, offset, status)
+
     await loadTasks(
       endpoint: "/tasks/providing",
       limit: limit,
@@ -109,9 +119,19 @@ final class LogsManager: AutoRefreshable {
       while !Task.isCancelled {
         try? await Task.sleep(for: .seconds(interval))
         guard !Task.isCancelled else { break }
-        // Refresh both consuming and providing tasks
-        await loadConsumingTasks(authToken: authToken)
-        await loadProvidingTasks(authToken: authToken)
+        // Refresh both consuming and providing tasks with saved parameters
+        await loadConsumingTasks(
+          limit: currentConsumingParams.limit,
+          offset: currentConsumingParams.offset,
+          status: currentConsumingParams.status,
+          authToken: authToken
+        )
+        await loadProvidingTasks(
+          limit: currentProvidingParams.limit,
+          offset: currentProvidingParams.offset,
+          status: currentProvidingParams.status,
+          authToken: authToken
+        )
       }
     }
   }

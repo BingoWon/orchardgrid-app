@@ -20,25 +20,10 @@ struct LogsView: View {
   var body: some View {
     VStack(spacing: 0) {
       // Last Updated
-      HStack {
-        Image(systemName: "clock")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-        Text("Updated \(manager.lastUpdatedText)")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-        Spacer()
-        if autoRefreshEnabled {
-          HStack(spacing: 4) {
-            Circle()
-              .fill(.green)
-              .frame(width: 6, height: 6)
-            Text("Auto-refresh")
-              .font(.caption)
-              .foregroundStyle(.secondary)
-          }
-        }
-      }
+      LastUpdatedView(
+        lastUpdatedText: manager.lastUpdatedText,
+        isAutoRefreshEnabled: autoRefreshEnabled
+      )
       .padding(.horizontal)
       .padding(.top, 8)
 
@@ -56,6 +41,9 @@ struct LogsView: View {
       } else {
         providingView
       }
+    }
+    .refreshable {
+      await loadData()
     }
     .navigationTitle("Logs")
     .toolbarRole(.editor)

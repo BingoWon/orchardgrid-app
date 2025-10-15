@@ -12,7 +12,10 @@ struct AllDevicesView: View {
       GlassEffectContainer {
         VStack(alignment: .leading, spacing: Constants.standardSpacing) {
           // Last Updated
-          lastUpdatedView
+          LastUpdatedView(
+            lastUpdatedText: devicesManager.lastUpdatedText,
+            isAutoRefreshEnabled: autoRefreshEnabled
+          )
 
           // Summary Card
           summaryCard
@@ -65,30 +68,6 @@ struct AllDevicesView: View {
     }
     .onDisappear {
       devicesManager.stopAutoRefresh()
-    }
-  }
-
-  // MARK: - Last Updated
-
-  private var lastUpdatedView: some View {
-    HStack {
-      Image(systemName: "clock")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-      Text("Updated \(devicesManager.lastUpdatedText)")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-      Spacer()
-      if autoRefreshEnabled {
-        HStack(spacing: 4) {
-          Circle()
-            .fill(.green)
-            .frame(width: 6, height: 6)
-          Text("Auto-refresh")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-      }
     }
   }
 
