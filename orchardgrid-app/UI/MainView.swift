@@ -41,7 +41,7 @@ struct MainView: View {
   private var splitView: some View {
     NavigationSplitView(columnVisibility: $columnVisibility) {
       List {
-        ForEach(NavigationItem.allCases.filter { $0 != .account }) { item in
+        ForEach(NavigationItem.allCases) { item in
           NavigationLink(value: item) {
             Label(item.title, systemImage: item.icon)
           }
