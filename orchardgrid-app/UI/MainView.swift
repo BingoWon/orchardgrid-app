@@ -22,7 +22,9 @@ struct MainView: View {
     TabView(selection: $selectedItem) {
       ForEach(NavigationItem.allCases.filter { $0 != .localDevice }) { item in
         Tab(item.title, systemImage: item.icon, value: item) {
-          detailView(for: item)
+          NavigationStack {
+            detailView(for: item)
+          }
         }
       }
     }
@@ -75,12 +77,7 @@ struct MainView: View {
     case .logs:
       LogsView()
     case .account:
-      NavigationStack {
-        AccountView()
-        #if !os(macOS)
-          .navigationBarTitleDisplayMode(.inline)
-        #endif
-      }
+      AccountView()
     }
   }
 }

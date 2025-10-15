@@ -20,6 +20,8 @@ struct AccountView: View {
     }
     .formStyle(.grouped)
     .navigationTitle("Account")
+    .toolbarRole(.editor)
+    .toolbarTitleDisplayMode(.inlineLarge)
   }
 }
 
