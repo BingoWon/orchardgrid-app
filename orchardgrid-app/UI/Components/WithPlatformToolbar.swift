@@ -1,24 +1,42 @@
 import SwiftUI
 
-struct WithAccountToolbar<LeadingContent: View>: ViewModifier {
+struct WithPlatformToolbar<LeadingContent: View>: ViewModifier {
   @Binding var showAccountSheet: Bool
   let leadingContent: LeadingContent
 
   func body(content: Content) -> some View {
     content
       .toolbar {
-        ToolbarItem { leadingContent }
-
-        ToolbarSpacer(.flexible)
-
-        ToolbarItemGroup {
-          Button {
-            showAccountSheet = true
-          } label: {
-            Label("Account", systemImage: "person.circle")
-              .labelStyle(.iconOnly)
+        #if os(macOS)
+          // macOS: 显示功能按钮和 account 按钮
+          ToolbarItem { leadingContent }
+          ToolbarSpacer(.flexible)
+          ToolbarItemGroup {
+            Button {
+              showAccountSheet = true
+            } label: {
+              Label("Account", systemImage: "person.circle")
+                .labelStyle(.iconOnly)
+            }
           }
-        }
+        #else
+          if UIDevice.current.userInterfaceIdiom == .phone {
+            // iPhone: 只显示功能按钮（account 在 Tab Bar）
+            ToolbarItem { leadingContent }
+          } else {
+            // iPad: 显示功能按钮和 account 按钮
+            ToolbarItem { leadingContent }
+            ToolbarSpacer(.flexible)
+            ToolbarItemGroup {
+              Button {
+                showAccountSheet = true
+              } label: {
+                Label("Account", systemImage: "person.circle")
+                  .labelStyle(.iconOnly)
+              }
+            }
+          }
+        #endif
       }
       .sheet(isPresented: $showAccountSheet) {
         NavigationStack {
@@ -51,13 +69,14 @@ struct WithAccountToolbar<LeadingContent: View>: ViewModifier {
 }
 
 extension View {
-  func withAccountToolbar(
+  func withPlatformToolbar(
     showAccountSheet: Binding<Bool>,
     @ViewBuilder leadingContent: () -> some View
   ) -> some View {
-    modifier(WithAccountToolbar(
+    modifier(WithPlatformToolbar(
       showAccountSheet: showAccountSheet,
       leadingContent: leadingContent()
     ))
   }
 }
+

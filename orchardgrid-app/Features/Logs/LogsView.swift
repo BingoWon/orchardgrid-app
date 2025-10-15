@@ -43,8 +43,7 @@ struct LogsView: View {
     .navigationTitle("Logs")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
-    #if os(macOS)
-    .withAccountToolbar(showAccountSheet: $showAccountSheet) {
+    .withPlatformToolbar(showAccountSheet: $showAccountSheet) {
       Button {
         Task {
           if selectedTab == 0 {
@@ -65,79 +64,6 @@ struct LogsView: View {
       }
       .disabled(manager.isLoading)
     }
-    #else
-    .toolbar {
-      if UIDevice.current.userInterfaceIdiom != .phone {
-        ToolbarItem {
-          Button {
-            Task {
-              if selectedTab == 0 {
-                await loadConsumingTasks()
-              } else {
-                await loadProvidingTasks()
-              }
-            }
-          } label: {
-            Image(systemName: "arrow.clockwise")
-              .rotationEffect(.degrees(manager.isLoading ? 360 : 0))
-              .animation(
-                manager.isLoading
-                  ? .linear(duration: 1).repeatForever(autoreverses: false)
-                  : .default,
-                value: manager.isLoading
-              )
-          }
-          .disabled(manager.isLoading)
-        }
-        ToolbarSpacer(.flexible)
-        ToolbarItemGroup {
-          Button {
-            showAccountSheet = true
-          } label: {
-            Label("Account", systemImage: "person.circle")
-              .labelStyle(.iconOnly)
-          }
-        }
-      } else {
-        ToolbarItem {
-          Button {
-            Task {
-              if selectedTab == 0 {
-                await loadConsumingTasks()
-              } else {
-                await loadProvidingTasks()
-              }
-            }
-          } label: {
-            Image(systemName: "arrow.clockwise")
-              .rotationEffect(.degrees(manager.isLoading ? 360 : 0))
-              .animation(
-                manager.isLoading
-                  ? .linear(duration: 1).repeatForever(autoreverses: false)
-                  : .default,
-                value: manager.isLoading
-              )
-          }
-          .disabled(manager.isLoading)
-        }
-      }
-    }
-    .sheet(isPresented: $showAccountSheet) {
-      NavigationStack {
-        AccountView()
-          .navigationBarTitleDisplayMode(.inline)
-          .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-              Button(role: .close) {
-                showAccountSheet = false
-              }
-            }
-          }
-      }
-      .presentationDetents([.large])
-      .presentationDragIndicator(.visible)
-    }
-    #endif
     .task {
       await loadData()
 
