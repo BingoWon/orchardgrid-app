@@ -12,7 +12,7 @@ enum RefreshConfig {
 protocol AutoRefreshable {
   var lastUpdated: Date? { get }
   var autoRefreshTask: Task<Void, Never>? { get set }
-  
+
   func startAutoRefresh(interval: TimeInterval, authToken: String) async
   func stopAutoRefresh()
 }

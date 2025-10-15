@@ -78,7 +78,7 @@ final class LogsManager: AutoRefreshable {
     onSuccess: (TasksResponse) -> Void
   ) async {
     // Only show loading indicator for initial load
-    if consumingTasks.isEmpty && providingTasks.isEmpty {
+    if consumingTasks.isEmpty, providingTasks.isEmpty {
       isInitialLoading = true
     } else if isManualRefresh {
       isRefreshing = true
