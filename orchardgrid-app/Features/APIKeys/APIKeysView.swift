@@ -19,13 +19,13 @@ struct APIKeysView: View {
   var body: some View {
     VStack(spacing: 0) {
       // Last Updated
-      if !manager.isLoading {
+      if !manager.isInitialLoading {
         LastUpdatedView(lastUpdatedText: manager.lastUpdatedText)
           .padding(.horizontal)
           .padding(.top, 8)
       }
 
-      if manager.isLoading {
+      if manager.isInitialLoading {
         ProgressView("Loading API keys...")
           .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else if let error = manager.lastError {
@@ -157,7 +157,7 @@ struct APIKeysView: View {
     }
     .refreshable {
       guard let token = authManager.authToken else { return }
-      await manager.loadAPIKeys(authToken: token)
+      await manager.loadAPIKeys(authToken: token, isManualRefresh: true)
     }
     .task {
       guard let token = authManager.authToken else { return }

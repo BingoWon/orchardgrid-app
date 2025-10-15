@@ -18,7 +18,8 @@ struct APIKey: Identifiable, Codable, Sendable {
 @Observable
 final class APIKeysManager: AutoRefreshable {
   var apiKeys: [APIKey] = []
-  var isLoading = false
+  var isInitialLoading = false
+  var isRefreshing = false
   var lastError: String?
   var lastUpdated: Date?
 
@@ -27,8 +28,13 @@ final class APIKeysManager: AutoRefreshable {
   private let apiURL = Config.apiBaseURL
   private let urlSession = Config.urlSession
 
-  func loadAPIKeys(authToken: String) async {
-    isLoading = true
+  func loadAPIKeys(authToken: String, isManualRefresh: Bool = false) async {
+    // Only show loading indicator for initial load
+    if apiKeys.isEmpty {
+      isInitialLoading = true
+    } else if isManualRefresh {
+      isRefreshing = true
+    }
     lastError = nil
 
     do {
@@ -67,7 +73,8 @@ final class APIKeysManager: AutoRefreshable {
       lastError = error.localizedDescription
     }
 
-    isLoading = false
+    isInitialLoading = false
+    isRefreshing = false
   }
 
   // MARK: - Auto Refresh
