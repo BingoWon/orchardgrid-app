@@ -21,4 +21,3 @@ struct LastUpdatedView: View {
   LastUpdatedView(lastUpdatedText: "2m ago")
     .padding()
 }
-
