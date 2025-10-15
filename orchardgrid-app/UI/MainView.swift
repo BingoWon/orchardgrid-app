@@ -21,18 +21,12 @@ struct MainView: View {
   private var tabView: some View {
     TabView(selection: $selectedItem) {
       ForEach(NavigationItem.allCases.filter { $0 != .localDevice }) { item in
-        if item == .search {
-          Tab(value: item, role: .search) {
-            SearchView()
-          }
-        } else {
-          Tab(item.title, systemImage: item.icon, value: item) {
-            NavigationStack {
-              detailView(for: item)
-              #if !os(macOS)
-                .navigationBarTitleDisplayMode(.inline)
-              #endif
-            }
+        Tab(item.title, systemImage: item.icon, value: item) {
+          NavigationStack {
+            detailView(for: item)
+            #if !os(macOS)
+              .navigationBarTitleDisplayMode(.inline)
+            #endif
           }
         }
       }
@@ -85,8 +79,6 @@ struct MainView: View {
       APIKeysView()
     case .logs:
       LogsView()
-    case .search:
-      SearchView()
     }
   }
 }
