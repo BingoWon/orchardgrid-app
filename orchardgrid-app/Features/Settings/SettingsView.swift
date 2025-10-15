@@ -51,7 +51,9 @@ struct SettingsView: View {
     .navigationTitle("Settings")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
-    .withAccountToolbar(showAccountSheet: $showAccountSheet)
+    .withAccountToolbar(showAccountSheet: $showAccountSheet) {
+      EmptyView()
+    }
   }
 }
 
