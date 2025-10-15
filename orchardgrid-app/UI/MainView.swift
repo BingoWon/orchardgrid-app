@@ -87,8 +87,6 @@ struct MainView: View {
       LogsView()
     case .search:
       SearchView()
-    case .settings:
-      SettingsView()
     }
   }
 }

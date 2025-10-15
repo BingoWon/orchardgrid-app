@@ -1,10 +1,9 @@
 import SwiftUI
 
-/// Displays last updated time and auto-refresh status
+/// Displays last updated time
 struct LastUpdatedView: View {
   let lastUpdatedText: String
-  let isAutoRefreshEnabled: Bool
-  
+
   var body: some View {
     HStack {
       Image(systemName: "clock")
@@ -14,25 +13,12 @@ struct LastUpdatedView: View {
         .font(.caption)
         .foregroundStyle(.secondary)
       Spacer()
-      if isAutoRefreshEnabled {
-        HStack(spacing: 4) {
-          Circle()
-            .fill(.green)
-            .frame(width: 6, height: 6)
-          Text("Auto-refresh")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-      }
     }
   }
 }
 
 #Preview {
-  VStack(spacing: 16) {
-    LastUpdatedView(lastUpdatedText: "2m ago", isAutoRefreshEnabled: false)
-    LastUpdatedView(lastUpdatedText: "Just now", isAutoRefreshEnabled: true)
-  }
-  .padding()
+  LastUpdatedView(lastUpdatedText: "2m ago")
+    .padding()
 }
 

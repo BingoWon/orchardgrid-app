@@ -3,8 +3,6 @@ import SwiftUI
 struct AllDevicesView: View {
   @Environment(DevicesManager.self) private var devicesManager
   @Environment(AuthManager.self) private var authManager
-  @AppStorage("autoRefreshEnabled") private var autoRefreshEnabled = false
-  @AppStorage("autoRefreshInterval") private var autoRefreshInterval = RefreshConfig.defaultInterval
   @State private var showAccountSheet = false
 
   var body: some View {
@@ -12,10 +10,7 @@ struct AllDevicesView: View {
       GlassEffectContainer {
         VStack(alignment: .leading, spacing: Constants.standardSpacing) {
           // Last Updated
-          LastUpdatedView(
-            lastUpdatedText: devicesManager.lastUpdatedText,
-            isAutoRefreshEnabled: autoRefreshEnabled
-          )
+          LastUpdatedView(lastUpdatedText: devicesManager.lastUpdatedText)
 
           // Summary Card
           summaryCard
@@ -60,10 +55,7 @@ struct AllDevicesView: View {
     .task {
       if let token = authManager.authToken {
         await devicesManager.fetchDevices(authToken: token)
-
-        if autoRefreshEnabled {
-          await devicesManager.startAutoRefresh(interval: autoRefreshInterval, authToken: token)
-        }
+        await devicesManager.startAutoRefresh(interval: RefreshConfig.interval, authToken: token)
       }
     }
     .onDisappear {

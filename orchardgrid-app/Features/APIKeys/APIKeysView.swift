@@ -11,8 +11,6 @@ private let maskMinLength = 24
 
 struct APIKeysView: View {
   @Environment(AuthManager.self) private var authManager
-  @AppStorage("autoRefreshEnabled") private var autoRefreshEnabled = false
-  @AppStorage("autoRefreshInterval") private var autoRefreshInterval = RefreshConfig.defaultInterval
   @State private var manager = APIKeysManager()
   @State private var editingKey: String?
   @State private var editingName = ""
@@ -23,12 +21,9 @@ struct APIKeysView: View {
     VStack(spacing: 0) {
       // Last Updated
       if !manager.isLoading {
-        LastUpdatedView(
-          lastUpdatedText: manager.lastUpdatedText,
-          isAutoRefreshEnabled: autoRefreshEnabled
-        )
-        .padding(.horizontal)
-        .padding(.top, 8)
+        LastUpdatedView(lastUpdatedText: manager.lastUpdatedText)
+          .padding(.horizontal)
+          .padding(.top, 8)
       }
 
       if manager.isLoading {
@@ -168,10 +163,7 @@ struct APIKeysView: View {
     .task {
       guard let token = authManager.authToken else { return }
       await manager.loadAPIKeys(authToken: token)
-
-      if autoRefreshEnabled {
-        await manager.startAutoRefresh(interval: autoRefreshInterval, authToken: token)
-      }
+      await manager.startAutoRefresh(interval: RefreshConfig.interval, authToken: token)
     }
     .onDisappear {
       manager.stopAutoRefresh()

@@ -3,22 +3,8 @@ import SwiftUI
 
 /// Global refresh configuration for all data managers
 enum RefreshConfig {
-  /// Auto-refresh interval in seconds (default: disabled)
-  static let defaultInterval: TimeInterval = 10.0
-  
-  /// Available refresh intervals
-  static let availableIntervals: [TimeInterval] = [5.0, 10.0, 30.0, 60.0]
-  
-  /// Interval display names
-  static func intervalName(for interval: TimeInterval) -> String {
-    switch interval {
-    case 5.0: "5 seconds"
-    case 10.0: "10 seconds"
-    case 30.0: "30 seconds"
-    case 60.0: "1 minute"
-    default: "\(Int(interval)) seconds"
-    }
-  }
+  /// Auto-refresh interval in seconds (always enabled)
+  static let interval: TimeInterval = 10.0
 }
 
 /// Protocol for managers that support auto-refresh

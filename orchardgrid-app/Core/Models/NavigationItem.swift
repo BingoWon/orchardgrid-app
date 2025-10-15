@@ -6,7 +6,6 @@ enum NavigationItem: String, CaseIterable, Identifiable {
   case apiKeys = "API Keys"
   case logs = "Logs"
   case search = "Search"
-  case settings = "Settings"
 
   var id: String { rawValue }
 
@@ -46,8 +45,6 @@ enum NavigationItem: String, CaseIterable, Identifiable {
       return "list.bullet.rectangle"
     case .search:
       return "magnifyingglass"
-    case .settings:
-      return "gearshape"
     }
   }
 }
