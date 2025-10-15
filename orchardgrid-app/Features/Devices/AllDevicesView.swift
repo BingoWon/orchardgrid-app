@@ -45,7 +45,7 @@ struct AllDevicesView: View {
         await devicesManager.fetchDevices(authToken: token, isManualRefresh: true)
       }
     }
-    .navigationTitle("All Devices")
+    .navigationTitle("Devices")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .withPlatformToolbar {

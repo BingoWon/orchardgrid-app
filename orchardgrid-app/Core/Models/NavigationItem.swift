@@ -2,7 +2,7 @@ import SwiftUI
 
 enum NavigationItem: String, CaseIterable, Identifiable {
   case localDevice = "Local Device"
-  case allDevices = "All Devices"
+  case allDevices = "Devices"
   case apiKeys = "API Keys"
   case logs = "Logs"
   case account = "Account"
