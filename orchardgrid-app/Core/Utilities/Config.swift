@@ -22,8 +22,11 @@ enum Config {
     }
 
     // 3. Compile-time default
+    // TEMPORARY: Using production URL for both Debug and Release
+    // This is a temporary staging adjustment - will be reverted later
+    // Original Debug URL: https://orchardgrid-api-development.bingow.workers.dev
     #if DEBUG
-      return "https://orchardgrid-api-development.bingow.workers.dev"
+      return "https://orchardgrid-api.bingow.workers.dev"
     #else
       return "https://orchardgrid-api.bingow.workers.dev"
     #endif
