@@ -17,11 +17,11 @@ struct APIKey: Identifiable, Codable, Sendable {
 @MainActor
 @Observable
 final class APIKeysManager: AutoRefreshable {
-  var apiKeys: [APIKey] = []
-  var isInitialLoading = false
-  var isRefreshing = false
-  var lastError: String?
-  var lastUpdated: Date?
+  private(set) var apiKeys: [APIKey] = []
+  private(set) var isInitialLoading = true
+  private(set) var isRefreshing = false
+  private(set) var lastError: String?
+  private(set) var lastUpdated: Date?
 
   var autoRefreshTask: Task<Void, Never>?
 

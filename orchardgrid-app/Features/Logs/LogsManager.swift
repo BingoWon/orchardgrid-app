@@ -4,13 +4,14 @@ import Observation
 @MainActor
 @Observable
 final class LogsManager: AutoRefreshable {
-  var consumingTasks: [ComputeTask] = []
-  var providingTasks: [ComputeTask] = []
-  var consumingTotal = 0
-  var providingTotal = 0
-  var isLoading = false
-  var errorMessage: String?
-  var lastUpdated: Date?
+  private(set) var consumingTasks: [ComputeTask] = []
+  private(set) var providingTasks: [ComputeTask] = []
+  private(set) var consumingTotal = 0
+  private(set) var providingTotal = 0
+  private(set) var isInitialLoading = true
+  private(set) var isRefreshing = false
+  private(set) var errorMessage: String?
+  private(set) var lastUpdated: Date?
 
   var autoRefreshTask: Task<Void, Never>?
 
@@ -25,7 +26,8 @@ final class LogsManager: AutoRefreshable {
     limit: Int = 50,
     offset: Int = 0,
     status: String? = nil,
-    authToken: String
+    authToken: String,
+    isManualRefresh: Bool = false
   ) async {
     // Save current parameters for auto-refresh
     currentConsumingParams = (limit, offset, status)
@@ -35,7 +37,8 @@ final class LogsManager: AutoRefreshable {
       limit: limit,
       offset: offset,
       status: status,
-      authToken: authToken
+      authToken: authToken,
+      isManualRefresh: isManualRefresh
     ) { result in
       consumingTasks = result.tasks
       consumingTotal = result.total
@@ -46,7 +49,8 @@ final class LogsManager: AutoRefreshable {
     limit: Int = 50,
     offset: Int = 0,
     status: String? = nil,
-    authToken: String
+    authToken: String,
+    isManualRefresh: Bool = false
   ) async {
     // Save current parameters for auto-refresh
     currentProvidingParams = (limit, offset, status)
@@ -56,7 +60,8 @@ final class LogsManager: AutoRefreshable {
       limit: limit,
       offset: offset,
       status: status,
-      authToken: authToken
+      authToken: authToken,
+      isManualRefresh: isManualRefresh
     ) { result in
       providingTasks = result.tasks
       providingTotal = result.total
@@ -69,9 +74,15 @@ final class LogsManager: AutoRefreshable {
     offset: Int,
     status: String?,
     authToken: String,
+    isManualRefresh: Bool,
     onSuccess: (TasksResponse) -> Void
   ) async {
-    isLoading = true
+    // Only show loading indicator for initial load
+    if consumingTasks.isEmpty && providingTasks.isEmpty {
+      isInitialLoading = true
+    } else if isManualRefresh {
+      isRefreshing = true
+    }
     errorMessage = nil
 
     do {
@@ -107,7 +118,8 @@ final class LogsManager: AutoRefreshable {
       Logger.log(.app, "Load tasks error: \(error)")
     }
 
-    isLoading = false
+    isInitialLoading = false
+    isRefreshing = false
   }
 
   // MARK: - Auto Refresh

@@ -148,12 +148,19 @@ struct APIKeysView: View {
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .withPlatformToolbar {
-      Button {
-        createKey()
-      } label: {
-        Label("Create API Key", systemImage: "plus")
+      HStack(spacing: 12) {
+        if manager.isRefreshing {
+          ProgressView()
+            .controlSize(.small)
+        }
+
+        Button {
+          createKey()
+        } label: {
+          Label("Create API Key", systemImage: "plus")
+        }
+        .disabled(authManager.authToken == nil)
       }
-      .disabled(authManager.authToken == nil)
     }
     .refreshable {
       guard let token = authManager.authToken else { return }

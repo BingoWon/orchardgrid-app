@@ -17,51 +17,54 @@ struct LogsView: View {
   var body: some View {
     VStack(spacing: 0) {
       // Last Updated
-      LastUpdatedView(lastUpdatedText: manager.lastUpdatedText)
-        .padding(.horizontal)
-        .padding(.top, 8)
-
-      // Tabs
-      Picker("", selection: $selectedTab) {
-        Text("Consuming").tag(0)
-        Text("Providing").tag(1)
+      if !manager.isInitialLoading {
+        LastUpdatedView(lastUpdatedText: manager.lastUpdatedText)
+          .padding(.horizontal)
+          .padding(.top, 8)
       }
-      .pickerStyle(.segmented)
-      .padding()
 
-      // Content
-      if selectedTab == 0 {
-        consumingView
+      if manager.isInitialLoading {
+        ProgressView("Loading logs...")
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else {
-        providingView
+        // Tabs
+        Picker("", selection: $selectedTab) {
+          Text("Consuming").tag(0)
+          Text("Providing").tag(1)
+        }
+        .pickerStyle(.segmented)
+        .padding()
+
+        // Content
+        if selectedTab == 0 {
+          consumingView
+        } else {
+          providingView
+        }
       }
     }
     .refreshable {
-      await loadData()
+      await loadData(isManualRefresh: true)
     }
     .navigationTitle("Logs")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .withPlatformToolbar {
-      Button {
-        Task {
-          if selectedTab == 0 {
-            await loadConsumingTasks()
-          } else {
-            await loadProvidingTasks()
-          }
+      HStack(spacing: 12) {
+        if manager.isRefreshing {
+          ProgressView()
+            .controlSize(.small)
         }
-      } label: {
-        Image(systemName: "arrow.clockwise")
-          .rotationEffect(.degrees(manager.isLoading ? 360 : 0))
-          .animation(
-            manager.isLoading
-              ? .linear(duration: 1).repeatForever(autoreverses: false)
-              : .default,
-            value: manager.isLoading
-          )
+
+        Button {
+          Task {
+            await loadData(isManualRefresh: true)
+          }
+        } label: {
+          Image(systemName: "arrow.clockwise")
+        }
+        .disabled(manager.isRefreshing)
       }
-      .disabled(manager.isLoading)
     }
     .task {
       await loadData()
@@ -147,10 +150,7 @@ struct LogsView: View {
       .padding(.horizontal)
 
       // Content
-      if manager.isLoading {
-        ProgressView()
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-      } else if tasks.isEmpty {
+      if tasks.isEmpty {
         Text("No logs found")
           .foregroundStyle(.secondary)
           .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -332,30 +332,32 @@ struct LogsView: View {
     }
   }
 
-  private func loadData() async {
-    await loadConsumingTasks()
-    await loadProvidingTasks()
+  private func loadData(isManualRefresh: Bool = false) async {
+    await loadConsumingTasks(isManualRefresh: isManualRefresh)
+    await loadProvidingTasks(isManualRefresh: isManualRefresh)
   }
 
-  private func loadConsumingTasks() async {
+  private func loadConsumingTasks(isManualRefresh: Bool = false) async {
     guard let token = authManager.authToken else { return }
     let offset = (consumingPage - 1) * consumingPageSize
     await manager.loadConsumingTasks(
       limit: consumingPageSize,
       offset: offset,
       status: consumingStatus == "all" ? nil : consumingStatus,
-      authToken: token
+      authToken: token,
+      isManualRefresh: isManualRefresh
     )
   }
 
-  private func loadProvidingTasks() async {
+  private func loadProvidingTasks(isManualRefresh: Bool = false) async {
     guard let token = authManager.authToken else { return }
     let offset = (providingPage - 1) * providingPageSize
     await manager.loadProvidingTasks(
       limit: providingPageSize,
       offset: offset,
       status: providingStatus == "all" ? nil : providingStatus,
-      authToken: token
+      authToken: token,
+      isManualRefresh: isManualRefresh
     )
   }
 }
