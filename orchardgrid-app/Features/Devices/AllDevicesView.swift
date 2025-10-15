@@ -49,9 +49,43 @@ struct AllDevicesView: View {
     .navigationTitle("All Devices")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
+    #if os(macOS)
     .withAccountToolbar(showAccountSheet: $showAccountSheet) {
       refreshButton
     }
+    #else
+    .toolbar {
+      if UIDevice.current.userInterfaceIdiom != .phone {
+        ToolbarItem { refreshButton }
+        ToolbarSpacer(.flexible)
+        ToolbarItemGroup {
+          Button {
+            showAccountSheet = true
+          } label: {
+            Label("Account", systemImage: "person.circle")
+              .labelStyle(.iconOnly)
+          }
+        }
+      } else {
+        ToolbarItem { refreshButton }
+      }
+    }
+    .sheet(isPresented: $showAccountSheet) {
+      NavigationStack {
+        AccountView()
+          .navigationBarTitleDisplayMode(.inline)
+          .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+              Button(role: .close) {
+                showAccountSheet = false
+              }
+            }
+          }
+      }
+      .presentationDetents([.large])
+      .presentationDragIndicator(.visible)
+    }
+    #endif
     .task {
       if let token = authManager.authToken {
         await devicesManager.fetchDevices(authToken: token)

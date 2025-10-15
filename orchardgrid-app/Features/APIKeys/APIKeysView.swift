@@ -148,6 +148,7 @@ struct APIKeysView: View {
     .navigationTitle("API Keys")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
+    #if os(macOS)
     .withAccountToolbar(showAccountSheet: $showAccountSheet) {
       Button {
         createKey()
@@ -156,6 +157,53 @@ struct APIKeysView: View {
       }
       .disabled(authManager.authToken == nil)
     }
+    #else
+    .toolbar {
+      if UIDevice.current.userInterfaceIdiom != .phone {
+        ToolbarItem {
+          Button {
+            createKey()
+          } label: {
+            Label("Create API Key", systemImage: "plus")
+          }
+          .disabled(authManager.authToken == nil)
+        }
+        ToolbarSpacer(.flexible)
+        ToolbarItemGroup {
+          Button {
+            showAccountSheet = true
+          } label: {
+            Label("Account", systemImage: "person.circle")
+              .labelStyle(.iconOnly)
+          }
+        }
+      } else {
+        ToolbarItem {
+          Button {
+            createKey()
+          } label: {
+            Label("Create API Key", systemImage: "plus")
+          }
+          .disabled(authManager.authToken == nil)
+        }
+      }
+    }
+    .sheet(isPresented: $showAccountSheet) {
+      NavigationStack {
+        AccountView()
+          .navigationBarTitleDisplayMode(.inline)
+          .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+              Button(role: .close) {
+                showAccountSheet = false
+              }
+            }
+          }
+      }
+      .presentationDetents([.large])
+      .presentationDragIndicator(.visible)
+    }
+    #endif
     .refreshable {
       guard let token = authManager.authToken else { return }
       await manager.loadAPIKeys(authToken: token)
