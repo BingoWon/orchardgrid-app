@@ -1,14 +1,18 @@
 import Foundation
 import Observation
 
+@MainActor
 @Observable
-final class LogsManager {
+final class LogsManager: AutoRefreshable {
   var consumingTasks: [ComputeTask] = []
   var providingTasks: [ComputeTask] = []
   var consumingTotal = 0
   var providingTotal = 0
   var isLoading = false
   var errorMessage: String?
+  var lastUpdated: Date?
+
+  var autoRefreshTask: Task<Void, Never>?
 
   private let apiURL = Config.apiBaseURL
   private let urlSession = Config.urlSession
@@ -87,11 +91,33 @@ final class LogsManager {
 
       let result = try JSONDecoder().decode(TasksResponse.self, from: data)
       onSuccess(result)
+      lastUpdated = Date()
     } catch {
       errorMessage = error.localizedDescription
       Logger.log(.app, "Load tasks error: \(error)")
     }
 
     isLoading = false
+  }
+
+  // MARK: - Auto Refresh
+
+  func startAutoRefresh(interval: TimeInterval, authToken: String) async {
+    stopAutoRefresh()
+
+    autoRefreshTask = Task { @MainActor in
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .seconds(interval))
+        guard !Task.isCancelled else { break }
+        // Refresh both consuming and providing tasks
+        await loadConsumingTasks(authToken: authToken)
+        await loadProvidingTasks(authToken: authToken)
+      }
+    }
+  }
+
+  func stopAutoRefresh() {
+    autoRefreshTask?.cancel()
+    autoRefreshTask = nil
   }
 }

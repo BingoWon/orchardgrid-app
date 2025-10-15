@@ -3,12 +3,17 @@ import SwiftUI
 struct AllDevicesView: View {
   @Environment(DevicesManager.self) private var devicesManager
   @Environment(AuthManager.self) private var authManager
+  @AppStorage("autoRefreshEnabled") private var autoRefreshEnabled = false
+  @AppStorage("autoRefreshInterval") private var autoRefreshInterval = RefreshConfig.defaultInterval
   @State private var showAccountSheet = false
 
   var body: some View {
     ScrollView {
       GlassEffectContainer {
         VStack(alignment: .leading, spacing: Constants.standardSpacing) {
+          // Last Updated
+          lastUpdatedView
+
           // Summary Card
           summaryCard
 
@@ -38,6 +43,11 @@ struct AllDevicesView: View {
         .padding(Constants.standardPadding)
       }
     }
+    .refreshable {
+      if let token = authManager.authToken {
+        await devicesManager.fetchDevices(authToken: token, isManualRefresh: true)
+      }
+    }
     .navigationTitle("All Devices")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
@@ -47,6 +57,37 @@ struct AllDevicesView: View {
     .task {
       if let token = authManager.authToken {
         await devicesManager.fetchDevices(authToken: token)
+
+        if autoRefreshEnabled {
+          await devicesManager.startAutoRefresh(interval: autoRefreshInterval, authToken: token)
+        }
+      }
+    }
+    .onDisappear {
+      devicesManager.stopAutoRefresh()
+    }
+  }
+
+  // MARK: - Last Updated
+
+  private var lastUpdatedView: some View {
+    HStack {
+      Image(systemName: "clock")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+      Text("Updated \(devicesManager.lastUpdatedText)")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+      Spacer()
+      if autoRefreshEnabled {
+        HStack(spacing: 4) {
+          Circle()
+            .fill(.green)
+            .frame(width: 6, height: 6)
+          Text("Auto-refresh")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
       }
     }
   }

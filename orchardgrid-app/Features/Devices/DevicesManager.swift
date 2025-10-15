@@ -73,11 +73,14 @@ struct Device: Codable, Identifiable {
 
 @MainActor
 @Observable
-final class DevicesManager {
+final class DevicesManager: AutoRefreshable {
   private(set) var devices: [Device] = []
   private(set) var isInitialLoading = true
   private(set) var isRefreshing = false
   private(set) var lastError: String?
+  private(set) var lastUpdated: Date?
+
+  var autoRefreshTask: Task<Void, Never>?
 
   private let apiURL = Config.apiBaseURL
 
@@ -131,6 +134,7 @@ final class DevicesManager {
       let decoder = JSONDecoder()
       devices = try decoder.decode([Device].self, from: data)
       lastError = nil
+      lastUpdated = Date()
 
       Logger.success(.devices, "Fetched \(devices.count) devices")
     } catch {
@@ -141,6 +145,25 @@ final class DevicesManager {
 
     isInitialLoading = false
     isRefreshing = false
+  }
+
+  // MARK: - Auto Refresh
+
+  func startAutoRefresh(interval: TimeInterval, authToken: String) async {
+    stopAutoRefresh()
+
+    autoRefreshTask = Task { @MainActor in
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .seconds(interval))
+        guard !Task.isCancelled else { break }
+        await fetchDevices(authToken: authToken, isManualRefresh: false)
+      }
+    }
+  }
+
+  func stopAutoRefresh() {
+    autoRefreshTask?.cancel()
+    autoRefreshTask = nil
   }
 
   var onlineDevices: [Device] {

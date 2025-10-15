@@ -16,10 +16,13 @@ struct APIKey: Identifiable, Codable, Sendable {
 
 @MainActor
 @Observable
-final class APIKeysManager {
+final class APIKeysManager: AutoRefreshable {
   var apiKeys: [APIKey] = []
   var isLoading = false
   var lastError: String?
+  var lastUpdated: Date?
+
+  var autoRefreshTask: Task<Void, Never>?
 
   private let apiURL = Config.apiBaseURL
   private let urlSession = Config.urlSession
@@ -56,6 +59,7 @@ final class APIKeysManager {
       let decoder = JSONDecoder()
       let result = try decoder.decode(Response.self, from: data)
       apiKeys = result.keys
+      lastUpdated = Date()
 
       Logger.success(.api, "Loaded \(apiKeys.count) API keys")
     } catch {
@@ -64,6 +68,25 @@ final class APIKeysManager {
     }
 
     isLoading = false
+  }
+
+  // MARK: - Auto Refresh
+
+  func startAutoRefresh(interval: TimeInterval, authToken: String) async {
+    stopAutoRefresh()
+
+    autoRefreshTask = Task { @MainActor in
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .seconds(interval))
+        guard !Task.isCancelled else { break }
+        await loadAPIKeys(authToken: authToken)
+      }
+    }
+  }
+
+  func stopAutoRefresh() {
+    autoRefreshTask?.cancel()
+    autoRefreshTask = nil
   }
 
   @discardableResult

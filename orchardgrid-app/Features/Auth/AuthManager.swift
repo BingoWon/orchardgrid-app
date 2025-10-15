@@ -135,12 +135,6 @@ final class AuthManager {
     }
   }
 
-  // Sign in with Google
-  func signInWithGoogle() async {
-    // TODO: Implement Google Sign In SDK integration
-    lastError = "Google Sign In not yet implemented"
-  }
-
   // Fetch user info from API
   private func fetchUserInfo() async {
     guard let token = authToken else { return }

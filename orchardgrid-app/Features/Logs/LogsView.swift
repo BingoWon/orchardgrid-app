@@ -2,6 +2,8 @@ import SwiftUI
 
 struct LogsView: View {
   @Environment(AuthManager.self) private var authManager
+  @AppStorage("autoRefreshEnabled") private var autoRefreshEnabled = false
+  @AppStorage("autoRefreshInterval") private var autoRefreshInterval = RefreshConfig.defaultInterval
   @State private var manager = LogsManager()
   @State private var selectedTab = 0
   @State private var consumingStatus = "all"
@@ -17,6 +19,29 @@ struct LogsView: View {
 
   var body: some View {
     VStack(spacing: 0) {
+      // Last Updated
+      HStack {
+        Image(systemName: "clock")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        Text("Updated \(manager.lastUpdatedText)")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        Spacer()
+        if autoRefreshEnabled {
+          HStack(spacing: 4) {
+            Circle()
+              .fill(.green)
+              .frame(width: 6, height: 6)
+            Text("Auto-refresh")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+        }
+      }
+      .padding(.horizontal)
+      .padding(.top, 8)
+
       // Tabs
       Picker("", selection: $selectedTab) {
         Text("Consuming").tag(0)
@@ -58,6 +83,13 @@ struct LogsView: View {
     }
     .task {
       await loadData()
+
+      if autoRefreshEnabled, let token = authManager.authToken {
+        await manager.startAutoRefresh(interval: autoRefreshInterval, authToken: token)
+      }
+    }
+    .onDisappear {
+      manager.stopAutoRefresh()
     }
   }
 
