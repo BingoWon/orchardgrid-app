@@ -336,7 +336,11 @@ final class APIServer {
     // Start connection on global queue (required by Apple docs)
     connection.start(queue: .global())
 
-    print("🔵 [APIServer] Connection started, waiting for request...")
+    print("🔵 [APIServer] Connection started, waiting for ready state...")
+
+    // Wait for connection to be ready
+    await waitForReady(connection)
+    print("✅ [APIServer] Connection is ready!")
 
     guard let rawRequest = await receiveRequest(from: connection),
           let httpRequest = HTTPRequest(rawRequest: rawRequest)
@@ -347,6 +351,29 @@ final class APIServer {
 
     print("✅ [APIServer] Request: \(httpRequest.method) \(httpRequest.path)")
     await processRequest(httpRequest, connection: connection)
+  }
+
+  private func waitForReady(_ connection: NWConnection) async {
+    await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+      if case .ready = connection.state {
+        continuation.resume()
+        return
+      }
+
+      connection.stateUpdateHandler = { state in
+        print("🔵 [APIServer] State update in waitForReady: \(state)")
+        if case .ready = state {
+          connection.stateUpdateHandler = nil
+          continuation.resume()
+        } else if case .failed = state {
+          connection.stateUpdateHandler = nil
+          continuation.resume()
+        } else if case .cancelled = state {
+          connection.stateUpdateHandler = nil
+          continuation.resume()
+        }
+      }
+    }
   }
 
   private func receiveRequest(from connection: NWConnection) async -> String? {
