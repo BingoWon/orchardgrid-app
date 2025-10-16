@@ -124,6 +124,9 @@ final class APIServer {
   }
 
   nonisolated func start() async {
+    // Get current port value from MainActor
+    let currentPort = await MainActor.run { port }
+
     // Stop any existing listener first
     await MainActor.run {
       if isRunning {
@@ -138,7 +141,10 @@ final class APIServer {
       let parameters = NWParameters.tcp
       parameters.allowLocalEndpointReuse = true
       parameters.allowFastOpen = true
-      let listener = try NWListener(using: parameters, on: NWEndpoint.Port(integerLiteral: port))
+      let listener = try NWListener(
+        using: parameters,
+        on: NWEndpoint.Port(integerLiteral: currentPort)
+      )
 
       listener.stateUpdateHandler = { [weak self] state in
         Task { @MainActor [weak self] in
@@ -152,7 +158,7 @@ final class APIServer {
             // Provide user-friendly error messages
             let errorDescription = error.localizedDescription
             if errorDescription.contains("Address already in use") {
-              errorMessage = "Port \(port) is already in use. Please close other instances of the app or restart your device."
+              errorMessage = "Port \(currentPort) is already in use. Please close other instances of the app or restart your device."
             } else {
               errorMessage = "Failed to start: \(errorDescription)"
             }
