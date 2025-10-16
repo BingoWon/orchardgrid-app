@@ -62,6 +62,7 @@ final class APIServer {
   private(set) var lastRequest = ""
   private(set) var lastResponse = ""
   private(set) var errorMessage = ""
+  private(set) var localIPAddress: String?
   var isEnabled = false {
     didSet {
       UserDefaults.standard.set(isEnabled, forKey: "APIServer.isEnabled")
@@ -78,6 +79,7 @@ final class APIServer {
   private let defaultSystemPrompt = "You are a helpful AI assistant. Provide clear, concise, and accurate responses."
 
   private var listener: NWListener?
+  private var pathMonitor: NWPathMonitor?
 
   // JSONDecoder is thread-safe and can be used from any isolation context
   private let jsonDecoder = JSONDecoder()
@@ -85,6 +87,9 @@ final class APIServer {
   init() {
     // Restore previous state
     isEnabled = UserDefaults.standard.bool(forKey: "APIServer.isEnabled")
+
+    // Start network monitoring
+    startNetworkMonitoring()
 
     // Auto-start if enabled
     if isEnabled {
@@ -142,6 +147,32 @@ final class APIServer {
     listener?.cancel()
     listener = nil
     isRunning = false
+    stopNetworkMonitoring()
+  }
+
+  // MARK: - Network Monitoring
+
+  private func startNetworkMonitoring() {
+    let monitor = NWPathMonitor()
+    pathMonitor = monitor
+
+    monitor.pathUpdateHandler = { [weak self] _ in
+      Task { @MainActor [weak self] in
+        self?.updateLocalIPAddress()
+      }
+    }
+
+    monitor.start(queue: .global())
+    updateLocalIPAddress()
+  }
+
+  private func stopNetworkMonitoring() {
+    pathMonitor?.cancel()
+    pathMonitor = nil
+  }
+
+  private func updateLocalIPAddress() {
+    localIPAddress = NetworkInfo.localIPAddress
   }
 
   private nonisolated func handleConnection(_ connection: NWConnection) async {

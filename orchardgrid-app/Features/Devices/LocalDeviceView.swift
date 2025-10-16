@@ -1,5 +1,10 @@
 import FoundationModels
 import SwiftUI
+#if os(macOS)
+  import AppKit
+#elseif os(iOS)
+  import UIKit
+#endif
 
 struct LocalDeviceView: View {
   @Environment(WebSocketClient.self) private var wsClient
@@ -121,11 +126,34 @@ struct LocalDeviceView: View {
           Divider()
 
           VStack(alignment: .leading, spacing: 12) {
-            InfoRow(label: "Model", value: "apple-intelligence")
-            InfoRow(
-              label: "Endpoint",
-              value: "http://localhost:\(apiServer.port)/v1/chat/completions"
+            // Model
+            HStack(alignment: .top, spacing: 8) {
+              Text("Model")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 60, alignment: .leading)
+
+              Text("apple-intelligence")
+                .font(.caption)
+                .fontWeight(.medium)
+                .textSelection(.enabled)
+
+              Spacer()
+            }
+
+            // Local Endpoint
+            EndpointRow(
+              label: "Local",
+              url: "http://localhost:\(apiServer.port)/v1/chat/completions"
             )
+
+            // Network Endpoint (if available)
+            if let localIP = apiServer.localIPAddress {
+              EndpointRow(
+                label: "Network",
+                url: "http://\(localIP):\(apiServer.port)/v1/chat/completions"
+              )
+            }
           }
 
           Divider()
@@ -406,6 +434,50 @@ struct InfoRow: View {
 
       Spacer()
     }
+  }
+}
+
+struct EndpointRow: View {
+  let label: String
+  let url: String
+
+  var body: some View {
+    HStack(alignment: .top, spacing: 8) {
+      Text(label)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .frame(width: 60, alignment: .leading)
+
+      VStack(alignment: .leading, spacing: 4) {
+        Text(url)
+          .font(.caption)
+          .fontWeight(.medium)
+          .textSelection(.enabled)
+          .lineLimit(2)
+          .fixedSize(horizontal: false, vertical: true)
+      }
+
+      Spacer()
+
+      Button {
+        copyToClipboard(url)
+      } label: {
+        Image(systemName: "doc.on.doc")
+          .font(.caption)
+          .foregroundStyle(.blue)
+      }
+      .buttonStyle(.plain)
+      .help("Copy URL")
+    }
+  }
+
+  private func copyToClipboard(_ text: String) {
+    #if os(macOS)
+      NSPasteboard.general.clearContents()
+      NSPasteboard.general.setString(text, forType: .string)
+    #elseif os(iOS)
+      UIPasteboard.general.string = text
+    #endif
   }
 }
 

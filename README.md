@@ -44,10 +44,36 @@ The server will start on `http://localhost:8888`.
 
 ## API Usage
 
+The API server is accessible in two ways:
+
+- **Local Access**: `http://localhost:8888` - Access from the same device
+- **Network Access**: `http://<your-local-ip>:8888` - Access from other devices on your LAN
+
+To find your local IP address, check the app's Local Device view or run:
+```bash
+# macOS
+ipconfig getifaddr en0  # WiFi
+ipconfig getifaddr en1  # Ethernet
+
+# Linux
+hostname -I
+```
+
 ### Basic Chat Completion
 
 ```bash
+# Local access
 curl -X POST http://localhost:8888/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "apple-intelligence",
+    "messages": [
+      {"role": "user", "content": "Hello!"}
+    ]
+  }'
+
+# Network access (replace with your local IP)
+curl -X POST http://192.168.1.100:8888/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "apple-intelligence",
