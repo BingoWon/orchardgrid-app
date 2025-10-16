@@ -111,10 +111,7 @@ final class APIServer {
     do {
       let parameters = NWParameters.tcp
       parameters.allowLocalEndpointReuse = true
-      parameters.requiredLocalEndpoint = NWEndpoint.hostPort(
-        host: .ipv4(.any),
-        port: NWEndpoint.Port(integerLiteral: port)
-      )
+      parameters.allowFastOpen = true
       let listener = try NWListener(using: parameters, on: NWEndpoint.Port(integerLiteral: port))
 
       listener.stateUpdateHandler = { [weak self] state in
