@@ -840,17 +840,28 @@ final class APIServer {
     closeAfter: Bool
   ) async {
     guard let data = text.data(using: .utf8) else {
+      print("❌ [APIServer] Failed to convert text to data")
       return
     }
 
+    print("📤 [APIServer] Sending \(data.count) bytes, state: \(connection.state)")
+
     await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-      connection.send(content: data, completion: .contentProcessed { _ in
+      connection.send(content: data, completion: .contentProcessed { error in
+        if let error {
+          print("❌ [APIServer] Send error: \(error)")
+        } else {
+          print("✅ [APIServer] Send completed")
+        }
+
         if closeAfter {
           connection.cancel()
         }
         continuation.resume()
       })
     }
+
+    print("✅ [APIServer] send() returned")
   }
 }
 
