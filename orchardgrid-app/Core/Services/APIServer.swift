@@ -252,6 +252,13 @@ final class APIServer {
             break
           }
         }
+
+        // Set a dummy connection handler to avoid warning
+        // We don't actually accept connections during port checking
+        testListener.newConnectionHandler = { connection in
+          connection.cancel()
+        }
+
         testListener.start(queue: .global())
       }
 
