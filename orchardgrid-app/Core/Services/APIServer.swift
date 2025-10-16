@@ -103,8 +103,12 @@ final class APIServer {
     didSet {
       UserDefaults.standard.set(port, forKey: Constants.UserDefaultsKey.port)
       if isRunning {
-        stop()
-        Task { await start() }
+        Task {
+          stop()
+          // Wait longer to ensure port is fully released
+          try? await Task.sleep(for: .milliseconds(500))
+          await start()
+        }
       }
     }
   }
@@ -230,6 +234,11 @@ final class APIServer {
   }
 
   // MARK: - Port Management
+
+  /// Reset port to default value (8888)
+  func resetToDefaultPort() {
+    port = Constants.defaultPort
+  }
 
   /// Find and set a random available port
   func findAndSetRandomPort() async {

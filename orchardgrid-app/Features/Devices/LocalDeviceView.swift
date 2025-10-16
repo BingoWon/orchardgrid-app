@@ -189,6 +189,15 @@ struct LocalDeviceView: View {
             .buttonStyle(.bordered)
             .controlSize(.small)
 
+            Button {
+              apiServer.resetToDefaultPort()
+            } label: {
+              Label("Default", systemImage: "arrow.counterclockwise")
+                .font(.caption)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+
             Spacer()
           }
         }
