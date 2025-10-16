@@ -204,7 +204,7 @@ final class APIServer {
       }
 
       listener.newConnectionHandler = { [weak self] connection in
-        Task {
+        Task { @MainActor in
           await self?.handleConnection(connection)
         }
       }
@@ -325,6 +325,7 @@ final class APIServer {
   }
 
   private func handleConnection(_ connection: NWConnection) async {
+    print("🔵 [APIServer] New connection - MainActor: \(Thread.isMainThread)")
     connection.start(queue: .global())
 
     guard let rawRequest = await receiveRequest(from: connection),
@@ -334,6 +335,7 @@ final class APIServer {
       return
     }
 
+    print("✅ [APIServer] Request: \(httpRequest.method) \(httpRequest.path)")
     await processRequest(httpRequest, connection: connection)
   }
 
@@ -533,6 +535,8 @@ final class APIServer {
     responseFormat: ResponseFormat?,
     connection: NWConnection
   ) async {
+    print("🌊 [APIServer] streamResponse - MainActor: \(Thread.isMainThread)")
+
     guard case .available = model.availability else {
       await sendError(.serviceUnavailable, message: "Model not available", to: connection)
       return
@@ -543,7 +547,9 @@ final class APIServer {
     var fullContent = ""
     var previousContent = ""
 
+    print("🌊 [APIServer] Sending headers...")
     await sendStreamHeaders(to: connection)
+    print("✅ [APIServer] Headers sent")
 
     let initialChunk = StreamChunk(
       id: id,
@@ -578,7 +584,9 @@ final class APIServer {
         systemPrompt: systemPrompt
       )
 
+      print("🌊 [APIServer] Creating LanguageModelSession...")
       let session = LanguageModelSession(transcript: transcript)
+      print("✅ [APIServer] Session created")
 
       // Convert JSON Schema to Apple schema if needed
       if let responseFormat,
@@ -587,9 +595,11 @@ final class APIServer {
       {
         let converter = SchemaConverter()
         let validatedSchema = try converter.convert(jsonSchema)
+        print("🌊 [APIServer] Starting stream with schema...")
         let stream = session.streamResponse(to: lastMessage.content, schema: validatedSchema)
 
         for try await snapshot in stream {
+          print("🌊 [APIServer] Got snapshot")
           fullContent = snapshot.content.jsonString
           let delta = String(fullContent.dropFirst(previousContent.count))
 
@@ -611,9 +621,11 @@ final class APIServer {
           previousContent = fullContent
         }
       } else {
+        print("🌊 [APIServer] Starting stream without schema...")
         let stream = session.streamResponse(to: lastMessage.content)
 
         for try await snapshot in stream {
+          print("🌊 [APIServer] Got snapshot")
           fullContent = snapshot.content
           let delta = String(fullContent.dropFirst(previousContent.count))
 
