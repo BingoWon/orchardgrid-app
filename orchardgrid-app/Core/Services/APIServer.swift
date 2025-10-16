@@ -911,16 +911,30 @@ final class APIServer {
     to connection: NWConnection,
     closeAfter: Bool
   ) async {
-    guard let data = text.data(using: .utf8) else { return }
+    guard let data = text.data(using: .utf8) else {
+      print("❌ [APIServer] Failed to convert text to data")
+      return
+    }
+
+    print("📤 [APIServer] Sending \(data.count) bytes, closeAfter: \(closeAfter)")
+    print("📤 [APIServer] Connection state: \(connection.state)")
 
     await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-      connection.send(content: data, completion: .contentProcessed { _ in
+      connection.send(content: data, completion: .contentProcessed { error in
+        if let error {
+          print("❌ [APIServer] Send error: \(error)")
+        } else {
+          print("✅ [APIServer] Send completed successfully")
+        }
+
         if closeAfter {
           connection.cancel()
         }
         continuation.resume()
       })
     }
+
+    print("✅ [APIServer] send() method completed")
   }
 }
 
