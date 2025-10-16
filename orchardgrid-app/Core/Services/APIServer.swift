@@ -328,6 +328,11 @@ final class APIServer {
     print("🔵 [APIServer] New connection received")
     connection.start(queue: .global())
 
+    // Wait for connection to be ready
+    print("🔵 [APIServer] Waiting for connection to be ready...")
+    await waitForConnectionReady(connection)
+    print("✅ [APIServer] Connection is ready")
+
     print("🔵 [APIServer] Waiting for request...")
     guard let rawRequest = await receiveRequest(from: connection),
           let httpRequest = HTTPRequest(rawRequest: rawRequest)
@@ -339,6 +344,26 @@ final class APIServer {
 
     print("✅ [APIServer] Request parsed: \(httpRequest.method) \(httpRequest.path)")
     await processRequest(httpRequest, connection: connection)
+  }
+
+  private nonisolated func waitForConnectionReady(_ connection: NWConnection) async {
+    await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+      connection.stateUpdateHandler = { state in
+        print("🔵 [APIServer] Connection state changed to: \(state)")
+        if case .ready = state {
+          connection.stateUpdateHandler = nil
+          continuation.resume()
+        } else if case .failed(let error) = state {
+          print("❌ [APIServer] Connection failed: \(error)")
+          connection.stateUpdateHandler = nil
+          continuation.resume()
+        } else if case .cancelled = state {
+          print("❌ [APIServer] Connection cancelled")
+          connection.stateUpdateHandler = nil
+          continuation.resume()
+        }
+      }
+    }
   }
 
   private nonisolated func receiveRequest(from connection: NWConnection) async -> String? {
