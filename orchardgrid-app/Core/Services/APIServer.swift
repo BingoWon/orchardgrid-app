@@ -326,7 +326,17 @@ final class APIServer {
 
   private func handleConnection(_ connection: NWConnection) async {
     print("🔵 [APIServer] New connection - MainActor: \(Thread.isMainThread)")
+    print("🔵 [APIServer] Connection state before start: \(connection.state)")
+
+    // Set state update handler before starting
+    connection.stateUpdateHandler = { state in
+      print("🔵 [APIServer] Connection state: \(state)")
+    }
+
+    // Start connection on global queue (required by Apple docs)
     connection.start(queue: .global())
+
+    print("🔵 [APIServer] Connection started, waiting for request...")
 
     guard let rawRequest = await receiveRequest(from: connection),
           let httpRequest = HTTPRequest(rawRequest: rawRequest)
