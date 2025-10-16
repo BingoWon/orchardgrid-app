@@ -106,12 +106,15 @@ struct LocalDeviceView: View {
       if apiServer.isEnabled {
         Divider()
 
+        // Status
         HStack {
-          Image(systemName: apiServer.isRunning ? "checkmark.circle.fill" : "hourglass.circle.fill")
-            .foregroundStyle(apiServer.isRunning ? .green : .orange)
+          let hasError = !apiServer.errorMessage.isEmpty
+          Image(systemName: hasError ? "exclamationmark.triangle.fill" :
+            (apiServer.isRunning ? "checkmark.circle.fill" : "hourglass.circle.fill"))
+            .foregroundStyle(hasError ? .red : (apiServer.isRunning ? .green : .orange))
 
           VStack(alignment: .leading, spacing: 2) {
-            Text(apiServer.isRunning ? "Running" : "Starting...")
+            Text(hasError ? "Failed" : (apiServer.isRunning ? "Running" : "Starting..."))
               .font(.subheadline)
               .fontWeight(.medium)
             Text("Port \(apiServer.port)")
@@ -120,6 +123,24 @@ struct LocalDeviceView: View {
           }
 
           Spacer()
+        }
+
+        // Error Message
+        if !apiServer.errorMessage.isEmpty {
+          Divider()
+
+          HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "info.circle")
+              .foregroundStyle(.secondary)
+              .font(.caption)
+
+            Text(apiServer.errorMessage)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .fixedSize(horizontal: false, vertical: true)
+
+            Spacer()
+          }
         }
 
         if apiServer.isRunning {
