@@ -85,17 +85,30 @@ final class APIServer {
   private let jsonDecoder = JSONDecoder()
 
   init() {
-    // Restore previous state
-    isEnabled = UserDefaults.standard.bool(forKey: "APIServer.isEnabled")
-
-    // Start network monitoring
+    // Start network monitoring (runs for the lifetime of the instance)
     startNetworkMonitoring()
 
-    // Auto-start if enabled
-    if isEnabled {
-      Task { await start() }
+    // Restore previous state and auto-start if enabled
+    let savedState = UserDefaults.standard.bool(forKey: "APIServer.isEnabled")
+    if savedState {
+      Task {
+        // Check if port is available before starting
+        if await isPortAvailable() {
+          await MainActor.run {
+            isEnabled = true
+          }
+        } else {
+          // Port is in use, clear saved state and show error
+          await MainActor.run {
+            isEnabled = false
+            errorMessage = "Port \(port) is in use by another instance. Please close other instances first."
+          }
+        }
+      }
     }
   }
+
+
 
   nonisolated func start() async {
     // Stop any existing listener first
@@ -157,12 +170,59 @@ final class APIServer {
   }
 
   func stop() {
-    // Cancel listener and wait for cleanup
+    // Cancel listener and reset state
     listener?.cancel()
     listener = nil
     isRunning = false
     errorMessage = ""
+    // Note: Network monitoring continues running for the lifetime of the instance
+    // It will be cleaned up when the instance is deallocated
+  }
+
+  // Clean up resources when instance is deallocated
+  // Note: Cannot use deinit due to Swift 6 concurrency restrictions
+  // Resources are cleaned up in stop() and when the instance is released
+  func cleanup() {
+    stop()
     stopNetworkMonitoring()
+  }
+
+  // MARK: - Port Availability Check
+
+  /// Check if the port is available for binding
+  /// Returns true if port is free, false if already in use
+  private nonisolated func isPortAvailable() async -> Bool {
+    do {
+      let parameters = NWParameters.tcp
+      let testListener = try NWListener(
+        using: parameters,
+        on: NWEndpoint.Port(integerLiteral: port)
+      )
+
+      // Try to start the listener briefly
+      let isAvailable = await withCheckedContinuation { continuation in
+        testListener.stateUpdateHandler = { state in
+          switch state {
+          case .ready:
+            // Port is available
+            testListener.cancel()
+            continuation.resume(returning: true)
+          case .failed:
+            // Port is in use or other error
+            testListener.cancel()
+            continuation.resume(returning: false)
+          default:
+            break
+          }
+        }
+        testListener.start(queue: .global())
+      }
+
+      return isAvailable
+    } catch {
+      // If we can't create a listener, assume port is unavailable
+      return false
+    }
   }
 
   // MARK: - Network Monitoring
