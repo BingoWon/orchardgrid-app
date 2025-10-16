@@ -6,18 +6,24 @@ import SwiftUI
   import UIKit
 #endif
 
+// MARK: - Clipboard Helper
+
+/// Copy text to system clipboard
+/// - Parameter text: The text to copy
+private func copyToClipboard(_ text: String) {
+  #if os(macOS)
+    NSPasteboard.general.clearContents()
+    NSPasteboard.general.setString(text, forType: .string)
+  #elseif os(iOS)
+    UIPasteboard.general.string = text
+  #endif
+}
+
+// MARK: - Local Device View
+
 struct LocalDeviceView: View {
   @Environment(WebSocketClient.self) private var wsClient
   @Environment(APIServer.self) private var apiServer
-
-  private func copyToClipboard(_ text: String) {
-    #if os(macOS)
-      NSPasteboard.general.clearContents()
-      NSPasteboard.general.setString(text, forType: .string)
-    #elseif os(iOS)
-      UIPasteboard.general.string = text
-    #endif
-  }
 
   var body: some View {
     ScrollView {
@@ -544,15 +550,6 @@ struct EndpointRow: View {
       .buttonStyle(.plain)
       .help("Copy URL")
     }
-  }
-
-  private func copyToClipboard(_ text: String) {
-    #if os(macOS)
-      NSPasteboard.general.clearContents()
-      NSPasteboard.general.setString(text, forType: .string)
-    #elseif os(iOS)
-      UIPasteboard.general.string = text
-    #endif
   }
 }
 

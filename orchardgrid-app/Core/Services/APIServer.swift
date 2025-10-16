@@ -57,15 +57,40 @@ struct HTTPRequest: Sendable {
 @Observable
 @MainActor
 final class APIServer {
+  // MARK: - Constants
+
+  private enum Constants {
+    /// Default API server port
+    static let defaultPort: UInt16 = 8888
+
+    /// Port range for random port generation
+    static let portRange: ClosedRange<UInt16> = 8888 ... 9999
+
+    /// Maximum attempts for random port generation
+    static let maxRandomPortAttempts = 100
+
+    /// Delay before starting listener after stopping
+    static let listenerRestartDelay: Duration = .milliseconds(100)
+
+    /// UserDefaults keys
+    enum UserDefaultsKey {
+      static let isEnabled = "APIServer.isEnabled"
+      static let port = "APIServer.port"
+    }
+  }
+
+  // MARK: - Properties
+
   private(set) var isRunning = false
   private(set) var requestCount = 0
   private(set) var lastRequest = ""
   private(set) var lastResponse = ""
   private(set) var errorMessage = ""
   private(set) var localIPAddress: String?
+
   var isEnabled = false {
     didSet {
-      UserDefaults.standard.set(isEnabled, forKey: "APIServer.isEnabled")
+      UserDefaults.standard.set(isEnabled, forKey: Constants.UserDefaultsKey.isEnabled)
       if isEnabled {
         Task { await start() }
       } else {
@@ -74,10 +99,9 @@ final class APIServer {
     }
   }
 
-  var port: UInt16 = 8888 {
+  var port: UInt16 = Constants.defaultPort {
     didSet {
-      UserDefaults.standard.set(port, forKey: "APIServer.port")
-      // If server is running, restart with new port
+      UserDefaults.standard.set(port, forKey: Constants.UserDefaultsKey.port)
       if isRunning {
         stop()
         Task { await start() }
@@ -91,12 +115,15 @@ final class APIServer {
   private var listener: NWListener?
   private var pathMonitor: NWPathMonitor?
 
-  // JSONDecoder is thread-safe and can be used from any isolation context
   private let jsonDecoder = JSONDecoder()
+
+  // MARK: - Initialization
 
   init() {
     // Restore saved port
-    if let savedPort = UserDefaults.standard.object(forKey: "APIServer.port") as? UInt16 {
+    if let savedPort = UserDefaults.standard
+      .object(forKey: Constants.UserDefaultsKey.port) as? UInt16
+    {
       port = savedPort
     }
 
@@ -104,11 +131,11 @@ final class APIServer {
     startNetworkMonitoring()
 
     // Restore previous state and auto-start if enabled
-    let savedState = UserDefaults.standard.bool(forKey: "APIServer.isEnabled")
+    let savedState = UserDefaults.standard.bool(forKey: Constants.UserDefaultsKey.isEnabled)
     if savedState {
       Task {
-        // Check if port is available before starting
-        if await isPortAvailable() {
+        // Check if current port is available before starting
+        if await isCurrentPortAvailable() {
           await MainActor.run {
             isEnabled = true
           }
@@ -123,6 +150,8 @@ final class APIServer {
     }
   }
 
+  // MARK: - Server Lifecycle
+
   nonisolated func start() async {
     // Get current port value from MainActor
     let currentPort = await MainActor.run { port }
@@ -135,7 +164,7 @@ final class APIServer {
     }
 
     // Small delay to ensure port is released
-    try? await Task.sleep(for: .milliseconds(100))
+    try? await Task.sleep(for: Constants.listenerRestartDelay)
 
     do {
       let parameters = NWParameters.tcp
@@ -189,18 +218,12 @@ final class APIServer {
   }
 
   func stop() {
-    // Cancel listener and reset state
     listener?.cancel()
     listener = nil
     isRunning = false
     errorMessage = ""
-    // Note: Network monitoring continues running for the lifetime of the instance
-    // It will be cleaned up when the instance is deallocated
   }
 
-  // Clean up resources when instance is deallocated
-  // Note: Cannot use deinit due to Swift 6 concurrency restrictions
-  // Resources are cleaned up in stop() and when the instance is released
   func cleanup() {
     stop()
     stopNetworkMonitoring()
@@ -209,10 +232,9 @@ final class APIServer {
   // MARK: - Port Management
 
   /// Find and set a random available port
-  /// Searches in range 8888-9999 for an available port
   func findAndSetRandomPort() async {
-    for _ in 0 ..< 100 { // Try up to 100 times
-      let randomPort = UInt16.random(in: 8888 ... 9999)
+    for _ in 0 ..< Constants.maxRandomPortAttempts {
+      let randomPort = UInt16.random(in: Constants.portRange)
       if await isPortAvailable(randomPort) {
         await MainActor.run {
           port = randomPort
@@ -220,14 +242,12 @@ final class APIServer {
         return
       }
     }
-    // If no port found after 100 tries, show error
     await MainActor.run {
       errorMessage = "Could not find an available port. Please try again."
     }
   }
 
   /// Check if a specific port is available for binding
-  /// Returns true if port is free, false if already in use
   private nonisolated func isPortAvailable(_ testPort: UInt16) async -> Bool {
     do {
       let parameters = NWParameters.tcp
@@ -236,16 +256,13 @@ final class APIServer {
         on: NWEndpoint.Port(integerLiteral: testPort)
       )
 
-      // Try to start the listener briefly
       let isAvailable = await withCheckedContinuation { continuation in
         testListener.stateUpdateHandler = { state in
           switch state {
           case .ready:
-            // Port is available
             testListener.cancel()
             continuation.resume(returning: true)
           case .failed:
-            // Port is in use or other error
             testListener.cancel()
             continuation.resume(returning: false)
           default:
@@ -253,8 +270,7 @@ final class APIServer {
           }
         }
 
-        // Set a dummy connection handler to avoid warning
-        // We don't actually accept connections during port checking
+        // Set connection handler to satisfy NWListener API requirements
         testListener.newConnectionHandler = { connection in
           connection.cancel()
         }
@@ -264,14 +280,12 @@ final class APIServer {
 
       return isAvailable
     } catch {
-      // If we can't create a listener, assume port is unavailable
       return false
     }
   }
 
-  /// Check if the current port is available for binding
-  /// Returns true if port is free, false if already in use
-  private nonisolated func isPortAvailable() async -> Bool {
+  /// Check if the current configured port is available for binding
+  private nonisolated func isCurrentPortAvailable() async -> Bool {
     let currentPort = await MainActor.run { port }
     return await isPortAvailable(currentPort)
   }
@@ -713,7 +727,7 @@ final class APIServer {
     print("🔹 Timestamp: \(Date())")
     print("\n📦 Response Body:")
 
-    // 尝试格式化 JSON
+    // Try to format JSON for better readability
     if let jsonData = json.data(using: .utf8),
        let jsonObject = try? JSONSerialization.jsonObject(with: jsonData),
        let prettyData = try? JSONSerialization.data(
