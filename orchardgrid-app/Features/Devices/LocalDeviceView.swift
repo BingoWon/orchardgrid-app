@@ -10,6 +10,15 @@ struct LocalDeviceView: View {
   @Environment(WebSocketClient.self) private var wsClient
   @Environment(APIServer.self) private var apiServer
 
+  private func copyToClipboard(_ text: String) {
+    #if os(macOS)
+      NSPasteboard.general.clearContents()
+      NSPasteboard.general.setString(text, forType: .string)
+    #elseif os(iOS)
+      UIPasteboard.general.string = text
+    #endif
+  }
+
   var body: some View {
     ScrollView {
       GlassEffectContainer {
@@ -143,6 +152,41 @@ struct LocalDeviceView: View {
           }
         }
 
+        // Port Configuration (always show when enabled)
+        Divider()
+
+        VStack(alignment: .leading, spacing: 12) {
+          HStack(alignment: .top, spacing: 8) {
+            Text("Port")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .frame(width: 60, alignment: .leading)
+
+            TextField("Port", value: Binding(
+              get: { apiServer.port },
+              set: { apiServer.port = $0 }
+            ), format: .number)
+              .textFieldStyle(.roundedBorder)
+              .frame(width: 80)
+            #if os(macOS)
+              .controlSize(.small)
+            #endif
+
+            Button {
+              Task {
+                await apiServer.findAndSetRandomPort()
+              }
+            } label: {
+              Label("Random", systemImage: "shuffle")
+                .font(.caption)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+
+            Spacer()
+          }
+        }
+
         if apiServer.isRunning {
           Divider()
 
@@ -160,6 +204,16 @@ struct LocalDeviceView: View {
                 .textSelection(.enabled)
 
               Spacer()
+
+              Button {
+                copyToClipboard("apple-intelligence")
+              } label: {
+                Image(systemName: "doc.on.doc")
+                  .font(.caption)
+                  .foregroundStyle(.blue)
+              }
+              .buttonStyle(.plain)
+              .help("Copy Model Name")
             }
 
             // Local Endpoint

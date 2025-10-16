@@ -74,7 +74,17 @@ final class APIServer {
     }
   }
 
-  let port: UInt16 = 8888
+  var port: UInt16 = 8888 {
+    didSet {
+      UserDefaults.standard.set(port, forKey: "APIServer.port")
+      // If server is running, restart with new port
+      if isRunning {
+        stop()
+        Task { await start() }
+      }
+    }
+  }
+
   private let model = SystemLanguageModel.default
   private let defaultSystemPrompt = "You are a helpful AI assistant. Provide clear, concise, and accurate responses."
 
@@ -85,6 +95,11 @@ final class APIServer {
   private let jsonDecoder = JSONDecoder()
 
   init() {
+    // Restore saved port
+    if let savedPort = UserDefaults.standard.object(forKey: "APIServer.port") as? UInt16 {
+      port = savedPort
+    }
+
     // Start network monitoring (runs for the lifetime of the instance)
     startNetworkMonitoring()
 
@@ -107,8 +122,6 @@ final class APIServer {
       }
     }
   }
-
-
 
   nonisolated func start() async {
     // Stop any existing listener first
@@ -187,16 +200,34 @@ final class APIServer {
     stopNetworkMonitoring()
   }
 
-  // MARK: - Port Availability Check
+  // MARK: - Port Management
 
-  /// Check if the port is available for binding
+  /// Find and set a random available port
+  /// Searches in range 8888-9999 for an available port
+  func findAndSetRandomPort() async {
+    for _ in 0 ..< 100 { // Try up to 100 times
+      let randomPort = UInt16.random(in: 8888 ... 9999)
+      if await isPortAvailable(randomPort) {
+        await MainActor.run {
+          port = randomPort
+        }
+        return
+      }
+    }
+    // If no port found after 100 tries, show error
+    await MainActor.run {
+      errorMessage = "Could not find an available port. Please try again."
+    }
+  }
+
+  /// Check if a specific port is available for binding
   /// Returns true if port is free, false if already in use
-  private nonisolated func isPortAvailable() async -> Bool {
+  private nonisolated func isPortAvailable(_ testPort: UInt16) async -> Bool {
     do {
       let parameters = NWParameters.tcp
       let testListener = try NWListener(
         using: parameters,
-        on: NWEndpoint.Port(integerLiteral: port)
+        on: NWEndpoint.Port(integerLiteral: testPort)
       )
 
       // Try to start the listener briefly
@@ -223,6 +254,13 @@ final class APIServer {
       // If we can't create a listener, assume port is unavailable
       return false
     }
+  }
+
+  /// Check if the current port is available for binding
+  /// Returns true if port is free, false if already in use
+  private nonisolated func isPortAvailable() async -> Bool {
+    let currentPort = await MainActor.run { port }
+    return await isPortAvailable(currentPort)
   }
 
   // MARK: - Network Monitoring
