@@ -325,15 +325,19 @@ final class APIServer {
   }
 
   private nonisolated func handleConnection(_ connection: NWConnection) async {
+    print("🔵 [APIServer] New connection received")
     connection.start(queue: .global())
 
+    print("🔵 [APIServer] Waiting for request...")
     guard let rawRequest = await receiveRequest(from: connection),
           let httpRequest = HTTPRequest(rawRequest: rawRequest)
     else {
+      print("❌ [APIServer] Failed to parse request")
       await sendError(.badRequest, to: connection)
       return
     }
 
+    print("✅ [APIServer] Request parsed: \(httpRequest.method) \(httpRequest.path)")
     await processRequest(httpRequest, connection: connection)
   }
 
@@ -350,33 +354,51 @@ final class APIServer {
   }
 
   private nonisolated func processRequest(_ request: HTTPRequest, connection: NWConnection) async {
+    print("🟢 [APIServer] processRequest called: \(request.method) \(request.path)")
+
     switch (request.method, request.path) {
     case ("GET", "/v1/models"):
+      print("🟢 [APIServer] Routing to sendModels")
       await sendModels(to: connection)
 
     case ("POST", "/v1/chat/completions"):
+      print("🟢 [APIServer] Routing to handleChatCompletion")
       await handleChatCompletion(request: request, connection: connection)
 
     default:
+      print("❌ [APIServer] Unknown route: \(request.method) \(request.path)")
       await sendError(.notFound, to: connection)
     }
+
+    print("🟢 [APIServer] processRequest completed")
   }
 
   private nonisolated func handleChatCompletion(
     request: HTTPRequest,
     connection: NWConnection
   ) async {
+    print("🟡 [APIServer] handleChatCompletion called")
+
     guard let body = request.body else {
+      print("❌ [APIServer] Missing request body")
       await sendError(.badRequest, message: "Missing request body", to: connection)
       return
     }
+
+    print("🟡 [APIServer] Body size: \(body.count) bytes")
+    print("🟡 [APIServer] Decoding ChatRequest...")
 
     do {
       let chatRequest = try await MainActor.run {
         try jsonDecoder.decode(ChatRequest.self, from: body)
       }
 
+      print("✅ [APIServer] ChatRequest decoded successfully")
+      print("🟡 [APIServer] Messages count: \(chatRequest.messages.count)")
+      print("🟡 [APIServer] Stream: \(chatRequest.stream ?? false)")
+
       guard !chatRequest.messages.isEmpty else {
+        print("❌ [APIServer] Messages array is empty")
         await sendError(.badRequest, message: "Messages array cannot be empty", to: connection)
         return
       }
@@ -384,14 +406,19 @@ final class APIServer {
       // Extract system prompt from messages
       let systemPrompt = chatRequest.messages.first(where: { $0.role == "system" })?
         .content ?? defaultSystemPrompt
+      print("🟡 [APIServer] System prompt: \(systemPrompt.prefix(50))...")
 
       // Get conversation messages (excluding system)
       let conversationMessages = chatRequest.messages.filter { $0.role != "system" }
+      print("🟡 [APIServer] Conversation messages: \(conversationMessages.count)")
 
       guard let lastUserMessage = conversationMessages.last(where: { $0.role == "user" }) else {
+        print("❌ [APIServer] No user message found")
         await sendError(.badRequest, message: "No user message found", to: connection)
         return
       }
+
+      print("🟡 [APIServer] Last user message: \(lastUserMessage.content)")
 
       await MainActor.run {
         self.requestCount += 1
@@ -399,6 +426,7 @@ final class APIServer {
       }
 
       if chatRequest.stream == true {
+        print("🟡 [APIServer] Using streaming response")
         await streamResponse(
           messages: conversationMessages,
           systemPrompt: systemPrompt,
@@ -406,6 +434,7 @@ final class APIServer {
           connection: connection
         )
       } else {
+        print("🟡 [APIServer] Using non-streaming response")
         await sendResponse(
           messages: conversationMessages,
           systemPrompt: systemPrompt,
@@ -413,7 +442,10 @@ final class APIServer {
           connection: connection
         )
       }
+
+      print("✅ [APIServer] handleChatCompletion completed")
     } catch {
+      print("❌ [APIServer] Decode error: \(error.localizedDescription)")
       await sendError(
         .badRequest,
         message: "Invalid request format: \(error.localizedDescription)",
@@ -428,21 +460,29 @@ final class APIServer {
     responseFormat: ResponseFormat?,
     connection: NWConnection
   ) async {
+    print("📥 [APIServer] sendResponse called")
+    print("📥 [APIServer] Model availability: \(model.availability)")
+
     guard case .available = model.availability else {
+      print("❌ [APIServer] Model not available!")
       await sendError(.serviceUnavailable, message: "Model not available", to: connection)
       return
     }
 
     do {
       guard let lastMessage = messages.last, lastMessage.role == "user" else {
+        print("❌ [APIServer] Last message is not from user")
         await sendError(.badRequest, message: "Last message must be from user", to: connection)
         return
       }
 
+      print("🔄 [APIServer] Building transcript...")
       let transcript = buildTranscript(
         from: messages,
         systemPrompt: systemPrompt
       )
+
+      print("🔄 [APIServer] Creating LanguageModelSession...")
       let session = LanguageModelSession(transcript: transcript)
 
       // Convert JSON Schema to Apple schema if needed
@@ -451,15 +491,21 @@ final class APIServer {
          responseFormat.type == "json_schema",
          let jsonSchema = responseFormat.json_schema
       {
+        print("🔄 [APIServer] Converting JSON schema...")
         let validatedSchema = try await MainActor.run {
           let converter = SchemaConverter()
           return try converter.convert(jsonSchema)
         }
+        print("🔄 [APIServer] Calling session.respond() with schema...")
         let response = try await session.respond(to: lastMessage.content, schema: validatedSchema)
         content = response.content.jsonString
+        print("✅ [APIServer] Got response with schema: \(content.prefix(100))...")
       } else {
+        print("🔄 [APIServer] Calling session.respond() without schema...")
+        print("🔄 [APIServer] User message: \(lastMessage.content)")
         let response = try await session.respond(to: lastMessage.content)
         content = response.content
+        print("✅ [APIServer] Got response: \(content.prefix(100))...")
       }
 
       await MainActor.run {
@@ -481,9 +527,12 @@ final class APIServer {
         usage: .init(promptTokens: 0, completionTokens: 0, totalTokens: 0)
       )
 
+      print("📤 [APIServer] Sending response to client...")
       await send(chatResponse, to: connection)
+      print("✅ [APIServer] Response sent successfully")
     } catch {
       let errorMessage = error.localizedDescription
+      print("❌ [APIServer] Error: \(errorMessage)")
       if errorMessage.contains("context") || errorMessage.contains("window") {
         await sendError(
           .badRequest,
