@@ -105,9 +105,15 @@ final class APIServer {
   }
 
   nonisolated func start() async {
+    // Stop any existing listener first
     await MainActor.run {
-      guard !isRunning else { return }
+      if listener != nil {
+        stop()
+      }
     }
+
+    // Wait for port to be released
+    try? await Task.sleep(for: .milliseconds(100))
 
     do {
       let parameters = NWParameters.tcp
@@ -158,6 +164,7 @@ final class APIServer {
     listener?.cancel()
     listener = nil
     isRunning = false
+    errorMessage = ""
     stopNetworkMonitoring()
     Logger.log(.apiServer, "Server stopped")
   }
