@@ -14,7 +14,6 @@ enum Logger {
     case auth
     case websocket
     case api
-    case apiServer
     case devices
     case app
 

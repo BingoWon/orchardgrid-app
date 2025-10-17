@@ -18,15 +18,11 @@ struct APIServerConfiguration {
   /// Maximum request size in bytes
   let maxRequestSize: Int
 
-  /// Request timeout in seconds
-  let timeout: TimeInterval
-
   /// Default configuration
   static let `default` = APIServerConfiguration(
     port: 8888,
     defaultSystemPrompt: "You are a helpful AI assistant. Provide clear, concise, and accurate responses.",
-    maxRequestSize: 65536,
-    timeout: 30
+    maxRequestSize: 65536
   )
 }
 

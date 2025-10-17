@@ -71,6 +71,7 @@ final class APIServer {
 
   var isEnabled = false {
     didSet {
+      guard oldValue != isEnabled else { return }
       UserDefaults.standard.set(isEnabled, forKey: "APIServer.isEnabled")
       if isEnabled {
         Task { await start() }
@@ -92,28 +93,17 @@ final class APIServer {
   private var pathMonitor: NWPathMonitor?
 
   init() {
-    // Restore previous state
-    isEnabled = UserDefaults.standard.bool(forKey: "APIServer.isEnabled")
-
     // Start network monitoring
     startNetworkMonitoring()
 
-    // Auto-start if enabled
-    if isEnabled {
-      Task { await start() }
-    }
+    // Restore previous state (didSet will auto-start if enabled)
+    isEnabled = UserDefaults.standard.bool(forKey: "APIServer.isEnabled")
   }
 
   nonisolated func start() async {
-    // Stop any existing listener first
     await MainActor.run {
-      if listener != nil {
-        stop()
-      }
+      guard !isRunning else { return }
     }
-
-    // Wait for port to be released
-    try? await Task.sleep(for: .milliseconds(100))
 
     do {
       let parameters = NWParameters.tcp
@@ -127,14 +117,11 @@ final class APIServer {
           case .ready:
             isRunning = true
             errorMessage = ""
-            Logger.success(.apiServer, "Server started on port \(port)")
           case let .failed(error):
             isRunning = false
             errorMessage = "Failed: \(error.localizedDescription)"
-            Logger.error(.apiServer, "Server failed: \(error.localizedDescription)")
           case .cancelled:
             isRunning = false
-            Logger.log(.apiServer, "Server cancelled")
           default:
             break
           }
@@ -142,7 +129,7 @@ final class APIServer {
       }
 
       listener.newConnectionHandler = { [weak self] connection in
-        Task {
+        Task { @MainActor in
           await self?.handleConnection(connection)
         }
       }
@@ -155,7 +142,6 @@ final class APIServer {
     } catch {
       await MainActor.run {
         self.errorMessage = "Failed: \(error.localizedDescription)"
-        Logger.error(.apiServer, "Failed to start server: \(error.localizedDescription)")
       }
     }
   }
@@ -166,7 +152,6 @@ final class APIServer {
     isRunning = false
     errorMessage = ""
     stopNetworkMonitoring()
-    Logger.log(.apiServer, "Server stopped")
   }
 
   // MARK: - Network Monitoring
@@ -209,13 +194,16 @@ final class APIServer {
 
   private nonisolated func receiveRequest(from connection: NWConnection) async -> String? {
     await withCheckedContinuation { continuation in
-      connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, _, _ in
-        if let data, let request = String(data: data, encoding: .utf8) {
-          continuation.resume(returning: request)
-        } else {
-          continuation.resume(returning: nil)
+      connection
+        .receive(minimumIncompleteLength: 1,
+                 maximumLength: config.maxRequestSize)
+        { data, _, _, _ in
+          if let data, let request = String(data: data, encoding: .utf8) {
+            continuation.resume(returning: request)
+          } else {
+            continuation.resume(returning: nil)
+          }
         }
-      }
     }
   }
 
@@ -500,27 +488,9 @@ final class APIServer {
   }
 
   private nonisolated func logResponse(_ json: String) async {
-    print("\n" + String(repeating: "-", count: 80))
-    print("📤 Outgoing API Response")
-    print(String(repeating: "-", count: 80))
-    print("🔹 Timestamp: \(Date())")
-    print("\n📦 Response Body:")
-
-    // 尝试格式化 JSON
-    if let jsonData = json.data(using: .utf8),
-       let jsonObject = try? JSONSerialization.jsonObject(with: jsonData),
-       let prettyData = try? JSONSerialization.data(
-         withJSONObject: jsonObject,
-         options: [.prettyPrinted, .sortedKeys]
-       ),
-       let prettyString = String(data: prettyData, encoding: .utf8)
-    {
-      print(prettyString)
-    } else {
-      print(json)
-    }
-
-    print(String(repeating: "-", count: 80) + "\n")
+    #if DEBUG
+      print("📤 API Response: \(json)")
+    #endif
   }
 
   private nonisolated func sendStreamHeaders(to connection: NWConnection) async {
