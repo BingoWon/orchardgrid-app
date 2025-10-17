@@ -100,13 +100,29 @@ final class LogsManager: AutoRefreshable {
 
       let (data, response) = try await urlSession.data(for: request)
 
-      guard let httpResponse = response as? HTTPURLResponse,
-            httpResponse.statusCode == 200
-      else {
+      guard let httpResponse = response as? HTTPURLResponse else {
         throw NSError(
           domain: "LogsManager",
           code: -1,
-          userInfo: [NSLocalizedDescriptionKey: "Failed to load tasks"]
+          userInfo: [NSLocalizedDescriptionKey: "Invalid server response"]
+        )
+      }
+
+      guard httpResponse.statusCode == 200 else {
+        // Try to parse error message from response
+        let errorMessage: String
+        if let errorData = try? JSONDecoder().decode([String: String].self, from: data),
+           let message = errorData["error"]
+        {
+          errorMessage = message
+        } else {
+          errorMessage = "Server returned status code \(httpResponse.statusCode)"
+        }
+
+        throw NSError(
+          domain: "LogsManager",
+          code: httpResponse.statusCode,
+          userInfo: [NSLocalizedDescriptionKey: errorMessage]
         )
       }
 
@@ -115,7 +131,7 @@ final class LogsManager: AutoRefreshable {
       lastUpdated = Date()
     } catch {
       errorMessage = error.localizedDescription
-      Logger.log(.app, "Load tasks error: \(error)")
+      Logger.error(.app, "Load tasks error: \(error)")
     }
 
     isInitialLoading = false

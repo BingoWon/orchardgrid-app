@@ -23,6 +23,12 @@ struct LogsView: View {
           .padding(.top, 8)
       }
 
+      // Error State
+      if let errorMessage = manager.errorMessage {
+        errorState(error: errorMessage)
+          .padding()
+      }
+
       if manager.isInitialLoading {
         ProgressView("Loading logs...")
           .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -330,6 +336,29 @@ struct LogsView: View {
     case "pending": .gray
     default: .gray
     }
+  }
+
+  // MARK: - Error State
+
+  private func errorState(error: String) -> some View {
+    HStack {
+      Image(systemName: "exclamationmark.triangle.fill")
+        .foregroundStyle(.orange)
+
+      Text(error)
+        .font(.subheadline)
+
+      Spacer()
+
+      Button("Retry") {
+        Task {
+          await loadData(isManualRefresh: true)
+        }
+      }
+      .buttonStyle(.glass)
+    }
+    .padding()
+    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
   }
 
   private func loadData(isManualRefresh: Bool = false) async {
