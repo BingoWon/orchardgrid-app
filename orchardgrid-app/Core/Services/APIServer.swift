@@ -1,6 +1,7 @@
 import Foundation
 @preconcurrency import FoundationModels
 import Network
+import OSLog
 
 // MARK: - Models
 //
@@ -57,30 +58,10 @@ struct HTTPRequest: Sendable {
 @Observable
 @MainActor
 final class APIServer {
-  // MARK: - Constants
+  // Configuration
+  private let config = AppConfiguration.default.apiServer
 
-  private enum Constants {
-    /// Default API server port
-    static let defaultPort: UInt16 = 8888
-
-    /// Port range for random port generation
-    static let portRange: ClosedRange<UInt16> = 8888 ... 9999
-
-    /// Maximum attempts for random port generation
-    static let maxRandomPortAttempts = 100
-
-    /// Delay before starting listener after stopping
-    static let listenerRestartDelay: Duration = .milliseconds(100)
-
-    /// UserDefaults keys
-    enum UserDefaultsKey {
-      static let isEnabled = "APIServer.isEnabled"
-      static let port = "APIServer.port"
-    }
-  }
-
-  // MARK: - Properties
-
+  // State
   private(set) var isRunning = false
   private(set) var requestCount = 0
   private(set) var lastRequest = ""
@@ -90,7 +71,7 @@ final class APIServer {
 
   var isEnabled = false {
     didSet {
-      UserDefaults.standard.set(isEnabled, forKey: Constants.UserDefaultsKey.isEnabled)
+      UserDefaults.standard.set(isEnabled, forKey: "APIServer.isEnabled")
       if isEnabled {
         Task { await start() }
       } else {
@@ -99,85 +80,39 @@ final class APIServer {
     }
   }
 
-  var port: UInt16 = Constants.defaultPort {
-    didSet {
-      UserDefaults.standard.set(port, forKey: Constants.UserDefaultsKey.port)
-      if isRunning {
-        Task {
-          stop()
-          // Wait longer to ensure port is fully released
-          try? await Task.sleep(for: .milliseconds(500))
-          await start()
-        }
-      }
-    }
-  }
+  // Port from configuration
+  nonisolated var port: UInt16 { config.port }
 
-  private let model = SystemLanguageModel.default
-  private let defaultSystemPrompt = "You are a helpful AI assistant. Provide clear, concise, and accurate responses."
+  // Services
+  private let llmProcessor = LLMProcessor()
+  private let jsonDecoder = JSONDecoder()
 
+  // Network
   private var listener: NWListener?
   private var pathMonitor: NWPathMonitor?
 
-  private let jsonDecoder = JSONDecoder()
-
-  // MARK: - Initialization
-
   init() {
-    // Restore saved port
-    if let savedPort = UserDefaults.standard
-      .object(forKey: Constants.UserDefaultsKey.port) as? UInt16
-    {
-      port = savedPort
-    }
+    // Restore previous state
+    isEnabled = UserDefaults.standard.bool(forKey: "APIServer.isEnabled")
 
-    // Start network monitoring (runs for the lifetime of the instance)
+    // Start network monitoring
     startNetworkMonitoring()
 
-    // Restore previous state and auto-start if enabled
-    let savedState = UserDefaults.standard.bool(forKey: Constants.UserDefaultsKey.isEnabled)
-    if savedState {
-      Task {
-        // Check if current port is available before starting
-        if await isCurrentPortAvailable() {
-          await MainActor.run {
-            isEnabled = true
-          }
-        } else {
-          // Port is in use, clear saved state and show error
-          await MainActor.run {
-            isEnabled = false
-            errorMessage = "Port \(port) is in use by another instance. Please close other instances first."
-          }
-        }
-      }
+    // Auto-start if enabled
+    if isEnabled {
+      Task { await start() }
     }
   }
 
-  // MARK: - Server Lifecycle
-
   nonisolated func start() async {
-    // Get current port value from MainActor
-    let currentPort = await MainActor.run { port }
-
-    // Stop any existing listener first
     await MainActor.run {
-      if isRunning {
-        stop()
-      }
+      guard !isRunning else { return }
     }
-
-    // Small delay to ensure port is released
-    try? await Task.sleep(for: Constants.listenerRestartDelay)
 
     do {
       let parameters = NWParameters.tcp
       parameters.allowLocalEndpointReuse = true
-      parameters.allowFastOpen = true
-      let listener = try NWListener(
-        using: parameters,
-        on: NWEndpoint.Port(integerLiteral: currentPort)
-      )
+      let listener = try NWListener(using: parameters, on: NWEndpoint.Port(integerLiteral: port))
 
       listener.stateUpdateHandler = { [weak self] state in
         Task { @MainActor [weak self] in
@@ -186,17 +121,14 @@ final class APIServer {
           case .ready:
             isRunning = true
             errorMessage = ""
+            Logger.success(.apiServer, "Server started on port \(port)")
           case let .failed(error):
             isRunning = false
-            // Provide user-friendly error messages
-            let errorDescription = error.localizedDescription
-            if errorDescription.contains("Address already in use") {
-              errorMessage = "Port \(currentPort) is already in use. Please close other instances of the app or restart your device."
-            } else {
-              errorMessage = "Failed to start: \(errorDescription)"
-            }
+            errorMessage = "Failed: \(error.localizedDescription)"
+            Logger.error(.apiServer, "Server failed: \(error.localizedDescription)")
           case .cancelled:
             isRunning = false
+            Logger.log(.apiServer, "Server cancelled")
           default:
             break
           }
@@ -204,7 +136,7 @@ final class APIServer {
       }
 
       listener.newConnectionHandler = { [weak self] connection in
-        Task { @MainActor in
+        Task {
           await self?.handleConnection(connection)
         }
       }
@@ -217,6 +149,7 @@ final class APIServer {
     } catch {
       await MainActor.run {
         self.errorMessage = "Failed: \(error.localizedDescription)"
+        Logger.error(.apiServer, "Failed to start server: \(error.localizedDescription)")
       }
     }
   }
@@ -225,78 +158,8 @@ final class APIServer {
     listener?.cancel()
     listener = nil
     isRunning = false
-    errorMessage = ""
-  }
-
-  func cleanup() {
-    stop()
     stopNetworkMonitoring()
-  }
-
-  // MARK: - Port Management
-
-  /// Reset port to default value (8888)
-  func resetToDefaultPort() {
-    port = Constants.defaultPort
-  }
-
-  /// Find and set a random available port
-  func findAndSetRandomPort() async {
-    for _ in 0 ..< Constants.maxRandomPortAttempts {
-      let randomPort = UInt16.random(in: Constants.portRange)
-      if await isPortAvailable(randomPort) {
-        await MainActor.run {
-          port = randomPort
-        }
-        return
-      }
-    }
-    await MainActor.run {
-      errorMessage = "Could not find an available port. Please try again."
-    }
-  }
-
-  /// Check if a specific port is available for binding
-  private nonisolated func isPortAvailable(_ testPort: UInt16) async -> Bool {
-    do {
-      let parameters = NWParameters.tcp
-      let testListener = try NWListener(
-        using: parameters,
-        on: NWEndpoint.Port(integerLiteral: testPort)
-      )
-
-      let isAvailable = await withCheckedContinuation { continuation in
-        testListener.stateUpdateHandler = { state in
-          switch state {
-          case .ready:
-            testListener.cancel()
-            continuation.resume(returning: true)
-          case .failed:
-            testListener.cancel()
-            continuation.resume(returning: false)
-          default:
-            break
-          }
-        }
-
-        // Set connection handler to satisfy NWListener API requirements
-        testListener.newConnectionHandler = { connection in
-          connection.cancel()
-        }
-
-        testListener.start(queue: .global())
-      }
-
-      return isAvailable
-    } catch {
-      return false
-    }
-  }
-
-  /// Check if the current configured port is available for binding
-  private nonisolated func isCurrentPortAvailable() async -> Bool {
-    let currentPort = await MainActor.run { port }
-    return await isPortAvailable(currentPort)
+    Logger.log(.apiServer, "Server stopped")
   }
 
   // MARK: - Network Monitoring
@@ -324,23 +187,8 @@ final class APIServer {
     localIPAddress = NetworkInfo.localIPAddress
   }
 
-  private func handleConnection(_ connection: NWConnection) async {
-    print("🔵 [APIServer] New connection - MainActor: \(Thread.isMainThread)")
-    print("🔵 [APIServer] Connection state before start: \(connection.state)")
-
-    // Set state update handler before starting
-    connection.stateUpdateHandler = { state in
-      print("🔵 [APIServer] Connection state: \(state)")
-    }
-
-    // Start connection on global queue (required by Apple docs)
+  private nonisolated func handleConnection(_ connection: NWConnection) async {
     connection.start(queue: .global())
-
-    print("🔵 [APIServer] Connection started, waiting for ready state...")
-
-    // Wait for connection to be ready
-    await waitForReady(connection)
-    print("✅ [APIServer] Connection is ready!")
 
     guard let rawRequest = await receiveRequest(from: connection),
           let httpRequest = HTTPRequest(rawRequest: rawRequest)
@@ -349,34 +197,10 @@ final class APIServer {
       return
     }
 
-    print("✅ [APIServer] Request: \(httpRequest.method) \(httpRequest.path)")
     await processRequest(httpRequest, connection: connection)
   }
 
-  private func waitForReady(_ connection: NWConnection) async {
-    await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-      if case .ready = connection.state {
-        continuation.resume()
-        return
-      }
-
-      connection.stateUpdateHandler = { state in
-        print("🔵 [APIServer] State update in waitForReady: \(state)")
-        if case .ready = state {
-          connection.stateUpdateHandler = nil
-          continuation.resume()
-        } else if case .failed = state {
-          connection.stateUpdateHandler = nil
-          continuation.resume()
-        } else if case .cancelled = state {
-          connection.stateUpdateHandler = nil
-          continuation.resume()
-        }
-      }
-    }
-  }
-
-  private func receiveRequest(from connection: NWConnection) async -> String? {
+  private nonisolated func receiveRequest(from connection: NWConnection) async -> String? {
     await withCheckedContinuation { continuation in
       connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, _, _ in
         if let data, let request = String(data: data, encoding: .utf8) {
@@ -388,7 +212,7 @@ final class APIServer {
     }
   }
 
-  private func processRequest(_ request: HTTPRequest, connection: NWConnection) async {
+  private nonisolated func processRequest(_ request: HTTPRequest, connection: NWConnection) async {
     switch (request.method, request.path) {
     case ("GET", "/v1/models"):
       await sendModels(to: connection)
@@ -401,7 +225,7 @@ final class APIServer {
     }
   }
 
-  private func handleChatCompletion(
+  private nonisolated func handleChatCompletion(
     request: HTTPRequest,
     connection: NWConnection
   ) async {
@@ -411,7 +235,9 @@ final class APIServer {
     }
 
     do {
-      let chatRequest = try jsonDecoder.decode(ChatRequest.self, from: body)
+      let chatRequest = try await MainActor.run {
+        try jsonDecoder.decode(ChatRequest.self, from: body)
+      }
 
       guard !chatRequest.messages.isEmpty else {
         await sendError(.badRequest, message: "Messages array cannot be empty", to: connection)
@@ -420,18 +246,20 @@ final class APIServer {
 
       // Extract system prompt from messages
       let systemPrompt = chatRequest.messages.first(where: { $0.role == "system" })?
-        .content ?? defaultSystemPrompt
+        .content ?? config.defaultSystemPrompt
 
       // Get conversation messages (excluding system)
       let conversationMessages = chatRequest.messages.filter { $0.role != "system" }
 
-      guard conversationMessages.last(where: { $0.role == "user" }) != nil else {
+      guard let lastUserMessage = conversationMessages.last(where: { $0.role == "user" }) else {
         await sendError(.badRequest, message: "No user message found", to: connection)
         return
       }
 
-      requestCount += 1
-      lastRequest = conversationMessages.last(where: { $0.role == "user" })?.content ?? ""
+      await MainActor.run {
+        self.requestCount += 1
+        self.lastRequest = lastUserMessage.content
+      }
 
       if chatRequest.stream == true {
         await streamResponse(
@@ -448,10 +276,7 @@ final class APIServer {
           connection: connection
         )
       }
-
-      print("✅ [APIServer] handleChatCompletion completed")
     } catch {
-      print("❌ [APIServer] Decode error: \(error.localizedDescription)")
       await sendError(
         .badRequest,
         message: "Invalid request format: \(error.localizedDescription)",
@@ -460,46 +285,22 @@ final class APIServer {
     }
   }
 
-  private func sendResponse(
+  private nonisolated func sendResponse(
     messages: [ChatMessage],
     systemPrompt: String,
     responseFormat: ResponseFormat?,
     connection: NWConnection
   ) async {
-    guard case .available = model.availability else {
-      await sendError(.serviceUnavailable, message: "Model not available", to: connection)
-      return
-    }
-
     do {
-      guard let lastMessage = messages.last, lastMessage.role == "user" else {
-        await sendError(.badRequest, message: "Last message must be from user", to: connection)
-        return
-      }
-
-      let transcript = buildTranscript(
-        from: messages,
-        systemPrompt: systemPrompt
+      let content = try await llmProcessor.processRequest(
+        messages: messages,
+        systemPrompt: systemPrompt,
+        responseFormat: responseFormat
       )
 
-      let session = LanguageModelSession(transcript: transcript)
-
-      // Convert JSON Schema to Apple schema if needed
-      let content: String
-      if let responseFormat,
-         responseFormat.type == "json_schema",
-         let jsonSchema = responseFormat.json_schema
-      {
-        let converter = SchemaConverter()
-        let validatedSchema = try converter.convert(jsonSchema)
-        let response = try await session.respond(to: lastMessage.content, schema: validatedSchema)
-        content = response.content.jsonString
-      } else {
-        let response = try await session.respond(to: lastMessage.content)
-        content = response.content
+      await MainActor.run {
+        self.lastResponse = content
       }
-
-      lastResponse = content
 
       let chatResponse = ChatResponse(
         id: "chatcmpl-\(UUID().uuidString.prefix(8))",
@@ -517,6 +318,15 @@ final class APIServer {
       )
 
       await send(chatResponse, to: connection)
+    } catch let error as LLMError {
+      switch error {
+      case .modelUnavailable:
+        await sendError(.serviceUnavailable, message: "Model not available", to: connection)
+      case let .invalidRequest(message):
+        await sendError(.badRequest, message: message, to: connection)
+      case let .processingFailed(message):
+        await sendError(.internalError, message: message, to: connection)
+      }
     } catch {
       let errorMessage = error.localizedDescription
       if errorMessage.contains("context") || errorMessage.contains("window") {
@@ -526,67 +336,21 @@ final class APIServer {
           to: connection
         )
       } else {
-        await sendError(.internalError, message: errorMessage, to: connection)
+        await sendError(.internalError, message: "\(errorMessage)", to: connection)
       }
     }
   }
 
-  private func buildTranscript(
-    from messages: [ChatMessage],
-    systemPrompt: String
-  ) -> Transcript {
-    var entries: [Transcript.Entry] = []
-
-    let instructions = Transcript.Instructions(
-      segments: [.text(.init(content: systemPrompt))],
-      toolDefinitions: []
-    )
-    entries.append(.instructions(instructions))
-
-    for message in messages {
-      switch message.role {
-      case "user":
-        let prompt = Transcript.Prompt(
-          segments: [.text(.init(content: message.content))]
-        )
-        entries.append(.prompt(prompt))
-
-      case "assistant":
-        let response = Transcript.Response(
-          assetIDs: [],
-          segments: [.text(.init(content: message.content))]
-        )
-        entries.append(.response(response))
-
-      default:
-        break
-      }
-    }
-
-    return Transcript(entries: entries)
-  }
-
-  private func streamResponse(
+  private nonisolated func streamResponse(
     messages: [ChatMessage],
     systemPrompt: String,
     responseFormat: ResponseFormat?,
     connection: NWConnection
   ) async {
-    print("🌊 [APIServer] streamResponse - MainActor: \(Thread.isMainThread)")
-
-    guard case .available = model.availability else {
-      await sendError(.serviceUnavailable, message: "Model not available", to: connection)
-      return
-    }
-
     let id = "chatcmpl-\(UUID().uuidString.prefix(8))"
     let timestamp = Int(Date().timeIntervalSince1970)
-    var fullContent = ""
-    var previousContent = ""
 
-    print("🌊 [APIServer] Sending headers...")
     await sendStreamHeaders(to: connection)
-    print("✅ [APIServer] Headers sent")
 
     let initialChunk = StreamChunk(
       id: id,
@@ -598,94 +362,30 @@ final class APIServer {
     await sendStreamChunk(initialChunk, to: connection)
 
     do {
-      guard let lastMessage = messages.last, lastMessage.role == "user" else {
-        let errorChunk = StreamChunk(
-          id: id,
-          object: "chat.completion.chunk",
-          created: timestamp,
-          model: "apple-intelligence",
-          choices: [.init(
-            index: 0,
-            delta: .init(role: "assistant", content: "Error: Last message must be from user"),
-            finishReason: "error"
-          )]
-        )
-        await sendStreamChunk(errorChunk, to: connection)
-        await sendStreamEnd(to: connection)
-        connection.cancel()
-        return
-      }
-
-      let transcript = buildTranscript(
-        from: messages,
-        systemPrompt: systemPrompt
-      )
-
-      print("🌊 [APIServer] Creating LanguageModelSession...")
-      let session = LanguageModelSession(transcript: transcript)
-      print("✅ [APIServer] Session created")
-
-      // Convert JSON Schema to Apple schema if needed
-      if let responseFormat,
-         responseFormat.type == "json_schema",
-         let jsonSchema = responseFormat.json_schema
-      {
-        let converter = SchemaConverter()
-        let validatedSchema = try converter.convert(jsonSchema)
-        print("🌊 [APIServer] Starting stream with schema...")
-        let stream = session.streamResponse(to: lastMessage.content, schema: validatedSchema)
-
-        for try await snapshot in stream {
-          print("🌊 [APIServer] Got snapshot")
-          fullContent = snapshot.content.jsonString
-          let delta = String(fullContent.dropFirst(previousContent.count))
-
-          if !delta.isEmpty {
-            let chunk = StreamChunk(
-              id: id,
-              object: "chat.completion.chunk",
-              created: timestamp,
-              model: "apple-intelligence",
-              choices: [.init(
-                index: 0,
-                delta: .init(role: "assistant", content: delta),
-                finishReason: nil
-              )]
-            )
-            await sendStreamChunk(chunk, to: connection)
-          }
-
-          previousContent = fullContent
-        }
-      } else {
-        print("🌊 [APIServer] Starting stream without schema...")
-        let stream = session.streamResponse(to: lastMessage.content)
-
-        for try await snapshot in stream {
-          print("🌊 [APIServer] Got snapshot")
-          fullContent = snapshot.content
-          let delta = String(fullContent.dropFirst(previousContent.count))
-
-          if !delta.isEmpty {
-            let chunk = StreamChunk(
-              id: id,
-              object: "chat.completion.chunk",
-              created: timestamp,
-              model: "apple-intelligence",
-              choices: [.init(
-                index: 0,
-                delta: .init(role: "assistant", content: delta),
-                finishReason: nil
-              )]
-            )
-            await sendStreamChunk(chunk, to: connection)
-          }
-
-          previousContent = fullContent
+      let fullContent = try await llmProcessor.processRequest(
+        messages: messages,
+        systemPrompt: systemPrompt,
+        responseFormat: responseFormat
+      ) { [weak self] delta in
+        Task {
+          let chunk = StreamChunk(
+            id: id,
+            object: "chat.completion.chunk",
+            created: timestamp,
+            model: "apple-intelligence",
+            choices: [.init(
+              index: 0,
+              delta: .init(role: "assistant", content: delta),
+              finishReason: nil
+            )]
+          )
+          await self?.sendStreamChunk(chunk, to: connection)
         }
       }
 
-      lastResponse = fullContent
+      await MainActor.run {
+        self.lastResponse = fullContent
+      }
 
       let finalChunk = StreamChunk(
         id: id,
@@ -700,13 +400,35 @@ final class APIServer {
       )
       await sendStreamChunk(finalChunk, to: connection)
       await sendStreamEnd(to: connection)
-    } catch {
-      let errorMessage = error.localizedDescription
-      let errorContent = if errorMessage.contains("context") || errorMessage.contains("window") {
-        "Error: Context window exceeded. Please start a new conversation."
-      } else {
-        "Error: \(errorMessage)"
+    } catch let error as LLMError {
+      let errorContent = switch error {
+      case .modelUnavailable:
+        "Error: Model not available"
+      case let .invalidRequest(message):
+        "Error: \(message)"
+      case let .processingFailed(message):
+        if message.contains("context") || message.contains("window") {
+          "Error: Context window exceeded. Please start a new conversation."
+        } else {
+          "Error: \(message)"
+        }
       }
+
+      let errorChunk = StreamChunk(
+        id: id,
+        object: "chat.completion.chunk",
+        created: timestamp,
+        model: "apple-intelligence",
+        choices: [.init(
+          index: 0,
+          delta: .init(role: "assistant", content: errorContent),
+          finishReason: "error"
+        )]
+      )
+      await sendStreamChunk(errorChunk, to: connection)
+      await sendStreamEnd(to: connection)
+    } catch {
+      let errorContent = "Error: \(error.localizedDescription)"
 
       let chunk = StreamChunk(
         id: id,
@@ -728,7 +450,7 @@ final class APIServer {
 
   // MARK: - Response Helpers
 
-  private func sendModels(to connection: NWConnection) async {
+  private nonisolated func sendModels(to connection: NWConnection) async {
     let response = ModelsResponse(
       object: "list",
       data: [
@@ -743,7 +465,7 @@ final class APIServer {
     await send(response, to: connection)
   }
 
-  private func send(_ response: some Encodable, to connection: NWConnection) async {
+  private nonisolated func send(_ response: some Encodable, to connection: NWConnection) async {
     // Create local encoder for thread-safe encoding without MainActor
     let encoder = JSONEncoder()
     encoder.keyEncodingStrategy = .convertToSnakeCase
@@ -770,14 +492,14 @@ final class APIServer {
     await send(httpResponse, to: connection, closeAfter: true)
   }
 
-  private func logResponse(_ json: String) async {
+  private nonisolated func logResponse(_ json: String) async {
     print("\n" + String(repeating: "-", count: 80))
     print("📤 Outgoing API Response")
     print(String(repeating: "-", count: 80))
     print("🔹 Timestamp: \(Date())")
     print("\n📦 Response Body:")
 
-    // Try to format JSON for better readability
+    // 尝试格式化 JSON
     if let jsonData = json.data(using: .utf8),
        let jsonObject = try? JSONSerialization.jsonObject(with: jsonData),
        let prettyData = try? JSONSerialization.data(
@@ -794,7 +516,7 @@ final class APIServer {
     print(String(repeating: "-", count: 80) + "\n")
   }
 
-  private func sendStreamHeaders(to connection: NWConnection) async {
+  private nonisolated func sendStreamHeaders(to connection: NWConnection) async {
     let headers = """
     HTTP/1.1 200 OK\r
     Content-Type: text/event-stream\r
@@ -806,7 +528,7 @@ final class APIServer {
     await send(headers, to: connection, closeAfter: false)
   }
 
-  private func sendStreamChunk(
+  private nonisolated func sendStreamChunk(
     _ chunk: some Encodable,
     to connection: NWConnection
   ) async {
@@ -823,11 +545,11 @@ final class APIServer {
     await send("data: \(json)\n\n", to: connection, closeAfter: false)
   }
 
-  private func sendStreamEnd(to connection: NWConnection) async {
+  private nonisolated func sendStreamEnd(to connection: NWConnection) async {
     await send("data: [DONE]\n\n", to: connection, closeAfter: false)
   }
 
-  private func sendError(
+  private nonisolated func sendError(
     _ error: HTTPError,
     message: String? = nil,
     to connection: NWConnection
@@ -871,34 +593,21 @@ final class APIServer {
     await send(httpResponse, to: connection, closeAfter: true)
   }
 
-  private func send(
+  private nonisolated func send(
     _ text: String,
     to connection: NWConnection,
     closeAfter: Bool
   ) async {
-    guard let data = text.data(using: .utf8) else {
-      print("❌ [APIServer] Failed to convert text to data")
-      return
-    }
-
-    print("📤 [APIServer] Sending \(data.count) bytes, state: \(connection.state)")
+    guard let data = text.data(using: .utf8) else { return }
 
     await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-      connection.send(content: data, completion: .contentProcessed { error in
-        if let error {
-          print("❌ [APIServer] Send error: \(error)")
-        } else {
-          print("✅ [APIServer] Send completed")
-        }
-
+      connection.send(content: data, completion: .contentProcessed { _ in
         if closeAfter {
           connection.cancel()
         }
         continuation.resume()
       })
     }
-
-    print("✅ [APIServer] send() returned")
   }
 }
 

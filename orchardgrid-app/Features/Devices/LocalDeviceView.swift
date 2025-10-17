@@ -6,21 +6,6 @@ import SwiftUI
   import UIKit
 #endif
 
-// MARK: - Clipboard Helper
-
-/// Copy text to system clipboard
-/// - Parameter text: The text to copy
-private func copyToClipboard(_ text: String) {
-  #if os(macOS)
-    NSPasteboard.general.clearContents()
-    NSPasteboard.general.setString(text, forType: .string)
-  #elseif os(iOS)
-    UIPasteboard.general.string = text
-  #endif
-}
-
-// MARK: - Local Device View
-
 struct LocalDeviceView: View {
   @Environment(WebSocketClient.self) private var wsClient
   @Environment(APIServer.self) private var apiServer
@@ -121,15 +106,12 @@ struct LocalDeviceView: View {
       if apiServer.isEnabled {
         Divider()
 
-        // Status
         HStack {
-          let hasError = !apiServer.errorMessage.isEmpty
-          Image(systemName: hasError ? "exclamationmark.triangle.fill" :
-            (apiServer.isRunning ? "checkmark.circle.fill" : "hourglass.circle.fill"))
-            .foregroundStyle(hasError ? .red : (apiServer.isRunning ? .green : .orange))
+          Image(systemName: apiServer.isRunning ? "checkmark.circle.fill" : "hourglass.circle.fill")
+            .foregroundStyle(apiServer.isRunning ? .green : .orange)
 
           VStack(alignment: .leading, spacing: 2) {
-            Text(hasError ? "Failed" : (apiServer.isRunning ? "Running" : "Starting..."))
+            Text(apiServer.isRunning ? "Running" : "Starting...")
               .font(.subheadline)
               .fontWeight(.medium)
             Text("Port \(apiServer.port)")
@@ -138,68 +120,6 @@ struct LocalDeviceView: View {
           }
 
           Spacer()
-        }
-
-        // Error Message
-        if !apiServer.errorMessage.isEmpty {
-          Divider()
-
-          HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "info.circle")
-              .foregroundStyle(.secondary)
-              .font(.caption)
-
-            Text(apiServer.errorMessage)
-              .font(.caption)
-              .foregroundStyle(.secondary)
-              .fixedSize(horizontal: false, vertical: true)
-
-            Spacer()
-          }
-        }
-
-        // Port Configuration (always show when enabled)
-        Divider()
-
-        VStack(alignment: .leading, spacing: 12) {
-          HStack(alignment: .top, spacing: 8) {
-            Text("Port")
-              .font(.caption)
-              .foregroundStyle(.secondary)
-              .frame(width: 60, alignment: .leading)
-
-            TextField("Port", value: Binding(
-              get: { apiServer.port },
-              set: { apiServer.port = $0 }
-            ), format: .number)
-              .textFieldStyle(.roundedBorder)
-              .frame(width: 80)
-            #if os(macOS)
-              .controlSize(.small)
-            #endif
-
-            Button {
-              Task {
-                await apiServer.findAndSetRandomPort()
-              }
-            } label: {
-              Label("Random", systemImage: "shuffle")
-                .font(.caption)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-
-            Button {
-              apiServer.resetToDefaultPort()
-            } label: {
-              Label("Default", systemImage: "arrow.counterclockwise")
-                .font(.caption)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-
-            Spacer()
-          }
         }
 
         if apiServer.isRunning {
@@ -219,16 +139,6 @@ struct LocalDeviceView: View {
                 .textSelection(.enabled)
 
               Spacer()
-
-              Button {
-                copyToClipboard("apple-intelligence")
-              } label: {
-                Image(systemName: "doc.on.doc")
-                  .font(.caption)
-                  .foregroundStyle(.blue)
-              }
-              .buttonStyle(.plain)
-              .help("Copy Model Name")
             }
 
             // Local Endpoint
@@ -559,6 +469,15 @@ struct EndpointRow: View {
       .buttonStyle(.plain)
       .help("Copy URL")
     }
+  }
+
+  private func copyToClipboard(_ text: String) {
+    #if os(macOS)
+      NSPasteboard.general.clearContents()
+      NSPasteboard.general.setString(text, forType: .string)
+    #elseif os(iOS)
+      UIPasteboard.general.string = text
+    #endif
   }
 }
 

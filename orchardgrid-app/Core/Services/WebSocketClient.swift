@@ -7,6 +7,7 @@
 
 import Foundation
 @preconcurrency import FoundationModels
+import OSLog
 
 // MARK: - WebSocket Message Types
 //
@@ -19,6 +20,7 @@ import Foundation
 @MainActor
 final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   // Configuration
+  private let config = AppConfiguration.default.webSocketClient
   private let serverURL: String
   private let deviceID: String
   private(set) var userID: String?
@@ -54,14 +56,11 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
   // Model availability
   var modelAvailability: SystemLanguageModel.Availability {
-    model.availability
+    llmProcessor.availability
   }
 
   var canEnable: Bool {
-    if case .available = model.availability {
-      return true
-    }
-    return false
+    llmProcessor.isAvailable
   }
 
   var isEnabled = false {
@@ -92,7 +91,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   private var retryTimerTask: Task<Void, Never>?
 
   // LLM Processing
-  private let model = SystemLanguageModel.default
+  private let llmProcessor = LLMProcessor()
 
   // Heartbeat tracking
   private var lastHeartbeatResponse: Date?
@@ -512,67 +511,26 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   private func generateStreamingResponse(for request: ChatRequest, taskId: String) async throws {
     Logger.log(.websocket, "Starting streaming response for task: \(taskId)")
 
-    guard case .available = model.availability else {
-      throw NSError(domain: "WebSocketClient", code: 1, userInfo: [
-        NSLocalizedDescriptionKey: "Apple Intelligence not available",
-      ])
-    }
+    // Extract system prompt
+    let systemPrompt = request.messages.first(where: { $0.role == "system" })?.content
+      ?? config.defaultSystemPrompt
 
-    guard let lastMessage = request.messages.last, lastMessage.role == "user" else {
-      throw NSError(domain: "WebSocketClient", code: 2, userInfo: [
-        NSLocalizedDescriptionKey: "Last message must be from user",
-      ])
-    }
+    // Filter out system messages
+    let conversationMessages = request.messages.filter { $0.role != "system" }
 
-    // Build transcript
-    let transcript = buildTranscript(from: request.messages)
-    let session = LanguageModelSession(transcript: transcript)
-
-    // Stream response
-    var previousContent = ""
-
-    if let responseFormat = request.response_format,
-       responseFormat.type == "json_schema",
-       let jsonSchema = responseFormat.json_schema
-    {
-      // Structured output streaming
-      let converter = SchemaConverter()
-      let appleSchema = try converter.convert(jsonSchema)
-      let stream = session.streamResponse(to: lastMessage.content, schema: appleSchema)
-
-      for try await snapshot in stream {
-        let fullContent = snapshot.content.jsonString
-        let delta = String(fullContent.dropFirst(previousContent.count))
-
-        if !delta.isEmpty {
-          let chunkMessage = StreamChunkMessage(
-            id: taskId,
-            type: "stream",
-            delta: delta
-          )
-          await sendMessage(chunkMessage)
-        }
-
-        previousContent = fullContent
-      }
-    } else {
-      // Regular text streaming
-      let stream = session.streamResponse(to: lastMessage.content)
-
-      for try await snapshot in stream {
-        let fullContent = snapshot.content
-        let delta = String(fullContent.dropFirst(previousContent.count))
-
-        if !delta.isEmpty {
-          let chunkMessage = StreamChunkMessage(
-            id: taskId,
-            type: "stream",
-            delta: delta
-          )
-          await sendMessage(chunkMessage)
-        }
-
-        previousContent = fullContent
+    // Process request with streaming
+    _ = try await llmProcessor.processRequest(
+      messages: conversationMessages,
+      systemPrompt: systemPrompt,
+      responseFormat: request.response_format
+    ) { [weak self] delta in
+      Task {
+        let chunkMessage = StreamChunkMessage(
+          id: taskId,
+          type: "stream",
+          delta: delta
+        )
+        await self?.sendMessage(chunkMessage)
       }
     }
 
@@ -585,39 +543,19 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   }
 
   private func generateResponse(for request: ChatRequest) async throws -> ChatResponse {
-    guard case .available = model.availability else {
-      throw NSError(domain: "WebSocketClient", code: 1, userInfo: [
-        NSLocalizedDescriptionKey: "Apple Intelligence not available",
-      ])
-    }
+    // Extract system prompt
+    let systemPrompt = request.messages.first(where: { $0.role == "system" })?.content
+      ?? config.defaultSystemPrompt
 
-    guard let lastMessage = request.messages.last, lastMessage.role == "user" else {
-      throw NSError(domain: "WebSocketClient", code: 2, userInfo: [
-        NSLocalizedDescriptionKey: "Last message must be from user",
-      ])
-    }
-
-    // Build transcript
-    let transcript = buildTranscript(from: request.messages)
-    let session = LanguageModelSession(transcript: transcript)
+    // Filter out system messages
+    let conversationMessages = request.messages.filter { $0.role != "system" }
 
     // Generate response
-    let content: String
-
-    if let responseFormat = request.response_format,
-       responseFormat.type == "json_schema",
-       let jsonSchema = responseFormat.json_schema
-    {
-      // Structured output
-      let converter = SchemaConverter()
-      let appleSchema = try converter.convert(jsonSchema)
-      let result = try await session.respond(to: lastMessage.content, schema: appleSchema)
-      content = result.content.jsonString
-    } else {
-      // Regular text output
-      let result = try await session.respond(to: lastMessage.content)
-      content = result.content
-    }
+    let content = try await llmProcessor.processRequest(
+      messages: conversationMessages,
+      systemPrompt: systemPrompt,
+      responseFormat: request.response_format
+    )
 
     // Build OpenAI-compatible response
     let id = "chatcmpl-\(UUID().uuidString.prefix(8))"
@@ -644,48 +582,6 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
         )])
       )
     )
-  }
-
-  private func buildTranscript(from messages: [ChatMessage]) -> Transcript {
-    var entries: [Transcript.Entry] = []
-
-    // Extract system prompt from messages
-    let systemPrompt = messages.first(where: { $0.role == "system" })?.content
-      ?? "You are a helpful AI assistant."
-
-    // Add instructions to transcript
-    let instructions = Transcript.Instructions(
-      segments: [.text(.init(content: systemPrompt))],
-      toolDefinitions: []
-    )
-    entries.append(.instructions(instructions))
-
-    // Process remaining messages
-    for message in messages {
-      switch message.role {
-      case "system":
-        // Already handled above as instructions
-        break
-
-      case "user":
-        let prompt = Transcript.Prompt(
-          segments: [.text(.init(content: message.content))]
-        )
-        entries.append(.prompt(prompt))
-
-      case "assistant":
-        let response = Transcript.Response(
-          assetIDs: [],
-          segments: [.text(.init(content: message.content))]
-        )
-        entries.append(.response(response))
-
-      default:
-        break
-      }
-    }
-
-    return Transcript(entries: entries)
   }
 
   private func estimateTokens(_ messages: [ChatMessage]) -> Int {
