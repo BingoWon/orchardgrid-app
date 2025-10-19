@@ -9,9 +9,14 @@ import Foundation
 
 enum DeviceConfig {
   // Heartbeat settings (must match backend CONFIG)
-  static let heartbeatInterval: TimeInterval = 15 // 15 seconds
-  static let heartbeatTimeout: TimeInterval = 45 // 45 seconds (3x interval)
-  static let staleThreshold: Int = 45000 // 45 seconds in milliseconds
+  static let heartbeatInterval: TimeInterval = 15
+  static let heartbeatTimeout: TimeInterval = 45
+  static let staleThreshold: Int = 45000
+
+  // Connection timeouts
+  static let connectionRequestTimeout: TimeInterval = 60
+  static let connectionTimeout: TimeInterval = 30
+  static let reconnectionCheckInterval: TimeInterval = 5
 
   // LLM settings
   static let defaultSystemPrompt = "You are a helpful AI assistant. Provide clear, concise, and accurate responses."

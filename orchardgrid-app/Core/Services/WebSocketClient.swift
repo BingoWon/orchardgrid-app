@@ -89,6 +89,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   private var reconnectTask: Task<Void, Never>?
   private var heartbeatTask: Task<Void, Never>?
   private var retryTimerTask: Task<Void, Never>?
+  private var connectionTimeoutTask: Task<Void, Never>?
 
   // Connection protection
   private var isConnecting = false
@@ -177,6 +178,8 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       reconnectTask = nil
       retryTimerTask?.cancel()
       retryTimerTask = nil
+      connectionTimeoutTask?.cancel()
+      connectionTimeoutTask = nil
       startHeartbeat()
       Logger.success(.websocket, "Connected")
     }
@@ -200,12 +203,58 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     }
   }
 
+  // MARK: - URLSessionTaskDelegate
+
+  nonisolated func urlSession(
+    _: URLSession,
+    task: URLSessionTask,
+    didCompleteWithError error: Error?
+  ) {
+    Task { @MainActor in
+      // Success case - delegate methods will handle
+      guard let error = error else { return }
+
+      // Only handle WebSocket tasks
+      guard task is URLSessionWebSocketTask else { return }
+
+      let nsError = error as NSError
+
+      // Handle specific error codes
+      switch (nsError.domain, nsError.code) {
+      case (NSPOSIXErrorDomain, 57):
+        // ENOTCONN: Socket not connected - connection failed during handshake
+        Logger.error(.websocket, "Connection failed: Socket not connected")
+        isConnecting = false
+        connectionState = .failed("Connection failed")
+
+        if shouldAutoReconnect, isNetworkAvailable {
+          startReconnection()
+        }
+
+      case (NSURLErrorDomain, -999):
+        // Request cancelled - normal cancellation, don't trigger reconnection
+        Logger.log(.websocket, "Connection cancelled")
+        isConnecting = false
+
+      default:
+        // Other errors
+        Logger.error(.websocket, "Connection error: \(error.localizedDescription)")
+        isConnecting = false
+        connectionState = .failed(error.localizedDescription)
+
+        if shouldAutoReconnect, isNetworkAvailable {
+          startReconnection()
+        }
+      }
+    }
+  }
+
   // MARK: - Connection Management
 
   func connect() {
-    // Prevent concurrent connections with atomic flag
+    // Prevent concurrent connections
     guard !isConnected, !isConnecting else {
-      Logger.log(.websocket, "Already connected or connecting, skipping")
+      Logger.log(.websocket, "Already connected or connecting")
       return
     }
 
@@ -215,30 +264,27 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       return
     }
 
-    // Check network availability
     guard isNetworkAvailable else {
-      Logger.log(.websocket, "Network unavailable, waiting for network...")
+      Logger.log(.websocket, "Network unavailable, waiting...")
       connectionState = .disconnected
       return
     }
 
-    Logger.log(.websocket, "Starting connection...")
-    isConnecting = true
-    connectionState = .connecting
-    shouldAutoReconnect = true
-
-    // Cancel any existing reconnection tasks
-    reconnectTask?.cancel()
-    reconnectTask = nil
-    retryTimerTask?.cancel()
-    retryTimerTask = nil
-
-    // Create URL with device ID, user ID, platform, OS version, and hardware info
+    // Build WebSocket URL
     guard var urlComponents = URLComponents(string: serverURL) else {
-      isConnecting = false
       connectionState = .failed("Invalid server URL")
+      Logger.error(.websocket, "Invalid server URL: \(serverURL)")
       return
     }
+
+    // Validate WebSocket protocol
+    guard urlComponents.scheme == "wss" || urlComponents.scheme == "ws" else {
+      let scheme = urlComponents.scheme ?? "nil"
+      connectionState = .failed("Invalid protocol: \(scheme)")
+      Logger.error(.websocket, "WebSocket URL must use wss:// or ws://, got: \(scheme)")
+      return
+    }
+
     urlComponents.queryItems = [
       URLQueryItem(name: "device_id", value: deviceID),
       URLQueryItem(name: "user_id", value: userID),
@@ -246,42 +292,58 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       URLQueryItem(name: "os_version", value: osVersion),
       URLQueryItem(name: "device_name", value: DeviceInfo.deviceName),
       URLQueryItem(name: "chip_model", value: DeviceInfo.chipModel),
-      URLQueryItem(
-        name: "memory_gb",
-        value: String(format: "%.0f", DeviceInfo.totalMemoryGB)
-      ),
+      URLQueryItem(name: "memory_gb", value: String(format: "%.0f", DeviceInfo.totalMemoryGB)),
     ]
 
     guard let url = urlComponents.url else {
-      isConnecting = false
       connectionState = .failed("Failed to construct URL")
+      Logger.error(.websocket, "Failed to construct URL from components")
       return
     }
 
-    // Create URLSession with delegate
-    let configuration = URLSessionConfiguration.default
-    configuration.timeoutIntervalForRequest = 60 // Increased for WebSocket
-    configuration.timeoutIntervalForResource = 0 // No limit for WebSocket
-    configuration.waitsForConnectivity = true // Wait for network
-    configuration.networkServiceType = .responsiveData // Responsive data
-    urlSession = URLSession(
-      configuration: configuration,
-      delegate: self,
-      delegateQueue: nil
-    )
+    Logger.log(.websocket, "Connecting to: \(urlComponents.host ?? "unknown")")
+    isConnecting = true
+    connectionState = .connecting
+    shouldAutoReconnect = true
 
-    // Create WebSocket task
+    // Cancel any existing tasks
+    reconnectTask?.cancel()
+    reconnectTask = nil
+    retryTimerTask?.cancel()
+    retryTimerTask = nil
+    connectionTimeoutTask?.cancel()
+    connectionTimeoutTask = nil
+
+    // Create URLSession with optimized configuration
+    let configuration = URLSessionConfiguration.default
+    configuration.timeoutIntervalForRequest = DeviceConfig.connectionRequestTimeout
+    configuration.timeoutIntervalForResource = 0
+    configuration.waitsForConnectivity = true
+    configuration.networkServiceType = .responsiveData
+    urlSession = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
+
+    // Create and start WebSocket task
     webSocketTask = urlSession?.webSocketTask(with: url)
     webSocketTask?.resume()
 
-    Logger.log(.websocket, "Connecting to: \(url.absoluteString)")
-    Logger.log(
-      .websocket,
-      "Device: \(deviceID), User: \(userID), Platform: \(platform), OS: \(osVersion)"
-    )
-
     // Start receiving messages
     receiveMessage()
+
+    // Connection timeout protection
+    connectionTimeoutTask = Task { @MainActor in
+      try? await Task.sleep(for: .seconds(DeviceConfig.connectionTimeout))
+
+      if isConnecting, !isConnected {
+        Logger.error(.websocket, "Connection timeout")
+        isConnecting = false
+        connectionState = .failed("Connection timeout")
+        cleanupConnection()
+
+        if shouldAutoReconnect, isNetworkAvailable {
+          startReconnection()
+        }
+      }
+    }
   }
 
   func disconnect() {
@@ -292,6 +354,8 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     reconnectTask = nil
     retryTimerTask?.cancel()
     retryTimerTask = nil
+    connectionTimeoutTask?.cancel()
+    connectionTimeoutTask = nil
     cleanupConnection()
     connectionState = .disconnected
 
@@ -330,7 +394,9 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
           self.receiveMessage()
 
         case let .failure(error):
-          self.handleError(error)
+          // Message receive errors cause WebSocket closure, triggering didCloseWith delegate
+          // URLSessionTaskDelegate will handle the error and trigger reconnection if needed
+          Logger.error(.websocket, "Message receive error: \(error.localizedDescription)")
         }
       }
     }
@@ -371,26 +437,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
     } catch {
       Logger.error(.websocket, "Failed to decode message: \(error)")
-      // Don't change connection state for message decode errors
     }
-  }
-
-  private func handleError(_ error: Error) {
-    // Check if this is a cancellation error (Code=-999)
-    let nsError = error as NSError
-    if nsError.domain == NSURLErrorDomain, nsError.code == -999 {
-      // Code=-999: Request cancelled
-      // This is usually caused by concurrent connection attempts or system cancellation
-      Logger.log(.websocket, "Connection cancelled (Code=-999)")
-      // Reset connecting flag and don't change connection state
-      isConnecting = false
-      return
-    }
-
-    Logger.error(.websocket, "\(error)")
-    isConnecting = false
-    connectionState = .failed(error.localizedDescription)
-    // Don't modify isEnabled - let user control it
   }
 
   // MARK: - Heartbeat
@@ -508,8 +555,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
         connect()
 
         // Wait for connection result (delegate callbacks will update connectionState)
-        // Use a shorter timeout to detect failures faster
-        try? await Task.sleep(for: .seconds(5))
+        try? await Task.sleep(for: .seconds(DeviceConfig.reconnectionCheckInterval))
 
         if isConnected {
           Logger.success(.websocket, "Reconnected after \(attempts) attempts")
