@@ -7,6 +7,7 @@
 
 import Foundation
 @preconcurrency import FoundationModels
+import Network
 import OSLog
 
 // MARK: - WebSocket Message Types
@@ -20,7 +21,6 @@ import OSLog
 @MainActor
 final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   // Configuration
-  private let config = AppConfiguration.default.webSocketClient
   private let serverURL: String
   private let deviceID: String
   private(set) var userID: String?
@@ -90,6 +90,13 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   private var heartbeatTask: Task<Void, Never>?
   private var retryTimerTask: Task<Void, Never>?
 
+  // Connection protection
+  private var isConnecting = false
+
+  // Network monitoring
+  private let networkMonitor = NWPathMonitor()
+  private var isNetworkAvailable = true
+
   // LLM Processing
   private let llmProcessor = LLMProcessor()
 
@@ -122,6 +129,9 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     isEnabled = UserDefaults.standard.bool(forKey: "WebSocketClient.isEnabled")
 
     super.init()
+
+    // Start network monitoring
+    startNetworkMonitoring()
   }
 
   func setUserID(_ userID: String) {
@@ -136,8 +146,20 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
   func retry() {
     Logger.log(.websocket, "User requested retry")
+    // Cancel any existing reconnection tasks
+    reconnectTask?.cancel()
+    reconnectTask = nil
+    retryTimerTask?.cancel()
+    retryTimerTask = nil
+    // Reset connecting flag
+    isConnecting = false
     connectionState = .connecting
     connect()
+  }
+
+  deinit {
+    // Stop network monitoring
+    networkMonitor.cancel()
   }
 
   // MARK: - URLSessionWebSocketDelegate
@@ -148,6 +170,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     didOpenWithProtocol _: String?
   ) {
     Task { @MainActor in
+      isConnecting = false
       connectionState = .connected
       lastHeartbeatResponse = Date()
       reconnectTask?.cancel()
@@ -166,11 +189,12 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     reason _: Data?
   ) {
     Task { @MainActor in
+      isConnecting = false
       connectionState = .disconnected
       stopHeartbeat()
       Logger.log(.websocket, "Closed: \(closeCode.rawValue)")
 
-      if shouldAutoReconnect {
+      if shouldAutoReconnect, isNetworkAvailable {
         startReconnection()
       }
     }
@@ -179,9 +203,9 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   // MARK: - Connection Management
 
   func connect() {
-    // Prevent concurrent connections
-    guard !isConnected else {
-      Logger.log(.websocket, "Already connected, skipping")
+    // Prevent concurrent connections with atomic flag
+    guard !isConnected, !isConnecting else {
+      Logger.log(.websocket, "Already connected or connecting, skipping")
       return
     }
 
@@ -191,7 +215,15 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       return
     }
 
+    // Check network availability
+    guard isNetworkAvailable else {
+      Logger.log(.websocket, "Network unavailable, waiting for network...")
+      connectionState = .disconnected
+      return
+    }
+
     Logger.log(.websocket, "Starting connection...")
+    isConnecting = true
     connectionState = .connecting
     shouldAutoReconnect = true
 
@@ -203,6 +235,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
     // Create URL with device ID, user ID, platform, OS version, and hardware info
     guard var urlComponents = URLComponents(string: serverURL) else {
+      isConnecting = false
       connectionState = .failed("Invalid server URL")
       return
     }
@@ -220,6 +253,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     ]
 
     guard let url = urlComponents.url else {
+      isConnecting = false
       connectionState = .failed("Failed to construct URL")
       return
     }
@@ -253,6 +287,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   func disconnect() {
     Logger.log(.websocket, "Disconnecting...")
     shouldAutoReconnect = false
+    isConnecting = false
     reconnectTask?.cancel()
     reconnectTask = nil
     retryTimerTask?.cancel()
@@ -346,12 +381,14 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     if nsError.domain == NSURLErrorDomain, nsError.code == -999 {
       // Code=-999: Request cancelled
       // This is usually caused by concurrent connection attempts or system cancellation
-      Logger.log(.websocket, "Connection cancelled (Code=-999), likely due to concurrent attempts")
-      // Don't change connection state, let the new connection proceed
+      Logger.log(.websocket, "Connection cancelled (Code=-999)")
+      // Reset connecting flag and don't change connection state
+      isConnecting = false
       return
     }
 
     Logger.error(.websocket, "\(error)")
+    isConnecting = false
     connectionState = .failed(error.localizedDescription)
     // Don't modify isEnabled - let user control it
   }
@@ -372,9 +409,10 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
            Date().timeIntervalSince(lastResponse) > DeviceConfig.heartbeatTimeout
         {
           Logger.error(.websocket, "Heartbeat timeout - connection appears dead")
+          isConnecting = false
           connectionState = .disconnected
           stopHeartbeat()
-          if shouldAutoReconnect {
+          if shouldAutoReconnect, isNetworkAvailable {
             startReconnection()
           }
           return
@@ -393,6 +431,42 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     heartbeatTask = nil
   }
 
+  // MARK: - Network Monitoring
+
+  private func startNetworkMonitoring() {
+    networkMonitor.pathUpdateHandler = { [weak self] path in
+      Task { @MainActor [weak self] in
+        guard let self else { return }
+
+        let wasAvailable = self.isNetworkAvailable
+        self.isNetworkAvailable = path.status == .satisfied
+
+        if !wasAvailable, self.isNetworkAvailable {
+          // Network recovered
+          Logger.log(.websocket, "Network recovered, attempting reconnection...")
+          if self.shouldAutoReconnect, !self.isConnected, !self.isConnecting {
+            // Cancel any existing reconnection task and start fresh
+            self.reconnectTask?.cancel()
+            self.reconnectTask = nil
+            self.retryTimerTask?.cancel()
+            self.retryTimerTask = nil
+            self.connect()
+          }
+        } else if wasAvailable, !self.isNetworkAvailable {
+          // Network lost
+          Logger.log(.websocket, "Network lost, pausing reconnection...")
+          // Cancel reconnection tasks when network is unavailable
+          self.reconnectTask?.cancel()
+          self.reconnectTask = nil
+          self.retryTimerTask?.cancel()
+          self.retryTimerTask = nil
+        }
+      }
+    }
+
+    networkMonitor.start(queue: .global(qos: .utility))
+  }
+
   // MARK: - Reconnection
 
   private func startReconnection() {
@@ -404,6 +478,12 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       var attempts = 0
 
       while !isConnected, shouldAutoReconnect, !Task.isCancelled {
+        // Check network availability before attempting reconnection
+        guard isNetworkAvailable else {
+          Logger.log(.websocket, "Network unavailable, pausing reconnection...")
+          return
+        }
+
         attempts += 1
 
         // Update state with retry countdown
@@ -416,7 +496,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
         // Countdown timer (wait before next attempt)
         await startRetryCountdown(delay)
 
-        guard !Task.isCancelled, shouldAutoReconnect, !isConnected else {
+        guard !Task.isCancelled, shouldAutoReconnect, !isConnected, isNetworkAvailable else {
           Logger.log(.websocket, "Reconnection cancelled")
           return
         }
@@ -513,7 +593,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
     // Extract system prompt
     let systemPrompt = request.messages.first(where: { $0.role == "system" })?.content
-      ?? config.defaultSystemPrompt
+      ?? DeviceConfig.defaultSystemPrompt
 
     // Filter out system messages
     let conversationMessages = request.messages.filter { $0.role != "system" }
@@ -545,7 +625,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   private func generateResponse(for request: ChatRequest) async throws -> ChatResponse {
     // Extract system prompt
     let systemPrompt = request.messages.first(where: { $0.role == "system" })?.content
-      ?? config.defaultSystemPrompt
+      ?? DeviceConfig.defaultSystemPrompt
 
     // Filter out system messages
     let conversationMessages = request.messages.filter { $0.role != "system" }
