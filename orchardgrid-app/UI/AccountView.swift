@@ -62,7 +62,7 @@ struct AccountView: View {
     defer { isDeleting = false }
 
     do {
-      let url = URL(string: "\(APIConfig.baseURL)/auth/account")!
+      let url = URL(string: "\(Config.apiBaseURL)/auth/account")!
       var request = URLRequest(url: url)
       request.httpMethod = "DELETE"
       request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
