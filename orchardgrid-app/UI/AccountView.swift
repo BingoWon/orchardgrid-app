@@ -2,6 +2,9 @@ import SwiftUI
 
 struct AccountView: View {
   @Environment(AuthManager.self) private var authManager
+  @State private var showDeleteConfirmation = false
+  @State private var showFinalConfirmation = false
+  @State private var isDeleting = false
 
   var body: some View {
     Form {
@@ -17,11 +20,73 @@ struct AccountView: View {
           authManager.logout()
         }
       }
+
+      Section {
+        Button("Delete Account", role: .destructive) {
+          showDeleteConfirmation = true
+        }
+        .disabled(isDeleting)
+      } footer: {
+        Text("This will permanently delete your account and all associated data including devices, API keys, and tasks. This action cannot be undone.")
+          .font(.caption)
+      }
     }
     .formStyle(.grouped)
     .navigationTitle("Account")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
+    .alert("Delete Account?", isPresented: $showDeleteConfirmation) {
+      Button("Cancel", role: .cancel) {}
+      Button("Continue", role: .destructive) {
+        showFinalConfirmation = true
+      }
+    } message: {
+      Text("This will permanently delete your account and all associated data.")
+    }
+    .alert("Are you absolutely sure?", isPresented: $showFinalConfirmation) {
+      Button("Cancel", role: .cancel) {}
+      Button("Delete Account", role: .destructive) {
+        Task {
+          await deleteAccount()
+        }
+      }
+    } message: {
+      Text("This action cannot be undone. All your devices, API keys, and tasks will be deleted.")
+    }
+  }
+
+  private func deleteAccount() async {
+    guard let token = authManager.authToken else { return }
+
+    isDeleting = true
+    defer { isDeleting = false }
+
+    do {
+      let url = URL(string: "\(APIConfig.baseURL)/auth/account")!
+      var request = URLRequest(url: url)
+      request.httpMethod = "DELETE"
+      request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+      let (data, response) = try await URLSession.shared.data(for: request)
+
+      guard let httpResponse = response as? HTTPURLResponse else {
+        throw NSError(domain: "Invalid response", code: -1)
+      }
+
+      guard httpResponse.statusCode == 200 else {
+        let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
+        throw NSError(domain: errorText, code: httpResponse.statusCode)
+      }
+
+      // Account deleted successfully, logout
+      await MainActor.run {
+        authManager.logout()
+      }
+
+      Logger.log(.auth, "Account deleted successfully")
+    } catch {
+      Logger.error(.auth, "Failed to delete account: \(error.localizedDescription)")
+    }
   }
 }
 
