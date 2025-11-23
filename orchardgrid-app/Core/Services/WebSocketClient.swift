@@ -212,7 +212,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   ) {
     Task { @MainActor in
       // Success case - delegate methods will handle
-      guard let error = error else { return }
+      guard let error else { return }
 
       // Only handle WebSocket tasks
       guard task is URLSessionWebSocketTask else { return }
@@ -485,28 +485,28 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       Task { @MainActor [weak self] in
         guard let self else { return }
 
-        let wasAvailable = self.isNetworkAvailable
-        self.isNetworkAvailable = path.status == .satisfied
+        let wasAvailable = isNetworkAvailable
+        isNetworkAvailable = path.status == .satisfied
 
-        if !wasAvailable, self.isNetworkAvailable {
+        if !wasAvailable, isNetworkAvailable {
           // Network recovered
           Logger.log(.websocket, "Network recovered, attempting reconnection...")
-          if self.shouldAutoReconnect, !self.isConnected, !self.isConnecting {
+          if shouldAutoReconnect, !isConnected, !isConnecting {
             // Cancel any existing reconnection task and start fresh
-            self.reconnectTask?.cancel()
-            self.reconnectTask = nil
-            self.retryTimerTask?.cancel()
-            self.retryTimerTask = nil
-            self.connect()
+            reconnectTask?.cancel()
+            reconnectTask = nil
+            retryTimerTask?.cancel()
+            retryTimerTask = nil
+            connect()
           }
-        } else if wasAvailable, !self.isNetworkAvailable {
+        } else if wasAvailable, !isNetworkAvailable {
           // Network lost
           Logger.log(.websocket, "Network lost, pausing reconnection...")
           // Cancel reconnection tasks when network is unavailable
-          self.reconnectTask?.cancel()
-          self.reconnectTask = nil
-          self.retryTimerTask?.cancel()
-          self.retryTimerTask = nil
+          reconnectTask?.cancel()
+          reconnectTask = nil
+          retryTimerTask?.cancel()
+          retryTimerTask = nil
         }
       }
     }

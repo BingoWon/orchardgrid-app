@@ -126,11 +126,13 @@ final class AuthManager {
 
       // Handle non-200 responses with user-friendly messages
       guard httpResponse.statusCode == 200 else {
-        // Common case: wrong email or password -> normalize to a friendly prompt, avoid leaking backend details
+        // Common case: wrong email or password -> normalize to a friendly prompt, avoid leaking
+        // backend details
         if httpResponse.statusCode == 400 || httpResponse.statusCode == 401 {
           lastError = "Incorrect email or password. Please check and try again."
         } else {
-          // For other errors, prefer readable server message if available; otherwise use a generic fallback
+          // For other errors, prefer readable server message if available; otherwise use a generic
+          // fallback
           if let message = try? decodeAPIErrorMessage(from: data) {
             lastError = message
           } else {
@@ -281,7 +283,9 @@ private func decodeAPIErrorMessage(from data: Data) throws -> String? {
     }
   }
   // Fallback: try plain-text body
-  if let text = String(data: data, encoding: .utf8), !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+  if let text = String(data: data, encoding: .utf8),
+     !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+  {
     return text
   }
   return nil

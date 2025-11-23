@@ -19,9 +19,11 @@ struct AccountView: View {
 
       Section("Open Source") {
         VStack(alignment: .leading, spacing: 12) {
-          Text("The OrchardGrid app is open source. You can read the code, build it yourself, and contribute improvements.")
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
+          Text(
+            "The OrchardGrid app is open source. You can read the code, build it yourself, and contribute improvements."
+          )
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
 
           HStack(spacing: 12) {
             Image(systemName: "link")
@@ -60,8 +62,10 @@ struct AccountView: View {
         }
         .disabled(isDeleting)
       } footer: {
-        Text("This will permanently delete your account and all associated data including devices, API keys, and tasks. This action cannot be undone.")
-          .font(.caption)
+        Text(
+          "This will permanently delete your account and all associated data including devices, API keys, and tasks. This action cannot be undone."
+        )
+        .font(.caption)
       }
     })
     .formStyle(.grouped)
@@ -120,7 +124,7 @@ struct AccountView: View {
     } catch {
       Logger.error(.auth, "Failed to delete account: \(error.localizedDescription)")
     }
-    }
+  }
 }
 
 #Preview {

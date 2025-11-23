@@ -110,13 +110,15 @@ final class LogsManager: AutoRefreshable {
 
       guard httpResponse.statusCode == 200 else {
         // Try to parse error message from response
-        let errorMessage: String
-        if let errorData = try? JSONDecoder().decode([String: String].self, from: data),
-           let message = errorData["error"]
+        let errorMessage: String = if let errorData = try? JSONDecoder().decode(
+          [String: String].self,
+          from: data
+        ),
+          let message = errorData["error"]
         {
-          errorMessage = message
+          message
         } else {
-          errorMessage = "Server returned status code \(httpResponse.statusCode)"
+          "Server returned status code \(httpResponse.statusCode)"
         }
 
         throw NSError(
