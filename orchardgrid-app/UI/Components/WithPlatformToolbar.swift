@@ -6,7 +6,7 @@ struct WithPlatformToolbar<LeadingContent: View>: ViewModifier {
   func body(content: Content) -> some View {
     content
       .toolbar {
-        // 只显示功能按钮（account 现在在 Sidebar/Tab Bar 中）
+        // Only show functional buttons (account lives in Sidebar/Tab Bar)
         ToolbarItem { leadingContent }
       }
   }

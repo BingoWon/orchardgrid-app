@@ -124,13 +124,13 @@ final class AuthManager {
         return
       }
 
-      // Handle non-200 responses with user‑friendly messages
+      // Handle non-200 responses with user-friendly messages
       guard httpResponse.statusCode == 200 else {
-        // Common case: wrong email or password → 统一成友好提示，不展示后端原始 JSON/技术信息
+        // Common case: wrong email or password -> normalize to a friendly prompt, avoid leaking backend details
         if httpResponse.statusCode == 400 || httpResponse.statusCode == 401 {
           lastError = "Incorrect email or password. Please check and try again."
         } else {
-          // 其它错误可以尝试用后端返回的消息（如果是可读文本），否则给出通用提示
+          // For other errors, prefer readable server message if available; otherwise use a generic fallback
           if let message = try? decodeAPIErrorMessage(from: data) {
             lastError = message
           } else {
@@ -161,7 +161,7 @@ final class AuthManager {
     } catch {
       Logger.error(.auth, "Login failed: \(error)")
 
-      // Avoid surfacing confusing low‑level decoding/network messages to users
+      // Avoid surfacing confusing low-level decoding/network messages to users
       if (error as NSError).domain == NSCocoaErrorDomain {
         lastError = "Unable to sign in due to a temporary issue. Please try again."
       } else {
@@ -267,20 +267,20 @@ private func decodeAPIErrorMessage(from data: Data) throws -> String? {
   guard !data.isEmpty else { return nil }
   let decoder = JSONDecoder()
   if let errorResponse = try? decoder.decode(APIErrorResponse.self, from: data) {
-    // 1) 优先使用顶层 message
+    // 1) Prefer the top-level message
     if let message = errorResponse.message, !message.isEmpty {
       return message
     }
-    // 2) 然后使用嵌套 error.message
+    // 2) Then try nested error.message
     if let nestedMessage = errorResponse.nestedError?.message, !nestedMessage.isEmpty {
       return nestedMessage
     }
-    // 3) 最后退回到顶层 error 字段（如果是可读文本）
+    // 3) Finally fall back to the top-level error field if readable
     if let error = errorResponse.error, !error.isEmpty {
       return error
     }
   }
-  // Fallback: try plain‑text body
+  // Fallback: try plain-text body
   if let text = String(data: data, encoding: .utf8), !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
     return text
   }
@@ -290,7 +290,7 @@ private func decodeAPIErrorMessage(from data: Data) throws -> String? {
 // MARK: - UserDefaults Manager
 
 /// Simple token storage using UserDefaults
-/// ⚠️ WARNING: This stores tokens in plain text and is NOT secure.
+/// WARNING: This stores tokens in plain text and is NOT secure.
 /// Only use this for development environments.
 /// For production, use Keychain or other secure storage.
 enum UserDefaultsManager {

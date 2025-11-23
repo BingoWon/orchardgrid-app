@@ -472,7 +472,7 @@ final class APIServer {
       return
     }
 
-    // 打印响应日志
+    // Log response for debugging
     await logResponse(json)
 
     let httpResponse = """
@@ -489,7 +489,7 @@ final class APIServer {
 
   private nonisolated func logResponse(_ json: String) async {
     #if DEBUG
-      print("📤 API Response: \(json)")
+      print("API Response: \(json)")
     #endif
   }
 

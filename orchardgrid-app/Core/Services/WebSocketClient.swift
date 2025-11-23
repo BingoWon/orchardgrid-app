@@ -563,7 +563,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
         }
 
         // Two-phase backoff strategy:
-        // Phase 1 (attempts 1-10): Fast reconnection (1s → 60s)
+        // Phase 1 (attempts 1-10): Fast reconnection (1s -> 60s)
         // Phase 2 (attempts 11+): Slow reconnection (5 minutes)
         if attempts < 10 {
           delay = min(delay * 2, 60) // Exponential backoff, max 60s

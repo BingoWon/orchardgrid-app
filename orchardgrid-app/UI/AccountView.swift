@@ -6,8 +6,10 @@ struct AccountView: View {
   @State private var showFinalConfirmation = false
   @State private var isDeleting = false
 
+  private let repoURL = URL(string: "https://github.com/BingoWon/orchardgrid-app")!
+
   var body: some View {
-    Form {
+    Form(content: {
       Section("Profile") {
         if let user = authManager.currentUser {
           LabeledContent("Name", value: user.name ?? "N/A")
@@ -15,7 +17,38 @@ struct AccountView: View {
         }
       }
 
-      Section {
+      Section("Open Source") {
+        VStack(alignment: .leading, spacing: 12) {
+          Text("The OrchardGrid app is open source. You can read the code, build it yourself, and contribute improvements.")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+
+          HStack(spacing: 12) {
+            Image(systemName: "link")
+              .font(.title3)
+              .foregroundStyle(.primary)
+
+            VStack(alignment: .leading, spacing: 4) {
+              Text("GitHub Repository")
+                .font(.headline)
+              Text(repoURL.absoluteString)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
+            }
+
+            Spacer()
+
+            Link(destination: repoURL) {
+              Label("Open", systemImage: "arrow.up.right")
+            }
+            .buttonStyle(.borderedProminent)
+          }
+        }
+        .padding(.vertical, 4)
+      }
+
+      Section("Session") {
         Button("Sign Out", role: .destructive) {
           authManager.logout()
         }
@@ -30,7 +63,7 @@ struct AccountView: View {
         Text("This will permanently delete your account and all associated data including devices, API keys, and tasks. This action cannot be undone.")
           .font(.caption)
       }
-    }
+    })
     .formStyle(.grouped)
     .navigationTitle("Account")
     .toolbarRole(.editor)
@@ -87,7 +120,7 @@ struct AccountView: View {
     } catch {
       Logger.error(.auth, "Failed to delete account: \(error.localizedDescription)")
     }
-  }
+    }
 }
 
 #Preview {

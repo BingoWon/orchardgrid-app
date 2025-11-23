@@ -196,7 +196,7 @@ struct DeviceCard: View {
             .foregroundStyle(device.deviceName != nil ? .secondary : .primary)
 
           if let osVersion = device.osVersion {
-            Text("•")
+            Text("-")
               .font(.caption)
               .foregroundStyle(.secondary)
             Text(osVersion)
@@ -214,7 +214,7 @@ struct DeviceCard: View {
           }
 
           if device.chipModel != nil, device.memoryGb != nil {
-            Text("•")
+            Text("-")
               .font(.caption)
               .foregroundStyle(.secondary)
           }
@@ -236,7 +236,7 @@ struct DeviceCard: View {
             .font(.caption)
             .foregroundStyle(.secondary)
 
-          Text("•")
+          Text("-")
             .foregroundStyle(.secondary)
 
           Text(device.lastSeenText)

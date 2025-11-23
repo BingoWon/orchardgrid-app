@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Tab View Bottom Accessory - 显示本设备的 Platform Connection 状态
-/// 类似 Apple Music 的 MiniPlayer，提供快速访问本设备连接信息的入口
+/// Tab View Bottom Accessory - shows this device's Platform Connection status
+/// Similar to Apple Music's MiniPlayer, provides quick access to the local device connection info
 struct LocalDeviceAccessory: View {
   @Environment(\.tabViewBottomAccessoryPlacement) private var placement
   @Environment(WebSocketClient.self) private var wsClient
@@ -90,7 +90,7 @@ struct LocalDeviceAccessory: View {
           .foregroundStyle(.secondary)
 
         if wsClient.isConnected {
-          Text("•")
+          Text("-")
             .foregroundStyle(.tertiary)
 
           Text("\(wsClient.tasksProcessed)")
