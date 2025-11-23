@@ -108,7 +108,6 @@ final class AuthManager {
       lastError = "Email and password are required"
       return
     }
-
     do {
       let url = URL(string: "\(apiURL)/auth/login")!
       var request = URLRequest(url: url)
@@ -116,7 +115,38 @@ final class AuthManager {
       request.setValue("application/json", forHTTPHeaderField: "Content-Type")
       request.httpBody = try JSONEncoder().encode(["email": email, "password": password])
 
-      let (data, _) = try await urlSession.data(for: request)
+      let (data, response) = try await urlSession.data(for: request)
+
+      guard let httpResponse = response as? HTTPURLResponse else {
+        Logger.error(.auth, "Login failed: Invalid response")
+        lastError = "Unable to sign in. Please try again."
+        authState = .unauthenticated
+        return
+      }
+
+      // Handle non-200 responses with user‑friendly messages
+      guard httpResponse.statusCode == 200 else {
+        // Common case: wrong email or password → 统一成友好提示，不展示后端原始 JSON/技术信息
+        if httpResponse.statusCode == 400 || httpResponse.statusCode == 401 {
+          lastError = "Incorrect email or password. Please check and try again."
+        } else {
+          // 其它错误可以尝试用后端返回的消息（如果是可读文本），否则给出通用提示
+          if let message = try? decodeAPIErrorMessage(from: data) {
+            lastError = message
+          } else {
+            lastError = "Unable to sign in. Please try again later. (Error code \(httpResponse.statusCode))"
+          }
+        }
+
+        Logger.error(
+          .auth,
+          "Login failed with status \(httpResponse.statusCode): \(lastError ?? "Unknown error")"
+        )
+        authState = .unauthenticated
+        return
+      }
+
+      // Success path
       let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
 
       // Save token and update state
@@ -129,8 +159,15 @@ final class AuthManager {
       Logger.success(.auth, "Login successful: \(authResponse.user.email)")
       onUserIDChanged?(authResponse.user.id)
     } catch {
-      Logger.error(.auth, "Login failed: \(error.localizedDescription)")
-      lastError = error.localizedDescription
+      Logger.error(.auth, "Login failed: \(error)")
+
+      // Avoid surfacing confusing low‑level decoding/network messages to users
+      if (error as NSError).domain == NSCocoaErrorDomain {
+        lastError = "Unable to sign in due to a temporary issue. Please try again."
+      } else {
+        lastError = "Unable to sign in. Please check your network connection and try again."
+      }
+
       authState = .unauthenticated
     }
   }
@@ -186,6 +223,68 @@ struct User: Codable, Equatable {
 struct AuthResponse: Codable {
   let token: String
   let user: User
+}
+
+// MARK: - Error Response Helpers
+
+private struct APIErrorResponse: Codable {
+  struct NestedError: Codable {
+    let message: String?
+    let type: String?
+    let code: Int?
+  }
+
+  let error: String?
+  let message: String?
+  let type: String?
+  let code: Int?
+  let nestedError: NestedError?
+
+  // Support payloads like { "error": { "message": "...", "type": "...", "code": 401 } }
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    error = try container.decodeIfPresent(String.self, forKey: .error)
+    message = try container.decodeIfPresent(String.self, forKey: .message)
+    type = try container.decodeIfPresent(String.self, forKey: .type)
+    code = try container.decodeIfPresent(Int.self, forKey: .code)
+
+    if let nested = try container.decodeIfPresent(NestedError.self, forKey: .error) {
+      nestedError = nested
+    } else {
+      nestedError = nil
+    }
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case error
+    case message
+    case type
+    case code
+  }
+}
+
+private func decodeAPIErrorMessage(from data: Data) throws -> String? {
+  guard !data.isEmpty else { return nil }
+  let decoder = JSONDecoder()
+  if let errorResponse = try? decoder.decode(APIErrorResponse.self, from: data) {
+    // 1) 优先使用顶层 message
+    if let message = errorResponse.message, !message.isEmpty {
+      return message
+    }
+    // 2) 然后使用嵌套 error.message
+    if let nestedMessage = errorResponse.nestedError?.message, !nestedMessage.isEmpty {
+      return nestedMessage
+    }
+    // 3) 最后退回到顶层 error 字段（如果是可读文本）
+    if let error = errorResponse.error, !error.isEmpty {
+      return error
+    }
+  }
+  // Fallback: try plain‑text body
+  if let text = String(data: data, encoding: .utf8), !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+    return text
+  }
+  return nil
 }
 
 // MARK: - UserDefaults Manager

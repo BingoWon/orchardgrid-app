@@ -60,7 +60,7 @@ struct OrchardGridApp: App {
     }
     #if os(macOS)
     .commands {
-      CommandGroup(replacing: .newItem) {}
+      SidebarCommands() // Enable standard View menu commands for Sidebar toggling
     }
     #endif
     .onChange(of: scenePhase) { _, newPhase in
