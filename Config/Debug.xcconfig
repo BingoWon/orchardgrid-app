@@ -3,11 +3,8 @@
 // OrchardGrid Development Configuration
 //
 
-// TEMPORARY: Using production API URL for development environment
-// This is a temporary staging adjustment - will be reverted later
-// Original development URL: https://orchardgrid-api-development.bingow.workers.dev
 // API Configuration
-API_BASE_URL = https://orchardgrid-api.bingow.workers.dev
+API_BASE_URL = https://api.orchardgrid.com
 GOOGLE_CLIENT_ID = YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com
 
 // App Configuration
@@ -17,4 +14,3 @@ PRODUCT_NAME = OrchardGrid Dev
 // Info.plist Configuration
 // Use GENERATE_INFOPLIST_FILE = YES for multiplatform support
 GENERATE_INFOPLIST_FILE = YES
-

@@ -4,7 +4,7 @@
 //
 
 // API Configuration
-API_BASE_URL = https://orchardgrid-api.bingow.workers.dev
+API_BASE_URL = https://api.orchardgrid.com
 GOOGLE_CLIENT_ID = YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com
 
 // App Configuration
@@ -20,4 +20,3 @@ ENABLE_APP_SANDBOX = YES
 // Info.plist Configuration
 // Use GENERATE_INFOPLIST_FILE = YES for multiplatform support
 GENERATE_INFOPLIST_FILE = YES
-
