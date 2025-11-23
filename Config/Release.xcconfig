@@ -12,10 +12,10 @@ PRODUCT_BUNDLE_IDENTIFIER = com.orchardgrid.app.dev
 PRODUCT_NAME = OrchardGrid
 
 // Code Signing Configuration
-CODE_SIGN_STYLE = Manual
-CODE_SIGN_IDENTITY = Apple Distribution
+CODE_SIGN_STYLE = Automatic
 DEVELOPMENT_TEAM = 5C4299VVGU
-PROVISIONING_PROFILE_SPECIFIER =
+ENABLE_APP_SANDBOX = YES
+
 
 // Info.plist Configuration
 // Use GENERATE_INFOPLIST_FILE = YES for multiplatform support
