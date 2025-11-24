@@ -4,6 +4,7 @@
 
 ## User settings
 xcuserdata/
+*.xcuserstate
 
 ## compatibility with Xcode 8 and earlier (ignoring not required starting Xcode 9)
 *.xcscmblueprint
@@ -47,6 +48,9 @@ playground.xcworkspace
 # .swiftpm
 
 .build/
+.swiftpm/
+.package-checkouts/
+.package-cache/
 
 # CocoaPods
 #
@@ -127,4 +131,14 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
-Landmarks
+# Editors / IDE
+.idea/
+.vscode/
+
+# Environment / logs / certs
+.env
+.env.*
+*.log
+*.crt
+*.pem
+*.key
