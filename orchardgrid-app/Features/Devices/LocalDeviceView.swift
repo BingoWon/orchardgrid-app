@@ -322,7 +322,7 @@ struct DeviceNotEligibleView: View {
       .font(.caption)
       .foregroundStyle(.secondary)
 
-      Link("Learn More", destination: URL(string: "https://support.apple.com/apple-intelligence")!)
+      Link("Learn More", destination: URL(string: "https://www.apple.com/apple-intelligence/")!)
         .font(.caption)
         .buttonStyle(.borderedProminent)
         .controlSize(.small)
