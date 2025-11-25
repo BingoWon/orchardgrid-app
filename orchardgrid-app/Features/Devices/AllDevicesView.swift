@@ -35,13 +35,14 @@ struct AllDevicesView: View {
           }
 
           // Wide layout: QuickControl + Summary side by side
+          // Compact layout: QuickControl + Summary stacked
           if isWideLayout {
             HStack(alignment: .top, spacing: 16) {
               LocalDeviceQuickControl()
               summaryCard
             }
           } else {
-            // Compact layout: stacked
+            LocalDeviceQuickControl()
             summaryCard
           }
 

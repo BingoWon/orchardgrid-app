@@ -1,12 +1,22 @@
 import FoundationModels
 import SwiftUI
 
-/// Quick control card for This Mac - displays Share to Cloud and Share Locally toggles
-/// On macOS: navigates to This Mac in sidebar; On iOS: opens sheet
+/// Quick control card for local device - displays Share to Cloud and Share Locally toggles
+/// On macOS/iPad: navigates to sidebar; On iPhone: opens sheet
 struct LocalDeviceQuickControl: View {
   @Environment(WebSocketClient.self) private var wsClient
   @Environment(APIServer.self) private var apiServer
   @Environment(NavigationState.self) private var navigationState
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  @State private var showDeviceSheet = false
+
+  private var isWideLayout: Bool {
+    #if os(macOS)
+      return true
+    #else
+      return horizontalSizeClass == .regular
+    #endif
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
@@ -19,8 +29,13 @@ struct LocalDeviceQuickControl: View {
         Spacer()
 
         Button {
-          // macOS: Navigate to sidebar item; iOS would use sheet but this component is macOS-only
-          navigationState.navigateTo(.localDevice)
+          if isWideLayout {
+            // macOS/iPad: Navigate to sidebar item
+            navigationState.navigateTo(.localDevice)
+          } else {
+            // iPhone: Open sheet
+            showDeviceSheet = true
+          }
         } label: {
           HStack(spacing: 4) {
             Text("Details")
@@ -60,6 +75,21 @@ struct LocalDeviceQuickControl: View {
     }
     .padding(Constants.standardPadding)
     .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
+    .sheet(isPresented: $showDeviceSheet) {
+      NavigationStack {
+        LocalDeviceView()
+          .navigationBarTitleDisplayMode(.inline)
+          .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+              Button(role: .close) {
+                showDeviceSheet = false
+              }
+            }
+          }
+      }
+      .presentationDetents([.large])
+      .presentationDragIndicator(.visible)
+    }
   }
 
   // MARK: - Status Text
