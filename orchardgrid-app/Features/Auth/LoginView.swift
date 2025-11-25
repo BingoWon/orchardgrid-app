@@ -15,13 +15,16 @@ struct LoginView: View {
 
     AuthLayout {
       VStack(spacing: 32) {
-        AuthHeader(title: "OrchardGrid", subtitle: "GPU Device Management")
-          .padding(.top, 20)
+        AuthHeader(title: "Welcome back", subtitle: "Sign in to OrchardGrid")
 
         VStack(spacing: 16) {
           if let error = auth.lastError {
             AuthErrorBanner(message: error)
           }
+
+          GoogleButton { auth.loginWithGoogle() }
+
+          AuthDivider(text: "or continue with email")
 
           AuthField(placeholder: "Email", text: $email)
           #if os(iOS)
@@ -33,10 +36,6 @@ struct LoginView: View {
           AuthButton(title: "Sign In", isEnabled: isFormValid && !auth.isLoading) {
             Task { await auth.login(email: email, password: password) }
           }
-
-          AuthDivider(text: "or")
-
-          GoogleButton { auth.loginWithGoogle() }
         }
 
         AuthLink(text: "Don't have an account?", linkText: "Sign Up") {

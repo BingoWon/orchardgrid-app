@@ -19,13 +19,16 @@ struct RegisterView: View {
     NavigationStack {
       AuthLayout {
         VStack(spacing: 32) {
-          AuthHeader(title: "Create Account", subtitle: "Join OrchardGrid today")
-            .padding(.top, 20)
+          AuthHeader(title: "Create account", subtitle: "Get started with OrchardGrid")
 
           VStack(spacing: 16) {
             if let error = auth.lastError {
               AuthErrorBanner(message: error)
             }
+
+            GoogleButton { auth.loginWithGoogle() }
+
+            AuthDivider(text: "or continue with email")
 
             AuthField(placeholder: "Email", text: $email)
             #if os(iOS)
@@ -46,10 +49,6 @@ struct RegisterView: View {
             AuthButton(title: "Create Account", isEnabled: isFormValid && !auth.isLoading) {
               Task { await auth.register(email: email, password: password) }
             }
-
-            AuthDivider(text: "or")
-
-            GoogleButton { auth.loginWithGoogle() }
           }
 
           AuthLink(text: "Already have an account?", linkText: "Sign In") {
@@ -66,7 +65,7 @@ struct RegisterView: View {
   }
 
   private var isFormValid: Bool {
-    !email.isEmpty && !password.isEmpty && password == confirmPassword && password.count >= 6
+    !email.isEmpty && !password.isEmpty && password == confirmPassword && password.count >= 8
   }
 }
 

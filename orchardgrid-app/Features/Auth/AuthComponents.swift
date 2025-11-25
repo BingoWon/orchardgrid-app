@@ -13,13 +13,9 @@ struct AuthHeader: View {
   let subtitle: String
 
   var body: some View {
-    VStack(spacing: 12) {
-      Image(systemName: "cpu.fill")
-        .font(.system(size: 56))
-        .foregroundStyle(.tint)
-
+    VStack(spacing: 8) {
       Text(title)
-        .font(.system(size: 32, weight: .bold, design: .rounded))
+        .font(.system(size: 28, weight: .bold, design: .rounded))
 
       Text(subtitle)
         .font(.subheadline)
