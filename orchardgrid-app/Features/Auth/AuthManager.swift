@@ -106,6 +106,17 @@ final class AuthManager {
 
   // MARK: - Apple Sign-In
 
+  func loginWithApple() {
+    let provider = ASAuthorizationAppleIDProvider()
+    let request = provider.createRequest()
+    request.requestedScopes = [.email, .fullName]
+
+    let controller = ASAuthorizationController(authorizationRequests: [request])
+    controller.delegate = AppleSignInDelegate.shared
+    AppleSignInDelegate.shared.authManager = self
+    controller.performRequests()
+  }
+
   func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
     switch result {
     case let .success(authorization):
@@ -327,5 +338,30 @@ private enum TokenStorage {
 
   static func delete() {
     UserDefaults.standard.removeObject(forKey: key)
+  }
+}
+
+// MARK: - Apple Sign In Delegate
+
+final class AppleSignInDelegate: NSObject, ASAuthorizationControllerDelegate {
+  static let shared = AppleSignInDelegate()
+  weak var authManager: AuthManager?
+
+  func authorizationController(
+    controller _: ASAuthorizationController,
+    didCompleteWithAuthorization authorization: ASAuthorization
+  ) {
+    Task { @MainActor in
+      authManager?.handleAppleSignIn(.success(authorization))
+    }
+  }
+
+  func authorizationController(
+    controller _: ASAuthorizationController,
+    didCompleteWithError error: Error
+  ) {
+    Task { @MainActor in
+      authManager?.handleAppleSignIn(.failure(error))
+    }
   }
 }

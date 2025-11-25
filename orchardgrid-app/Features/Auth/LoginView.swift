@@ -3,7 +3,6 @@
  * Login screen
  */
 
-import AuthenticationServices
 import SwiftUI
 
 struct LoginView: View {
@@ -18,19 +17,21 @@ struct LoginView: View {
       VStack(spacing: 32) {
         AuthHeader(title: "Welcome back", subtitle: "Sign in to OrchardGrid")
 
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
           if let error = auth.lastError {
             AuthErrorBanner(message: error)
           }
 
-          AppleButton(
-            onRequest: { $0.requestedScopes = [.email, .fullName] },
-            onCompletion: { auth.handleAppleSignIn($0) }
-          )
+          SocialLoginButton(provider: .apple) {
+            auth.loginWithApple()
+          }
 
-          GoogleButton { auth.loginWithGoogle() }
+          SocialLoginButton(provider: .google) {
+            auth.loginWithGoogle()
+          }
 
           AuthDivider(text: "or continue with email")
+            .padding(.vertical, 4)
 
           AuthField(placeholder: "Email", text: $email)
           #if os(iOS)
