@@ -227,97 +227,72 @@ struct DeviceCard: View {
   let device: Device
 
   var body: some View {
-    HStack(spacing: 16) {
+    HStack(spacing: 12) {
       // Icon
       Image(systemName: device.platformIcon)
-        .font(.system(size: 32))
+        .font(.system(size: 28))
         .foregroundStyle(.blue)
-        .frame(width: 48, height: 48)
+        .frame(width: 40, height: 40)
 
-      // Info
-      VStack(alignment: .leading, spacing: 4) {
-        // Device name with flag
+      // Info - 2 lines
+      VStack(alignment: .leading, spacing: 6) {
+        // Line 1: Flag + Device name
         HStack(spacing: 6) {
-          if let deviceName = device.deviceName {
-            Text(deviceName)
-              .font(.headline)
-          }
           if !device.flagEmoji.isEmpty {
             Text(device.flagEmoji)
-              .font(.headline)
           }
+          Text(device.deviceName ?? device.platform)
+            .fontWeight(.medium)
         }
+        .font(.subheadline)
 
-        // Platform and OS version
-        HStack(spacing: 4) {
+        // Line 2: Platform · OS · Chip · Memory
+        HStack(spacing: 0) {
           Text(device.platform)
-            .font(device.deviceName != nil ? .subheadline : .headline)
-            .foregroundStyle(device.deviceName != nil ? .secondary : .primary)
-
           if let osVersion = device.shortOSVersion {
-            Text("-")
-              .font(.caption)
-              .foregroundStyle(.secondary)
-            Text(osVersion)
-              .font(.caption)
-              .foregroundStyle(.secondary)
+            Text(" \(osVersion)")
           }
-        }
-
-        // Chip model and memory
-        HStack(spacing: 4) {
+          if device.chipModel != nil || device.memoryGb != nil {
+            Text(" · ")
+          }
           if let chipModel = device.chipModel {
             Text(chipModel)
-              .font(.caption)
-              .foregroundStyle(.secondary)
           }
-
-          if device.chipModel != nil, device.memoryGb != nil {
-            Text("-")
-              .font(.caption)
-              .foregroundStyle(.secondary)
-          }
-
           if let memoryGb = device.memoryGb {
-            Text("\(Int(memoryGb)) GB")
-              .font(.caption)
-              .foregroundStyle(.secondary)
+            Text(" \(Int(memoryGb)) GB")
           }
         }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
 
-        // Status and last seen
-        HStack(spacing: 8) {
+        // Line 3: Status indicator + time
+        HStack(spacing: 6) {
           Circle()
             .fill(statusColor)
-            .frame(width: 8, height: 8)
-
+            .frame(width: 6, height: 6)
           Text(device.statusText)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-
-          Text("-")
-            .foregroundStyle(.secondary)
-
+          Text("·")
           Text(device.lastSeenText)
-            .font(.caption)
-            .foregroundStyle(.secondary)
         }
+        .font(.caption)
+        .foregroundStyle(.secondary)
       }
 
       Spacer()
 
-      // Stats
-      VStack(alignment: .trailing, spacing: 4) {
+      // Tasks count - centered
+      VStack(spacing: 2) {
         Text("\(device.tasksProcessed)")
-          .font(.title2)
+          .font(.title3)
           .fontWeight(.semibold)
-
         Text("tasks")
-          .font(.caption)
+          .font(.caption2)
           .foregroundStyle(.secondary)
       }
+      .frame(minWidth: 50)
     }
-    .padding()
+    .padding(12)
     .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
   }
 
