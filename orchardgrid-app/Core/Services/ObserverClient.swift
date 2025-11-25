@@ -204,9 +204,13 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
 
   private func handleEvent(_ event: ObserverEvent) {
     switch event {
-    case .deviceOnline, .deviceOffline, .deviceHeartbeat:
+    case .deviceOnline, .deviceOffline:
       Logger.log(.observer, "Device event received")
       onDevicesChanged?()
+
+    case .deviceHeartbeat:
+      // Heartbeat only updates timestamp, UI calculates relative time locally
+      break
 
     case .taskCompleted, .taskFailed:
       Logger.log(.observer, "Task event received")
