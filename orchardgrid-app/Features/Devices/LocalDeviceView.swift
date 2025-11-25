@@ -235,7 +235,7 @@ struct LocalDeviceView: View {
 
       HStack(spacing: 40) {
         StatView(title: "Tasks Processed", value: "\(wsClient.tasksProcessed)")
-        StatView(title: "Device ID", value: String(DeviceID.current.prefix(8)))
+        StatView(title: "Hardware ID", value: String(DeviceID.current.prefix(8)))
       }
 
     case let .reconnecting(attempt, nextRetryIn):
