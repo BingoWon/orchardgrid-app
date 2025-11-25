@@ -54,13 +54,6 @@ struct LogsView: View {
         Task { await loadData(isManualRefresh: false) }
       }
     }
-    .sheet(isPresented: Binding(
-      get: { authManager.showSignInSheet },
-      set: { authManager.showSignInSheet = $0 }
-    )) {
-      SignInSheet()
-        .environment(authManager)
-    }
   }
 
   // MARK: - Guest Content

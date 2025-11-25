@@ -2,18 +2,29 @@ import SwiftUI
 
 struct MainView: View {
   @Environment(NavigationState.self) private var navigationState
+  @Environment(AuthManager.self) private var authManager
   @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
   var body: some View {
-    #if os(macOS)
-      splitView
-    #else
-      if UIDevice.current.userInterfaceIdiom == .phone {
-        tabView
-      } else {
+    Group {
+      #if os(macOS)
         splitView
-      }
-    #endif
+      #else
+        if UIDevice.current.userInterfaceIdiom == .phone {
+          tabView
+        } else {
+          splitView
+        }
+      #endif
+    }
+    // Single SignInSheet for entire app - prevents multiple sheet conflicts
+    .sheet(isPresented: Binding(
+      get: { authManager.showSignInSheet },
+      set: { authManager.showSignInSheet = $0 }
+    )) {
+      SignInSheet()
+        .environment(authManager)
+    }
   }
 
   // MARK: - Tab View (iPhone only)

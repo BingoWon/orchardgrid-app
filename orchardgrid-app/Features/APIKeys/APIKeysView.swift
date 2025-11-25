@@ -52,13 +52,6 @@ struct APIKeysView: View {
       guard let token = authManager.authToken else { return }
       await manager.loadAPIKeys(authToken: token)
     }
-    .sheet(isPresented: Binding(
-      get: { authManager.showSignInSheet },
-      set: { authManager.showSignInSheet = $0 }
-    )) {
-      SignInSheet()
-        .environment(authManager)
-    }
   }
 
   // MARK: - Guest Content

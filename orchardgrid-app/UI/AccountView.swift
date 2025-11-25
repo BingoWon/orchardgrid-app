@@ -38,13 +38,6 @@ struct AccountView: View {
     } message: {
       Text("This action cannot be undone. All your devices, API keys, and tasks will be deleted.")
     }
-    .sheet(isPresented: Binding(
-      get: { authManager.showSignInSheet },
-      set: { authManager.showSignInSheet = $0 }
-    )) {
-      SignInSheet()
-        .environment(authManager)
-    }
   }
 
   // MARK: - Guest Content
