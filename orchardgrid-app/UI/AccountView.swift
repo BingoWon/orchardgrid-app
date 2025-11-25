@@ -2,6 +2,9 @@ import SwiftUI
 
 struct AccountView: View {
   @Environment(AuthManager.self) private var authManager
+  @State private var isEditingName = false
+  @State private var editedName = ""
+  @State private var isSaving = false
   @State private var showDeleteConfirmation = false
   @State private var showFinalConfirmation = false
   @State private var isDeleting = false
@@ -9,10 +12,46 @@ struct AccountView: View {
   private let repoURL = URL(string: "https://github.com/BingoWon/orchardgrid-app")!
 
   var body: some View {
-    Form(content: {
+    Form {
       Section("Profile") {
         if let user = authManager.currentUser {
-          LabeledContent("Name", value: user.name ?? "N/A")
+          if isEditingName {
+            HStack {
+              TextField("Name", text: $editedName)
+                .textFieldStyle(.plain)
+              Button {
+                Task { await saveName() }
+              } label: {
+                Image(systemName: "checkmark.circle.fill")
+                  .foregroundStyle(.green)
+              }
+              .disabled(isSaving)
+              .buttonStyle(.plain)
+              Button {
+                isEditingName = false
+                editedName = user.name ?? ""
+              } label: {
+                Image(systemName: "xmark.circle.fill")
+                  .foregroundStyle(.secondary)
+              }
+              .buttonStyle(.plain)
+            }
+          } else {
+            HStack {
+              Text("Name")
+              Spacer()
+              Text(user.name ?? "N/A")
+                .foregroundStyle(.secondary)
+              Button {
+                editedName = user.name ?? ""
+                isEditingName = true
+              } label: {
+                Image(systemName: "pencil")
+                  .foregroundStyle(.secondary)
+              }
+              .buttonStyle(.plain)
+            }
+          }
           LabeledContent("Email", value: user.email)
         }
       }
@@ -66,7 +105,7 @@ struct AccountView: View {
         )
         .font(.caption)
       }
-    })
+    }
     .formStyle(.grouped)
     .navigationTitle("Account")
     .toolbarRole(.editor)
@@ -82,12 +121,42 @@ struct AccountView: View {
     .alert("Are you absolutely sure?", isPresented: $showFinalConfirmation) {
       Button("Cancel", role: .cancel) {}
       Button("Delete Account", role: .destructive) {
-        Task {
-          await deleteAccount()
-        }
+        Task { await deleteAccount() }
       }
     } message: {
       Text("This action cannot be undone. All your devices, API keys, and tasks will be deleted.")
+    }
+  }
+
+  private func saveName() async {
+    guard let token = authManager.authToken else { return }
+
+    isSaving = true
+    defer { isSaving = false }
+
+    do {
+      let url = URL(string: "\(Config.apiBaseURL)/auth/profile")!
+      var request = URLRequest(url: url)
+      request.httpMethod = "PATCH"
+      request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.httpBody = try JSONEncoder().encode(["name": editedName.isEmpty ? nil : editedName])
+
+      let (data, response) = try await Config.urlSession.data(for: request)
+
+      guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+        throw NSError(domain: "Failed to update name", code: -1)
+      }
+
+      let updatedUser = try JSONDecoder().decode(User.self, from: data)
+      await MainActor.run {
+        authManager.currentUser = updatedUser
+        isEditingName = false
+      }
+
+      Logger.success(.auth, "Name updated successfully")
+    } catch {
+      Logger.error(.auth, "Failed to update name: \(error.localizedDescription)")
     }
   }
 
@@ -114,7 +183,6 @@ struct AccountView: View {
         throw NSError(domain: errorText, code: httpResponse.statusCode)
       }
 
-      // Account deleted successfully, logout
       await MainActor.run {
         authManager.logout()
       }
