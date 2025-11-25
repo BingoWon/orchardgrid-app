@@ -3,7 +3,7 @@ import Observation
 
 @MainActor
 @Observable
-final class LogsManager: AutoRefreshable {
+final class LogsManager: Refreshable {
   private(set) var consumingTasks: [ComputeTask] = []
   private(set) var providingTasks: [ComputeTask] = []
   private(set) var consumingTotal = 0
@@ -12,12 +12,6 @@ final class LogsManager: AutoRefreshable {
   private(set) var isRefreshing = false
   private(set) var errorMessage: String?
   private(set) var lastUpdated: Date?
-
-  var autoRefreshTask: Task<Void, Never>?
-
-  // Save current filter and pagination state for auto-refresh
-  private var currentConsumingParams: (limit: Int, offset: Int, status: String?) = (50, 0, nil)
-  private var currentProvidingParams: (limit: Int, offset: Int, status: String?) = (50, 0, nil)
 
   private let apiURL = Config.apiBaseURL
   private let urlSession = Config.urlSession
@@ -29,9 +23,6 @@ final class LogsManager: AutoRefreshable {
     authToken: String,
     isManualRefresh: Bool = false
   ) async {
-    // Save current parameters for auto-refresh
-    currentConsumingParams = (limit, offset, status)
-
     await loadTasks(
       endpoint: "/tasks",
       limit: limit,
@@ -52,9 +43,6 @@ final class LogsManager: AutoRefreshable {
     authToken: String,
     isManualRefresh: Bool = false
   ) async {
-    // Save current parameters for auto-refresh
-    currentProvidingParams = (limit, offset, status)
-
     await loadTasks(
       endpoint: "/tasks/providing",
       limit: limit,
@@ -138,36 +126,5 @@ final class LogsManager: AutoRefreshable {
 
     isInitialLoading = false
     isRefreshing = false
-  }
-
-  // MARK: - Auto Refresh
-
-  func startAutoRefresh(interval: TimeInterval, authToken: String) async {
-    stopAutoRefresh()
-
-    autoRefreshTask = Task { @MainActor in
-      while !Task.isCancelled {
-        try? await Task.sleep(for: .seconds(interval))
-        guard !Task.isCancelled else { break }
-        // Refresh both consuming and providing tasks with saved parameters
-        await loadConsumingTasks(
-          limit: currentConsumingParams.limit,
-          offset: currentConsumingParams.offset,
-          status: currentConsumingParams.status,
-          authToken: authToken
-        )
-        await loadProvidingTasks(
-          limit: currentProvidingParams.limit,
-          offset: currentProvidingParams.offset,
-          status: currentProvidingParams.status,
-          authToken: authToken
-        )
-      }
-    }
-  }
-
-  func stopAutoRefresh() {
-    autoRefreshTask?.cancel()
-    autoRefreshTask = nil
   }
 }

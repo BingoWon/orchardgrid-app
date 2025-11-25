@@ -1,23 +1,12 @@
 import Foundation
-import SwiftUI
 
-/// Global refresh configuration for all data managers
-enum RefreshConfig {
-  /// Auto-refresh interval in seconds (always enabled)
-  static let interval: TimeInterval = 10.0
-}
-
-/// Protocol for managers that support auto-refresh
+/// Protocol for managers that track last updated time
 @MainActor
-protocol AutoRefreshable {
+protocol Refreshable {
   var lastUpdated: Date? { get }
-  var autoRefreshTask: Task<Void, Never>? { get set }
-
-  func startAutoRefresh(interval: TimeInterval, authToken: String) async
-  func stopAutoRefresh()
 }
 
-extension AutoRefreshable {
+extension Refreshable {
   /// Formatted last updated time
   var lastUpdatedText: String {
     guard let lastUpdated else { return "Never" }

@@ -16,14 +16,12 @@ struct APIKey: Identifiable, Codable, Sendable {
 
 @MainActor
 @Observable
-final class APIKeysManager: AutoRefreshable {
+final class APIKeysManager: Refreshable {
   private(set) var apiKeys: [APIKey] = []
   private(set) var isInitialLoading = true
   private(set) var isRefreshing = false
   private(set) var lastError: String?
   private(set) var lastUpdated: Date?
-
-  var autoRefreshTask: Task<Void, Never>?
 
   private let apiURL = Config.apiBaseURL
   private let urlSession = Config.urlSession
@@ -75,25 +73,6 @@ final class APIKeysManager: AutoRefreshable {
 
     isInitialLoading = false
     isRefreshing = false
-  }
-
-  // MARK: - Auto Refresh
-
-  func startAutoRefresh(interval: TimeInterval, authToken: String) async {
-    stopAutoRefresh()
-
-    autoRefreshTask = Task { @MainActor in
-      while !Task.isCancelled {
-        try? await Task.sleep(for: .seconds(interval))
-        guard !Task.isCancelled else { break }
-        await loadAPIKeys(authToken: authToken)
-      }
-    }
-  }
-
-  func stopAutoRefresh() {
-    autoRefreshTask?.cancel()
-    autoRefreshTask = nil
   }
 
   @discardableResult
