@@ -52,7 +52,9 @@ struct OrchardGridApp: App {
           }
           .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-        case .authenticated:
+        case .authenticated, .guest:
+          // Both authenticated and guest users see MainView
+          // Individual views adapt based on auth state
           MainView()
             .environment(authManager)
             .environment(wsClient)
@@ -66,15 +68,11 @@ struct OrchardGridApp: App {
               windowSize = $0
             }
             .task {
-              // Connect observer for real-time updates
+              // Connect observer for real-time updates (only if authenticated)
               if let token = authManager.authToken {
                 observerClient.connect(authToken: token)
               }
             }
-
-        case .unauthenticated:
-          LoginView()
-            .environment(authManager)
         }
       }
       .frame(minWidth: 375.0, minHeight: 375.0)

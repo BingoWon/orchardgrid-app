@@ -17,6 +17,119 @@ struct APIKeysView: View {
   @State private var visibleKeys: Set<String> = []
 
   var body: some View {
+    Group {
+      if authManager.isAuthenticated {
+        authenticatedContent
+      } else {
+        guestContent
+      }
+    }
+    .navigationTitle("API Keys")
+    .toolbarRole(.editor)
+    .toolbarTitleDisplayMode(.inlineLarge)
+    .withPlatformToolbar {
+      if authManager.isAuthenticated {
+        HStack(spacing: 12) {
+          if manager.isRefreshing {
+            ProgressView()
+              .controlSize(.small)
+          }
+
+          Button {
+            createKey()
+          } label: {
+            Label("Create API Key", systemImage: "plus")
+          }
+          .disabled(authManager.authToken == nil)
+        }
+      }
+    }
+    .refreshable {
+      guard let token = authManager.authToken else { return }
+      await manager.loadAPIKeys(authToken: token, isManualRefresh: true)
+    }
+    .task {
+      guard let token = authManager.authToken else { return }
+      await manager.loadAPIKeys(authToken: token)
+    }
+    .sheet(isPresented: Binding(
+      get: { authManager.showSignInSheet },
+      set: { authManager.showSignInSheet = $0 }
+    )) {
+      SignInSheet()
+        .environment(authManager)
+    }
+  }
+
+  // MARK: - Guest Content
+
+  private var guestContent: some View {
+    ScrollView {
+      VStack(spacing: 24) {
+        // API Info Preview
+        VStack(alignment: .leading, spacing: 16) {
+          Text("API Usage")
+            .font(.headline)
+
+          VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+              Text("Model")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+              Text("apple-intelligence")
+                .font(.system(.body, design: .monospaced))
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 4) {
+              Text("API Endpoint")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+              Text(Config.apiBaseURL)
+                .font(.system(.body, design: .monospaced))
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 4) {
+              Text("Example Request")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+              Text("""
+                curl \(Config.apiBaseURL)/v1/chat/completions \\
+                  -H "Authorization: Bearer YOUR_API_KEY" \\
+                  -d '{"model": "apple-intelligence", ...}'
+                """)
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(.secondary)
+            }
+          }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
+
+        // Guest Prompt
+        GuestFeaturePrompt(
+          icon: "key.fill",
+          title: "Get Your API Keys",
+          description: "Sign in to create API keys and access OrchardGrid from your applications.",
+          benefits: [
+            "OpenAI-compatible API format",
+            "Works with any OpenAI SDK",
+            "Manage multiple API keys",
+          ],
+          buttonTitle: "Sign In to Create API Key"
+        )
+      }
+      .padding()
+    }
+  }
+
+  // MARK: - Authenticated Content
+
+  private var authenticatedContent: some View {
     VStack(spacing: 0) {
       // Last Updated
       if !manager.isInitialLoading {
@@ -143,32 +256,6 @@ struct APIKeysView: View {
           }
         }
       }
-    }
-    .navigationTitle("API Keys")
-    .toolbarRole(.editor)
-    .toolbarTitleDisplayMode(.inlineLarge)
-    .withPlatformToolbar {
-      HStack(spacing: 12) {
-        if manager.isRefreshing {
-          ProgressView()
-            .controlSize(.small)
-        }
-
-        Button {
-          createKey()
-        } label: {
-          Label("Create API Key", systemImage: "plus")
-        }
-        .disabled(authManager.authToken == nil)
-      }
-    }
-    .refreshable {
-      guard let token = authManager.authToken else { return }
-      await manager.loadAPIKeys(authToken: token, isManualRefresh: true)
-    }
-    .task {
-      guard let token = authManager.authToken else { return }
-      await manager.loadAPIKeys(authToken: token)
     }
   }
 

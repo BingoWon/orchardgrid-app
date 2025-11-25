@@ -8,54 +8,20 @@ struct AccountView: View {
   @State private var showDeleteConfirmation = false
   @State private var showFinalConfirmation = false
   @State private var isDeleting = false
+  @State private var email = ""
+  @State private var password = ""
 
   private let repoURL = URL(string: "https://github.com/BingoWon/orchardgrid-app")!
 
   var body: some View {
     Form {
-      Section("Profile") {
-        if let user = authManager.currentUser {
-          if isEditingName {
-            HStack {
-              TextField("Name", text: $editedName)
-                .textFieldStyle(.plain)
-              Button {
-                Task { await saveName() }
-              } label: {
-                Image(systemName: "checkmark.circle.fill")
-                  .foregroundStyle(.green)
-              }
-              .disabled(isSaving)
-              .buttonStyle(.plain)
-              Button {
-                isEditingName = false
-                editedName = user.name ?? ""
-              } label: {
-                Image(systemName: "xmark.circle.fill")
-                  .foregroundStyle(.secondary)
-              }
-              .buttonStyle(.plain)
-            }
-          } else {
-            HStack {
-              Text("Name")
-              Spacer()
-              Text(user.name ?? "N/A")
-                .foregroundStyle(.secondary)
-              Button {
-                editedName = user.name ?? ""
-                isEditingName = true
-              } label: {
-                Image(systemName: "pencil")
-                  .foregroundStyle(.secondary)
-              }
-              .buttonStyle(.plain)
-            }
-          }
-          LabeledContent("Email", value: user.email)
-        }
+      if authManager.isAuthenticated {
+        authenticatedContent
+      } else {
+        guestContent
       }
 
+      // Open Source section - always visible
       Section("Open Source") {
         VStack(alignment: .leading, spacing: 12) {
           Text("The OrchardGrid app is open source. Explore and contribute on GitHub.")
@@ -85,24 +51,6 @@ struct AccountView: View {
         }
         .padding(.vertical, 4)
       }
-
-      Section("Session") {
-        Button("Sign Out", role: .destructive) {
-          authManager.logout()
-        }
-      }
-
-      Section {
-        Button("Delete Account", role: .destructive) {
-          showDeleteConfirmation = true
-        }
-        .disabled(isDeleting)
-      } footer: {
-        Text(
-          "This will permanently delete your account and all associated data including devices, API keys, and tasks. This action cannot be undone."
-        )
-        .font(.caption)
-      }
     }
     .formStyle(.grouped)
     .navigationTitle("Account")
@@ -123,6 +71,168 @@ struct AccountView: View {
       }
     } message: {
       Text("This action cannot be undone. All your devices, API keys, and tasks will be deleted.")
+    }
+    .sheet(isPresented: Binding(
+      get: { authManager.showRegisterView },
+      set: { authManager.showRegisterView = $0 }
+    )) {
+      RegisterView()
+        .environment(authManager)
+    }
+  }
+
+  // MARK: - Guest Content
+
+  @ViewBuilder
+  private var guestContent: some View {
+    Section {
+      VStack(spacing: 16) {
+        // Guest Icon
+        Image(systemName: "person.crop.circle.badge.questionmark")
+          .font(.system(size: 48))
+          .foregroundStyle(.secondary)
+          .padding(.top, 8)
+
+        Text("Contributing as Guest")
+          .font(.headline)
+
+        Text("Sign in to unlock all features and track your contributions.")
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .multilineTextAlignment(.center)
+      }
+      .frame(maxWidth: .infinity)
+      .padding(.vertical, 8)
+    }
+
+    // Error
+    if let error = authManager.lastError {
+      Section {
+        Text(error)
+          .font(.caption)
+          .foregroundStyle(.red)
+      }
+    }
+
+    Section("Sign In") {
+      SocialLoginButton(provider: .apple) {
+        authManager.loginWithApple()
+      }
+      .listRowInsets(EdgeInsets())
+      .listRowBackground(Color.clear)
+
+      SocialLoginButton(provider: .google) {
+        authManager.loginWithGoogle()
+      }
+      .listRowInsets(EdgeInsets())
+      .listRowBackground(Color.clear)
+    }
+
+    Section("Or continue with email") {
+      TextField("Email", text: $email)
+        #if os(iOS)
+          .keyboardType(.emailAddress)
+          .textContentType(.emailAddress)
+          .autocapitalization(.none)
+        #endif
+
+      SecureField("Password", text: $password)
+        #if os(iOS)
+          .textContentType(.password)
+        #endif
+
+      Button {
+        Task { await authManager.login(email: email, password: password) }
+      } label: {
+        if authManager.isLoading {
+          ProgressView()
+            .frame(maxWidth: .infinity)
+        } else {
+          Text("Sign In")
+            .frame(maxWidth: .infinity)
+        }
+      }
+      .buttonStyle(.borderedProminent)
+      .disabled(email.isEmpty || password.isEmpty || authManager.isLoading)
+      .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+      .listRowBackground(Color.clear)
+
+      Button {
+        authManager.showRegisterView = true
+      } label: {
+        Text("Don't have an account? **Sign Up**")
+          .font(.subheadline)
+          .frame(maxWidth: .infinity)
+      }
+      .buttonStyle(.plain)
+      .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+      .listRowBackground(Color.clear)
+    }
+  }
+
+  // MARK: - Authenticated Content
+
+  @ViewBuilder
+  private var authenticatedContent: some View {
+    Section("Profile") {
+      if let user = authManager.currentUser {
+        if isEditingName {
+          HStack {
+            TextField("Name", text: $editedName)
+              .textFieldStyle(.plain)
+            Button {
+              Task { await saveName() }
+            } label: {
+              Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+            }
+            .disabled(isSaving)
+            .buttonStyle(.plain)
+            Button {
+              isEditingName = false
+              editedName = user.name ?? ""
+            } label: {
+              Image(systemName: "xmark.circle.fill")
+                .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+          }
+        } else {
+          HStack {
+            Text("Name")
+            Spacer()
+            Text(user.name ?? "N/A")
+              .foregroundStyle(.secondary)
+            Button {
+              editedName = user.name ?? ""
+              isEditingName = true
+            } label: {
+              Image(systemName: "pencil")
+                .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+          }
+        }
+        LabeledContent("Email", value: user.email)
+      }
+    }
+
+    Section("Session") {
+      Button("Sign Out", role: .destructive) {
+        authManager.logout()
+      }
+    }
+
+    Section {
+      Button("Delete Account", role: .destructive) {
+        showDeleteConfirmation = true
+      }
+      .disabled(isDeleting)
+    } footer: {
+      Text(
+        "This will permanently delete your account and all associated data including devices, API keys, and tasks. This action cannot be undone."
+      )
+      .font(.caption)
     }
   }
 

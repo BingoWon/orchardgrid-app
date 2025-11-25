@@ -13,7 +13,7 @@ final class AuthManager {
   enum AuthState: Equatable {
     case loading
     case authenticated(User)
-    case unauthenticated
+    case guest // Not logged in, but can use Share features
   }
 
   var authState: AuthState = .loading
@@ -22,9 +22,15 @@ final class AuthManager {
   var lastError: String?
   var isLoading = false
   var showRegisterView = false
+  var showSignInSheet = false
 
   var isAuthenticated: Bool {
     if case .authenticated = authState { return true }
+    return false
+  }
+
+  var isGuest: Bool {
+    if case .guest = authState { return true }
     return false
   }
 
@@ -45,7 +51,7 @@ final class AuthManager {
           if let idToken = user?.idToken?.tokenString {
             await self?.authenticateWithGoogle(idToken: idToken)
           } else {
-            self?.authState = .unauthenticated
+            self?.authState = .guest // Default to guest mode
           }
         }
       }
@@ -101,7 +107,7 @@ final class AuthManager {
     TokenStorage.delete()
     authToken = nil
     currentUser = nil
-    authState = .unauthenticated
+    authState = .guest // Return to guest mode, not blocking
   }
 
   // MARK: - Apple Sign-In
@@ -267,7 +273,7 @@ final class AuthManager {
 
   private func handleAuthError(_ error: Error) {
     lastError = (error as? AuthError)?.message ?? "Authentication failed"
-    authState = .unauthenticated
+    authState = .guest // Stay in guest mode on error
   }
 
   private func post<T: Decodable>(_ path: String, body: [String: String]) async throws -> T {

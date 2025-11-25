@@ -68,14 +68,12 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       guard oldValue != isEnabled else { return }
       UserDefaults.standard.set(isEnabled, forKey: "WebSocketClient.isEnabled")
       if isEnabled {
-        if userID != nil {
-          // Cancel any existing reconnection tasks to avoid conflicts
-          reconnectTask?.cancel()
-          reconnectTask = nil
-          retryTimerTask?.cancel()
-          retryTimerTask = nil
-          connect()
-        }
+        // Cancel any existing reconnection tasks to avoid conflicts
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        retryTimerTask?.cancel()
+        retryTimerTask = nil
+        connect() // Connect regardless of userID - anonymous mode supported
       } else {
         disconnect()
       }
@@ -263,12 +261,6 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       return
     }
 
-    guard let userID else {
-      connectionState = .failed("User ID not set")
-      Logger.error(.websocket, "Cannot connect: User ID not set")
-      return
-    }
-
     guard isNetworkAvailable else {
       Logger.log(.websocket, "Network unavailable, waiting...")
       connectionState = .disconnected
@@ -290,15 +282,19 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       return
     }
 
-    urlComponents.queryItems = [
+    // Build query items - user_id is optional (anonymous mode if nil)
+    var queryItems = [
       URLQueryItem(name: "hardware_id", value: hardwareID),
-      URLQueryItem(name: "user_id", value: userID),
       URLQueryItem(name: "platform", value: platform),
       URLQueryItem(name: "os_version", value: osVersion),
       URLQueryItem(name: "device_name", value: DeviceInfo.deviceName),
       URLQueryItem(name: "chip_model", value: DeviceInfo.chipModel),
       URLQueryItem(name: "memory_gb", value: String(format: "%.0f", DeviceInfo.totalMemoryGB)),
     ]
+    if let userID {
+      queryItems.append(URLQueryItem(name: "user_id", value: userID))
+    }
+    urlComponents.queryItems = queryItems
 
     guard let url = urlComponents.url else {
       connectionState = .failed("Failed to construct URL")

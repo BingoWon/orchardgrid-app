@@ -18,53 +18,69 @@ struct AllDevicesView: View {
     ScrollView {
       GlassEffectContainer {
         VStack(alignment: .leading, spacing: Constants.standardSpacing) {
-          // Connection Status & Last Updated
-          HStack {
-            HStack(spacing: 4) {
-              Circle()
-                .fill(observerClient.status == .connected ? .green : .gray)
-                .frame(width: 6, height: 6)
-              Text(observerClient.status == .connected ? "Live" : "Offline")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            LastUpdatedView(lastUpdatedText: devicesManager.lastUpdatedText)
-          }
-
+          // Local Device Quick Control (always visible)
           // Wide layout: QuickControl + Summary side by side
           // Compact layout: QuickControl + Summary stacked
-          if isWideLayout {
-            HStack(alignment: .top, spacing: 16) {
+          if authManager.isAuthenticated {
+            // Connection Status & Last Updated (only when authenticated)
+            HStack {
+              HStack(spacing: 4) {
+                Circle()
+                  .fill(observerClient.status == .connected ? .green : .gray)
+                  .frame(width: 6, height: 6)
+                Text(observerClient.status == .connected ? "Live" : "Offline")
+                  .font(.caption)
+                  .foregroundStyle(.secondary)
+              }
+
+              Spacer()
+
+              LastUpdatedView(lastUpdatedText: devicesManager.lastUpdatedText)
+            }
+
+            if isWideLayout {
+              HStack(alignment: .top, spacing: 16) {
+                LocalDeviceQuickControl()
+                summaryCard
+              }
+            } else {
               LocalDeviceQuickControl()
               summaryCard
             }
-          } else {
-            LocalDeviceQuickControl()
-            summaryCard
-          }
 
-          // Device List
-          if !devicesManager.devices.isEmpty {
-            if isWideLayout {
-              // Table view for wide screens
-              deviceTableSection
-            } else {
-              // Card view for compact screens
-              deviceCardSections
+            // Device List
+            if !devicesManager.devices.isEmpty {
+              if isWideLayout {
+                deviceTableSection
+              } else {
+                deviceCardSections
+              }
             }
-          }
 
-          // Empty State
-          if devicesManager.devices.isEmpty, !devicesManager.isInitialLoading {
-            emptyState
-          }
+            // Empty State
+            if devicesManager.devices.isEmpty, !devicesManager.isInitialLoading {
+              emptyState
+            }
 
-          // Error State
-          if let error = devicesManager.lastError {
-            errorState(error: error)
+            // Error State
+            if let error = devicesManager.lastError {
+              errorState(error: error)
+            }
+          } else {
+            // Guest Mode: Show QuickControl + Guest Prompt
+            LocalDeviceQuickControl()
+
+            GuestFeaturePrompt(
+              icon: "server.rack",
+              title: "See All Your Devices",
+              description: "Sign in to view and manage devices across all your Apple devices.",
+              benefits: [
+                "Track contributions from each device",
+                "View processing statistics",
+                "Real-time status updates",
+              ],
+              buttonTitle: "Sign In to View Devices"
+            )
           }
         }
         .padding(Constants.standardPadding)
@@ -79,7 +95,9 @@ struct AllDevicesView: View {
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .withPlatformToolbar {
-      refreshButton
+      if authManager.isAuthenticated {
+        refreshButton
+      }
     }
     .task {
       if let token = authManager.authToken {
@@ -92,6 +110,13 @@ struct AllDevicesView: View {
           }
         }
       }
+    }
+    .sheet(isPresented: Binding(
+      get: { authManager.showSignInSheet },
+      set: { authManager.showSignInSheet = $0 }
+    )) {
+      SignInSheet()
+        .environment(authManager)
     }
   }
 
