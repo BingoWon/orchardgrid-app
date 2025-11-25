@@ -9,7 +9,7 @@ GOOGLE_CLIENT_ID_IOS = 600208131492-kn9b46tihg0l85nda6gfstle98du99c7.apps.google
 GOOGLE_CLIENT_ID_MACOS = 600208131492-l39peh5l1stf540p968fp6dgnek4topm.apps.googleusercontent.com
 
 // App Configuration
-PRODUCT_BUNDLE_IDENTIFIER = com.orchardgrid.app
+PRODUCT_BUNDLE_IDENTIFIER = com.orchardgrid.app.dev
 PRODUCT_NAME = OrchardGrid
 
 // Info.plist Configuration
