@@ -49,6 +49,22 @@ struct SocialLoginButton: View {
   let provider: SocialProvider
   let action: () -> Void
 
+  private var backgroundColor: Color {
+    #if os(iOS)
+      Color(uiColor: .systemBackground)
+    #else
+      Color(nsColor: .windowBackgroundColor)
+    #endif
+  }
+
+  private var borderColor: Color {
+    #if os(iOS)
+      Color(uiColor: .separator)
+    #else
+      Color(nsColor: .separatorColor)
+    #endif
+  }
+
   var body: some View {
     Button(action: action) {
       HStack(spacing: 12) {
@@ -69,11 +85,11 @@ struct SocialLoginButton: View {
       .foregroundStyle(.primary)
       .frame(maxWidth: .infinity)
       .frame(height: 50)
-      .background(Color(.systemBackground))
+      .background(backgroundColor)
       .clipShape(RoundedRectangle(cornerRadius: 12))
       .overlay(
         RoundedRectangle(cornerRadius: 12)
-          .stroke(Color(.separator), lineWidth: 1)
+          .stroke(borderColor, lineWidth: 1)
       )
     }
     .buttonStyle(.plain)
