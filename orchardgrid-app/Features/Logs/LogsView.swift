@@ -67,66 +67,17 @@ struct LogsView: View {
 
   private var guestContent: some View {
     ScrollView {
-      VStack(spacing: 24) {
-        // Preview Card
-        VStack(alignment: .leading, spacing: 16) {
-          Text("Task History Preview")
-            .font(.headline)
-
-          // Sample log entries (preview)
-          VStack(spacing: 8) {
-            ForEach(0..<3, id: \.self) { index in
-              HStack(spacing: 12) {
-                Circle()
-                  .fill([Color.green, Color.green, Color.orange][index])
-                  .frame(width: 8, height: 8)
-                VStack(alignment: .leading, spacing: 2) {
-                  Text(["Completed", "Completed", "Processing"][index])
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                  Text(["2.3s", "1.8s", "..."][index])
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Text(["12:34", "12:33", "12:32"][index])
-                  .font(.caption)
-                  .foregroundStyle(.secondary)
-              }
-              .padding(.vertical, 8)
-              .padding(.horizontal, 12)
-              .background(.ultraThinMaterial)
-              .cornerRadius(8)
-            }
-          }
-          .blur(radius: 2)
-          .overlay {
-            Text("Preview")
-              .font(.caption)
-              .foregroundStyle(.secondary)
-              .padding(.horizontal, 8)
-              .padding(.vertical, 4)
-              .background(.ultraThinMaterial)
-              .cornerRadius(4)
-          }
-        }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
-
-        // Guest Prompt
-        GuestFeaturePrompt(
-          icon: "list.bullet.rectangle",
-          title: "View Task History",
-          description: "Sign in to see your complete task history with detailed logs.",
-          benefits: [
-            "View consuming and providing tasks",
-            "Filter by status",
-            "Track task duration and performance",
-          ],
-          buttonTitle: "Sign In to View Logs"
-        )
-      }
+      GuestFeaturePrompt(
+        icon: "list.bullet.rectangle",
+        title: "View Task History",
+        description: "Sign in to see your complete task history with detailed logs.",
+        benefits: [
+          "View consuming and providing tasks",
+          "Filter by status",
+          "Track task duration and performance",
+        ],
+        buttonTitle: "Sign In to View Logs"
+      )
       .padding()
     }
   }
