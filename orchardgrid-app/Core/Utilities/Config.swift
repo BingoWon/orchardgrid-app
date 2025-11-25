@@ -16,7 +16,7 @@ enum Config {
   // Note: Client ID is primarily loaded from Info.plist via GIDSignIn SDK
   // This property is kept for reference or legacy compatibility if needed
   static var googleClientID: String {
-    return "600208131492-kn9b46tihg0l85nda6gfstle98du99c7.apps.googleusercontent.com"
+    "600208131492-kn9b46tihg0l85nda6gfstle98du99c7.apps.googleusercontent.com"
   }
 
   static let urlSession: URLSession = {

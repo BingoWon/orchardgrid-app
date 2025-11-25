@@ -24,9 +24,9 @@ struct LoginView: View {
           }
 
           AuthField(placeholder: "Email", text: $email)
-            #if os(iOS)
-              .keyboardType(.emailAddress)
-            #endif
+          #if os(iOS)
+            .keyboardType(.emailAddress)
+          #endif
 
           AuthField(placeholder: "Password", text: $password, isSecure: true)
 

@@ -62,7 +62,10 @@ final class AuthManager {
     defer { isLoading = false }
 
     do {
-      let response: AuthResponse = try await post("/auth/register", body: ["email": email, "password": password])
+      let response: AuthResponse = try await post(
+        "/auth/register",
+        body: ["email": email, "password": password]
+      )
       handleAuthSuccess(response)
       showRegisterView = false
     } catch {
@@ -80,7 +83,10 @@ final class AuthManager {
     defer { isLoading = false }
 
     do {
-      let response: AuthResponse = try await post("/auth/login", body: ["email": email, "password": password])
+      let response: AuthResponse = try await post(
+        "/auth/login",
+        body: ["email": email, "password": password]
+      )
       handleAuthSuccess(response)
     } catch {
       handleAuthError(error)
@@ -92,7 +98,7 @@ final class AuthManager {
     TokenStorage.delete()
     authToken = nil
     currentUser = nil
-        authState = .unauthenticated
+    authState = .unauthenticated
   }
 
   // MARK: - Google Sign-In
@@ -142,7 +148,10 @@ final class AuthManager {
       return
     }
 
-    Logger.success(.auth, "Google Sign-In succeeded. User: \(result?.user.profile?.email ?? "unknown")")
+    Logger.success(
+      .auth,
+      "Google Sign-In succeeded. User: \(result?.user.profile?.email ?? "unknown")"
+    )
     await authenticateWithGoogle(idToken: idToken)
   }
 
@@ -196,14 +205,17 @@ final class AuthManager {
 
   private func post<T: Decodable>(_ path: String, body: [String: String]) async throws -> T {
     var request = URLRequest(url: URL(string: "\(Config.apiBaseURL)\(path)")!)
-      request.httpMethod = "POST"
-      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.httpMethod = "POST"
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     request.httpBody = try JSONEncoder().encode(body)
 
     let (data, response) = try await Config.urlSession.data(for: request)
 
     guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-      let message = (try? JSONDecoder().decode(APIError.self, from: data))?.message ?? "Request failed"
+      let message = (try? JSONDecoder().decode(
+        APIError.self,
+        from: data
+      ))?.message ?? "Request failed"
       throw AuthError(message: message)
     }
 

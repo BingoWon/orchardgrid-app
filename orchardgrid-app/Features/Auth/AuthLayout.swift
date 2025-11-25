@@ -21,11 +21,12 @@ struct AuthLayout<Content: View>: View {
         .frame(maxWidth: 400) // Content width limit
         .padding(.horizontal, 24)
         .padding(.vertical, 40)
-        .frame(minHeight: geometry.size.height) // Ensure full height for vertical centering if needed
+        .frame(minHeight: geometry.size
+          .height) // Ensure full height for vertical centering if needed
       }
       .frame(maxWidth: .infinity) // ScrollView takes full width for better touch targets
       #if os(macOS)
-      .frame(minWidth: 360, minHeight: 600)
+        .frame(minWidth: 360, minHeight: 600)
       #endif
     }
   }
@@ -37,4 +38,3 @@ struct AuthLayout<Content: View>: View {
     AuthButton(title: "Action", isEnabled: true) {}
   }
 }
-

@@ -28,15 +28,15 @@ struct RegisterView: View {
             }
 
             AuthField(placeholder: "Email", text: $email)
-              #if os(iOS)
-                .keyboardType(.emailAddress)
-              #endif
+            #if os(iOS)
+              .keyboardType(.emailAddress)
+            #endif
 
             AuthField(placeholder: "Password", text: $password, isSecure: true)
 
             AuthField(placeholder: "Confirm Password", text: $confirmPassword, isSecure: true)
 
-            if !confirmPassword.isEmpty && password != confirmPassword {
+            if !confirmPassword.isEmpty, password != confirmPassword {
               Text("Passwords don't match")
                 .font(.caption)
                 .foregroundStyle(.red)

@@ -195,7 +195,7 @@ struct DeviceCard: View {
             .font(device.deviceName != nil ? .subheadline : .headline)
             .foregroundStyle(device.deviceName != nil ? .secondary : .primary)
 
-          if let osVersion = device.osVersion {
+          if let osVersion = device.shortOSVersion {
             Text("-")
               .font(.caption)
               .foregroundStyle(.secondary)

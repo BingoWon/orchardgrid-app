@@ -40,14 +40,14 @@ struct AuthField: View {
   var body: some View {
     HStack(spacing: 12) {
       Group {
-        if isSecure && !showPassword {
+        if isSecure, !showPassword {
           SecureField(placeholder, text: $text)
         } else {
           TextField(placeholder, text: $text)
         }
       }
       #if os(iOS)
-        .autocapitalization(.none)
+      .autocapitalization(.none)
       #endif
 
       if isSecure {
