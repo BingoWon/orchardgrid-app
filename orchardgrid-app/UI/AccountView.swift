@@ -58,11 +58,9 @@ struct AccountView: View {
 
       Section("Open Source") {
         VStack(alignment: .leading, spacing: 12) {
-          Text(
-            "The OrchardGrid app is open source. You can read the code, build it yourself, and contribute improvements."
-          )
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
+          Text("The OrchardGrid app is open source. Explore and contribute on GitHub.")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
 
           HStack(spacing: 12) {
             Image("GitHubLogo")
