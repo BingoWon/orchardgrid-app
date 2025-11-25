@@ -16,24 +16,26 @@ struct MainView: View {
     #endif
   }
 
-  // MARK: - Tab View (iPhone)
+  // MARK: - Tab View (iPhone only)
 
-  private var tabView: some View {
-    @Bindable var navState = navigationState
-    return TabView(selection: $navState.selectedItem) {
-      ForEach(NavigationItem.allCases.filter { $0 != .localDevice }) { item in
-        Tab(item.title, systemImage: item.icon, value: item) {
-          NavigationStack {
-            detailView(for: item)
+  #if !os(macOS)
+    private var tabView: some View {
+      @Bindable var navState = navigationState
+      return TabView(selection: $navState.selectedItem) {
+        ForEach(NavigationItem.allCases.filter { $0 != .localDevice }) { item in
+          Tab(item.title, systemImage: item.icon, value: item) {
+            NavigationStack {
+              detailView(for: item)
+            }
           }
         }
       }
+      .tabBarMinimizeBehavior(.onScrollDown)
+      .tabViewBottomAccessory {
+        LocalDeviceAccessory()
+      }
     }
-    .tabBarMinimizeBehavior(.onScrollDown)
-    .tabViewBottomAccessory {
-      LocalDeviceAccessory()
-    }
-  }
+  #endif
 
   // MARK: - Split View (iPad & Mac)
 

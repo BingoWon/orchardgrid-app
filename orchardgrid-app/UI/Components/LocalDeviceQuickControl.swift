@@ -75,21 +75,23 @@ struct LocalDeviceQuickControl: View {
     }
     .padding(Constants.standardPadding)
     .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
-    .sheet(isPresented: $showDeviceSheet) {
-      NavigationStack {
-        LocalDeviceView()
-          .navigationBarTitleDisplayMode(.inline)
-          .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-              Button(role: .close) {
-                showDeviceSheet = false
+    #if !os(macOS)
+      .sheet(isPresented: $showDeviceSheet) {
+        NavigationStack {
+          LocalDeviceView()
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+              ToolbarItem(placement: .topBarTrailing) {
+                Button(role: .close) {
+                  showDeviceSheet = false
+                }
               }
             }
-          }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
       }
-      .presentationDetents([.large])
-      .presentationDragIndicator(.visible)
-    }
+    #endif
   }
 
   // MARK: - Status Text
