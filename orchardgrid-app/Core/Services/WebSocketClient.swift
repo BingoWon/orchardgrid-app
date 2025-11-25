@@ -22,7 +22,7 @@ import OSLog
 final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   // Configuration
   private let serverURL: String
-  private let deviceID: String
+  private let hardwareID: String
   private(set) var userID: String?
   private let platform: String
   private let osVersion: String
@@ -110,10 +110,9 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     let wsURL = httpURL.replacingOccurrences(of: "https://", with: "wss://")
     let serverURL = ProcessInfo.processInfo.environment["ORCHARDGRID_SERVER_URL"]
       ?? "\(wsURL)/device/connect"
-    let deviceID = DeviceID.current
 
     self.serverURL = serverURL
-    self.deviceID = deviceID
+    hardwareID = DeviceID.current
     userID = nil // Will be set when connecting
 
     #if os(macOS)
@@ -143,6 +142,12 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     if isEnabled, !isConnected {
       connect()
     }
+  }
+
+  func clearUserID() {
+    Logger.log(.websocket, "User ID cleared, disconnecting...")
+    disconnect()
+    userID = nil
   }
 
   func retry() {
@@ -286,7 +291,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     }
 
     urlComponents.queryItems = [
-      URLQueryItem(name: "device_id", value: deviceID),
+      URLQueryItem(name: "hardware_id", value: hardwareID),
       URLQueryItem(name: "user_id", value: userID),
       URLQueryItem(name: "platform", value: platform),
       URLQueryItem(name: "os_version", value: osVersion),

@@ -22,6 +22,11 @@ struct OrchardGridApp: App {
       wsClient.setUserID(userId)
     }
 
+    authManager.onLogout = {
+      Logger.log(.app, "User logged out, disconnecting...")
+      wsClient.clearUserID()
+    }
+
     _wsClient = State(initialValue: wsClient)
     _authManager = State(initialValue: authManager)
 

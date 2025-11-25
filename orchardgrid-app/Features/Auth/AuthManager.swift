@@ -28,6 +28,7 @@ final class AuthManager {
   }
 
   var onUserIDChanged: ((String) -> Void)?
+  var onLogout: (() -> Void)?
 
   init() {
     checkAuthStatus()
@@ -94,6 +95,7 @@ final class AuthManager {
   }
 
   func logout() {
+    onLogout?()
     GIDSignIn.sharedInstance.signOut()
     TokenStorage.delete()
     authToken = nil
