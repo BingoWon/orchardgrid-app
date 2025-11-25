@@ -169,10 +169,6 @@ struct APIKeysView: View {
     .task {
       guard let token = authManager.authToken else { return }
       await manager.loadAPIKeys(authToken: token)
-      await manager.startAutoRefresh(interval: RefreshConfig.interval, authToken: token)
-    }
-    .onDisappear {
-      manager.stopAutoRefresh()
     }
   }
 

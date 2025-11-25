@@ -3,13 +3,28 @@ import SwiftUI
 struct AllDevicesView: View {
   @Environment(DevicesManager.self) private var devicesManager
   @Environment(AuthManager.self) private var authManager
+  @Environment(ObserverClient.self) private var observerClient
 
   var body: some View {
     ScrollView {
       GlassEffectContainer {
         VStack(alignment: .leading, spacing: Constants.standardSpacing) {
-          // Last Updated
-          LastUpdatedView(lastUpdatedText: devicesManager.lastUpdatedText)
+          // Connection Status & Last Updated
+          HStack {
+            // Real-time status indicator
+            HStack(spacing: 4) {
+              Circle()
+                .fill(observerClient.status == .connected ? .green : .gray)
+                .frame(width: 6, height: 6)
+              Text(observerClient.status == .connected ? "Live" : "Offline")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            LastUpdatedView(lastUpdatedText: devicesManager.lastUpdatedText)
+          }
 
           // Summary Card
           summaryCard
@@ -49,12 +64,18 @@ struct AllDevicesView: View {
       refreshButton
     }
     .task {
-      if let token = authManager.authToken, let user = authManager.currentUser {
-        await devicesManager.startMonitoring(authToken: token, userId: user.id)
+      // Initial fetch
+      if let token = authManager.authToken {
+        await devicesManager.fetchDevices(authToken: token)
       }
-    }
-    .onDisappear {
-      devicesManager.stopMonitoring()
+      // Set up real-time refresh callback
+      observerClient.onDevicesChanged = {
+        Task {
+          if let token = authManager.authToken {
+            await devicesManager.fetchDevices(authToken: token, isManualRefresh: false)
+          }
+        }
+      }
     }
   }
 
@@ -270,4 +291,5 @@ struct DeviceCard: View {
   AllDevicesView()
     .environment(DevicesManager())
     .environment(AuthManager())
+    .environment(ObserverClient())
 }

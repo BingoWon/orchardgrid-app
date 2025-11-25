@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LogsView: View {
   @Environment(AuthManager.self) private var authManager
+  @Environment(ObserverClient.self) private var observerClient
   @State private var manager = LogsManager()
   @State private var selectedTab = 0
   @State private var consumingStatus = "all"
@@ -74,13 +75,10 @@ struct LogsView: View {
     }
     .task {
       await loadData()
-
-      if let token = authManager.authToken {
-        await manager.startAutoRefresh(interval: RefreshConfig.interval, authToken: token)
+      // Set up real-time refresh callback for task events
+      observerClient.onTasksChanged = {
+        Task { await loadData(isManualRefresh: false) }
       }
-    }
-    .onDisappear {
-      manager.stopAutoRefresh()
     }
   }
 

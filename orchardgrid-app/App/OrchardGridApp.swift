@@ -5,6 +5,7 @@ import SwiftUI
 struct OrchardGridApp: App {
   @State private var authManager: AuthManager
   @State private var wsClient: WebSocketClient
+  @State private var observerClient: ObserverClient
   @State private var apiServer = APIServer()
   @State private var devicesManager = DevicesManager()
   @State private var windowSize: CGSize = .zero
@@ -16,6 +17,7 @@ struct OrchardGridApp: App {
 
     let wsClient = WebSocketClient()
     let authManager = AuthManager()
+    let observerClient = ObserverClient()
 
     authManager.onUserIDChanged = { userId in
       Logger.log(.app, "User authenticated: \(userId)")
@@ -25,10 +27,12 @@ struct OrchardGridApp: App {
     authManager.onLogout = {
       Logger.log(.app, "User logged out, disconnecting...")
       wsClient.clearUserID()
+      observerClient.disconnect()
     }
 
     _wsClient = State(initialValue: wsClient)
     _authManager = State(initialValue: authManager)
+    _observerClient = State(initialValue: observerClient)
 
     Logger.success(.app, "Initialization complete")
   }
@@ -51,12 +55,19 @@ struct OrchardGridApp: App {
           MainView()
             .environment(authManager)
             .environment(wsClient)
+            .environment(observerClient)
             .environment(apiServer)
             .environment(devicesManager)
             .onGeometryChange(for: CGSize.self) { geometry in
               geometry.size
             } action: {
               windowSize = $0
+            }
+            .task {
+              // Connect observer for real-time updates
+              if let token = authManager.authToken {
+                observerClient.connect(authToken: token)
+              }
             }
 
         case .unauthenticated:

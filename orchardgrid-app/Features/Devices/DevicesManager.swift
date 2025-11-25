@@ -5,17 +5,17 @@ import Foundation
 struct Device: Codable, Identifiable {
   let id: String
   let userId: String
-  var platform: String
-  var osVersion: String?
-  var deviceName: String?
-  var chipModel: String?
-  var memoryGb: Double?
-  var isOnline: Bool
-  var lastHeartbeat: Int?
-  var tasksProcessed: Int
-  var failureCount: Int
+  let platform: String
+  let osVersion: String?
+  let deviceName: String?
+  let chipModel: String?
+  let memoryGb: Double?
+  let isOnline: Bool
+  let lastHeartbeat: Int?
+  let tasksProcessed: Int
+  let failureCount: Int
   let createdAt: Int
-  var updatedAt: Int
+  let updatedAt: Int
 
   enum CodingKeys: String, CodingKey {
     case id
@@ -157,147 +157,23 @@ final class DevicesManager: AutoRefreshable {
     isRefreshing = false
   }
 
-  // MARK: - Monitoring
+  // MARK: - Auto Refresh
 
-  private var monitorWebSocket: URLSessionWebSocketTask?
-  private var monitorURLSession: URLSession?
-  private var currentAuthToken: String?
-  private var currentUserId: String?
+  func startAutoRefresh(interval: TimeInterval, authToken: String) async {
+    stopAutoRefresh()
 
-  func startMonitoring(authToken: String, userId: String) async {
-    self.currentAuthToken = authToken
-    self.currentUserId = userId
-    
-    // Initial fetch to get full history including offline devices
-    await fetchDevices(authToken: authToken)
-    
-    // Connect to WebSocket for real-time updates
-    connectMonitor()
-  }
-  
-  func stopMonitoring() {
-    monitorWebSocket?.cancel(with: .goingAway, reason: nil)
-    monitorWebSocket = nil
-    monitorURLSession?.invalidateAndCancel()
-    monitorURLSession = nil
-  }
-
-  private func connectMonitor() {
-    guard let userId = currentUserId else { return }
-    
-    stopMonitoring()
-    
-    let wsURLString = apiURL
-        .replacingOccurrences(of: "https://", with: "wss://")
-        .replacingOccurrences(of: "http://", with: "ws://")
-        + "/monitor?user_id=\(userId)"
-        
-    guard let url = URL(string: wsURLString) else { return }
-    
-    let session = URLSession(configuration: .default)
-    monitorURLSession = session
-    let task = session.webSocketTask(with: url)
-    monitorWebSocket = task
-    task.resume()
-    
-    Logger.log(.devices, "Monitor connecting to: \(url)")
-    
-    receiveMonitorMessage()
-  }
-
-  private func receiveMonitorMessage() {
-    monitorWebSocket?.receive { [weak self] result in
-      guard let self else { return }
-      
-      switch result {
-      case .success(let message):
-        switch message {
-        case .string(let text):
-            self.handleMonitorPayload(text)
-        case .data(let data):
-            if let text = String(data: data, encoding: .utf8) {
-                self.handleMonitorPayload(text)
-            }
-        @unknown default: break
-        }
-        self.receiveMonitorMessage()
-        
-      case .failure(let error):
-        Logger.error(.devices, "Monitor WS error: \(error)")
-        // Simple reconnect logic
-        Task {
-            try? await Task.sleep(for: .seconds(3))
-            await MainActor.run { self.connectMonitor() }
-        }
+    autoRefreshTask = Task { @MainActor in
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .seconds(interval))
+        guard !Task.isCancelled else { break }
+        await fetchDevices(authToken: authToken, isManualRefresh: false)
       }
     }
   }
 
-  private func handleMonitorPayload(_ text: String) {
-    guard let data = text.data(using: .utf8),
-          let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-          let type = json["type"] as? String else { return }
-          
-    let payload = json["payload"] as? [String: Any]
-    
-    Task { @MainActor in
-        switch type {
-        case "INITIAL_STATE":
-            if let devicesArray = payload?["devices"] as? [[String: Any]],
-               let devicesData = try? JSONSerialization.data(withJSONObject: devicesArray),
-               let devices = try? JSONDecoder().decode([Device].self, from: devicesData) {
-                   
-                   for device in devices {
-                       if let index = self.devices.firstIndex(where: { $0.id == device.id }) {
-                           self.devices[index] = device
-                       } else {
-                           self.devices.insert(device, at: 0)
-                       }
-                   }
-                   self.lastUpdated = Date()
-            }
-            
-        case "DEVICE_CONNECTED":
-             if let payload = payload,
-                let deviceData = try? JSONSerialization.data(withJSONObject: payload),
-                let device = try? JSONDecoder().decode(Device.self, from: deviceData) {
-                 
-                    var newDevice = device
-                    newDevice.isOnline = true
-                    
-                    if let index = self.devices.firstIndex(where: { $0.id == device.id }) {
-                        self.devices[index] = newDevice
-                    } else {
-                        self.devices.insert(newDevice, at: 0)
-                    }
-                    self.lastUpdated = Date()
-             }
-
-        case "DEVICE_UPDATED":
-            if let id = payload?["id"] as? String,
-               let index = self.devices.firstIndex(where: { $0.id == id }) {
-                
-                if let count = payload?["tasksProcessed"] as? Int {
-                    self.devices[index].tasksProcessed = count
-                }
-                
-                if let failures = payload?["failureCount"] as? Int {
-                    self.devices[index].failureCount = failures
-                }
-                
-                self.lastUpdated = Date()
-            }
-
-        case "DEVICE_DISCONNECTED":
-            if let id = payload?["id"] as? String,
-               let index = self.devices.firstIndex(where: { $0.id == id }) {
-                self.devices[index].isOnline = false
-                self.lastUpdated = Date()
-            }
-            
-        default: break
-        }
-    }
+  func stopAutoRefresh() {
+    autoRefreshTask?.cancel()
+    autoRefreshTask = nil
   }
 
   var onlineDevices: [Device] {
