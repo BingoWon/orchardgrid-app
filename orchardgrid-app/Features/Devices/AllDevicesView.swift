@@ -26,6 +26,9 @@ struct AllDevicesView: View {
             LastUpdatedView(lastUpdatedText: devicesManager.lastUpdatedText)
           }
 
+          // This Mac Quick Control
+          LocalDeviceQuickControl()
+
           // Summary Card
           summaryCard
 
@@ -298,4 +301,6 @@ struct DeviceCard: View {
     .environment(DevicesManager())
     .environment(AuthManager())
     .environment(ObserverClient())
+    .environment(WebSocketClient())
+    .environment(APIServer())
 }
