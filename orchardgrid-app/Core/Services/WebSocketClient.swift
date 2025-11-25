@@ -378,6 +378,9 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   // MARK: - Message Handling
 
   private func receiveMessage() {
+    // Don't attempt to receive if we're not supposed to be connected
+    guard shouldAutoReconnect || isConnected else { return }
+
     webSocketTask?.receive { [weak self] result in
       guard let self else { return }
 
@@ -395,13 +398,17 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
             break
           }
 
-          // Continue receiving
-          self.receiveMessage()
+          // Continue receiving only if still connected
+          if self.isConnected {
+            self.receiveMessage()
+          }
 
         case let .failure(error):
-          // Message receive errors cause WebSocket closure, triggering didCloseWith delegate
-          // URLSessionTaskDelegate will handle the error and trigger reconnection if needed
-          Logger.error(.websocket, "Message receive error: \(error.localizedDescription)")
+          // Only log error if we expected to be connected (not user-initiated disconnect)
+          if self.shouldAutoReconnect {
+            Logger.error(.websocket, "Message receive error: \(error.localizedDescription)")
+          }
+          // URLSessionTaskDelegate will handle reconnection if needed
         }
       }
     }
