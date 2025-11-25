@@ -3,6 +3,7 @@
  * Shared UI components for authentication
  */
 
+import AuthenticationServices
 import GoogleSignInSwift
 import SwiftUI
 
@@ -91,6 +92,20 @@ struct GoogleButton: View {
       action()
     }
     .frame(height: 50)
+  }
+}
+
+// MARK: - Apple Button
+
+struct AppleButton: View {
+  let onRequest: (ASAuthorizationAppleIDRequest) -> Void
+  let onCompletion: (Result<ASAuthorization, Error>) -> Void
+
+  var body: some View {
+    SignInWithAppleButton(.signIn, onRequest: onRequest, onCompletion: onCompletion)
+      .signInWithAppleButtonStyle(.black)
+      .frame(height: 50)
+      .cornerRadius(8)
   }
 }
 

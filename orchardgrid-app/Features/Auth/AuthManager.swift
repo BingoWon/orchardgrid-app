@@ -3,6 +3,7 @@
  * OrchardGrid Authentication Manager
  */
 
+import AuthenticationServices
 import Foundation
 import GoogleSignIn
 
@@ -101,6 +102,78 @@ final class AuthManager {
     authToken = nil
     currentUser = nil
     authState = .unauthenticated
+  }
+
+  // MARK: - Apple Sign-In
+
+  func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
+    switch result {
+    case let .success(authorization):
+      guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+            let identityToken = credential.identityToken,
+            let idToken = String(data: identityToken, encoding: .utf8)
+      else {
+        lastError = "Failed to get Apple credentials"
+        return
+      }
+
+      let email = credential.email
+      let name = [credential.fullName?.givenName, credential.fullName?.familyName]
+        .compactMap { $0 }
+        .joined(separator: " ")
+        .nilIfEmpty
+
+      Task {
+        await authenticateWithApple(idToken: idToken, email: email, name: name)
+      }
+
+    case let .failure(error):
+      if (error as NSError).code != ASAuthorizationError.canceled.rawValue {
+        lastError = error.localizedDescription
+        Logger.error(.auth, "Apple Sign-In failed: \(error.localizedDescription)")
+      } else {
+        Logger.log(.auth, "Apple Sign-In canceled by user")
+      }
+    }
+  }
+
+  private func authenticateWithApple(idToken: String, email: String?, name: String?) async {
+    Logger.log(.auth, "Authenticating with backend...")
+    isLoading = true
+    defer { isLoading = false }
+
+    do {
+      var body: [String: String] = ["idToken": idToken]
+      if let email { body["email"] = email }
+      if let name { body["name"] = name }
+
+      let response: AuthResponse = try await postApple("/auth/apple", body: body)
+      Logger.success(.auth, "Backend authentication successful")
+      handleAuthSuccess(response)
+      showRegisterView = false
+    } catch {
+      Logger.error(.auth, "Backend authentication failed: \(error.localizedDescription)")
+      handleAuthError(error)
+    }
+  }
+
+  private func postApple<T: Decodable>(_ path: String, body: [String: String]) async throws -> T {
+    var request = URLRequest(url: URL(string: "\(Config.apiBaseURL)\(path)")!)
+    request.httpMethod = "POST"
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.httpBody = try JSONEncoder().encode(body)
+
+    let (data, response) = try await Config.urlSession.data(for: request)
+
+    guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+      let message = (try? JSONDecoder().decode(
+        APIError.self,
+        from: data
+      ))?.message ?? "Request failed"
+      throw AuthError(message: message)
+    }
+
+    return try JSONDecoder().decode(T.self, from: data)
   }
 
   // MARK: - Google Sign-In
@@ -250,6 +323,12 @@ struct AuthError: Error {
 
 private struct APIError: Codable {
   let message: String?
+}
+
+private extension String {
+  var nilIfEmpty: String? {
+    isEmpty ? nil : self
+  }
 }
 
 // MARK: - Token Storage

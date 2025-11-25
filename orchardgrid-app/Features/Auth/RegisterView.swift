@@ -3,6 +3,7 @@
  * Registration screen
  */
 
+import AuthenticationServices
 import SwiftUI
 
 struct RegisterView: View {
@@ -25,6 +26,11 @@ struct RegisterView: View {
             if let error = auth.lastError {
               AuthErrorBanner(message: error)
             }
+
+            AppleButton(
+              onRequest: { $0.requestedScopes = [.email, .fullName] },
+              onCompletion: { auth.handleAppleSignIn($0) }
+            )
 
             GoogleButton { auth.loginWithGoogle() }
 
