@@ -147,7 +147,7 @@ final class AuthManager {
       if let email { body["email"] = email }
       if let name { body["name"] = name }
 
-      let response: AuthResponse = try await postApple("/auth/apple", body: body)
+      let response: AuthResponse = try await post("/auth/apple", body: body)
       Logger.success(.auth, "Backend authentication successful")
       handleAuthSuccess(response)
       showRegisterView = false
@@ -155,25 +155,6 @@ final class AuthManager {
       Logger.error(.auth, "Backend authentication failed: \(error.localizedDescription)")
       handleAuthError(error)
     }
-  }
-
-  private func postApple<T: Decodable>(_ path: String, body: [String: String]) async throws -> T {
-    var request = URLRequest(url: URL(string: "\(Config.apiBaseURL)\(path)")!)
-    request.httpMethod = "POST"
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.httpBody = try JSONEncoder().encode(body)
-
-    let (data, response) = try await Config.urlSession.data(for: request)
-
-    guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-      let message = (try? JSONDecoder().decode(
-        APIError.self,
-        from: data
-      ))?.message ?? "Request failed"
-      throw AuthError(message: message)
-    }
-
-    return try JSONDecoder().decode(T.self, from: data)
   }
 
   // MARK: - Google Sign-In
