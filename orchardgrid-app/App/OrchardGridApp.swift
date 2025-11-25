@@ -1,3 +1,4 @@
+import GoogleSignIn
 import SwiftUI
 
 @main
@@ -10,19 +11,21 @@ struct OrchardGridApp: App {
   @Environment(\.scenePhase) private var scenePhase
 
   init() {
-    // Create instances
+    Logger.log(.app, "OrchardGrid starting...")
+    Logger.log(.app, "API: \(Config.apiBaseURL)")
+
     let wsClient = WebSocketClient()
     let authManager = AuthManager()
 
-    // Set up callback
     authManager.onUserIDChanged = { userId in
       Logger.log(.app, "User authenticated: \(userId)")
       wsClient.setUserID(userId)
     }
 
-    // Initialize @State properties
     _wsClient = State(initialValue: wsClient)
     _authManager = State(initialValue: authManager)
+
+    Logger.success(.app, "Initialization complete")
   }
 
   var body: some Scene {

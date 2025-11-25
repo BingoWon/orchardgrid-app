@@ -82,19 +82,7 @@ struct MainView: View {
   }
 }
 
-#Preview("iPhone") {
+#Preview {
   MainView()
     .environment(AuthManager())
-}
-
-#Preview("iPad") {
-  MainView()
-    .environment(AuthManager())
-    .previewDevice("iPad Pro (12.9-inch) (6th generation)")
-}
-
-#Preview("Mac") {
-  MainView()
-    .environment(AuthManager())
-    .previewDevice("Mac")
 }

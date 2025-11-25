@@ -1,108 +1,51 @@
 /**
  * LoginView.swift
- * OrchardGrid Login Interface
+ * Login screen
  */
 
 import SwiftUI
 
 struct LoginView: View {
-  @Environment(AuthManager.self) private var authManager
+  @Environment(AuthManager.self) private var auth
   @State private var email = ""
   @State private var password = ""
-  @State private var showPassword = false
-  @State private var showRegister = false
 
   var body: some View {
-    if showRegister {
-      RegisterView(showLogin: $showRegister)
-    } else {
-      GeometryReader { geometry in
-        ScrollView {
-          VStack(spacing: 32) {
-            Spacer(minLength: geometry.size.height * 0.1)
+    @Bindable var auth = auth
 
-            // Header
-            VStack(spacing: 8) {
-              Image(systemName: "cpu.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.blue.gradient)
+    AuthLayout {
+      VStack(spacing: 32) {
+        AuthHeader(title: "OrchardGrid", subtitle: "GPU Device Management")
+          .padding(.top, 20)
 
-              Text("OrchardGrid")
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-
-              Text("Distributed Apple Intelligence")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            }
-
-            // Form
-            VStack(spacing: 16) {
-              TextField("Email", text: $email)
-                .textFieldStyle(.roundedBorder)
-                .textContentType(.emailAddress)
-              #if os(iOS)
-                .autocapitalization(.none)
-                .keyboardType(.emailAddress)
-              #endif
-
-              HStack {
-                if showPassword {
-                  TextField("Password", text: $password)
-                    .textContentType(.password)
-                } else {
-                  SecureField("Password", text: $password)
-                    .textContentType(.password)
-                }
-                Button {
-                  showPassword.toggle()
-                } label: {
-                  Image(systemName: showPassword ? "eye.slash" : "eye")
-                    .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-              }
-              .textFieldStyle(.roundedBorder)
-
-              Button {
-                Task {
-                  await authManager.login(email: email, password: password)
-                }
-              } label: {
-                Text("Sign In")
-                  .frame(maxWidth: .infinity)
-                  .frame(height: 44)
-              }
-              .buttonStyle(.borderedProminent)
-              .disabled(!isFormValid)
-            }
-            .padding(24)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-            .frame(maxWidth: 400)
-
-            // Error
-            if let error = authManager.lastError {
-              Text(error)
-                .font(.caption)
-                .foregroundStyle(.red)
-                .multilineTextAlignment(.center)
-            }
-
-            // Register Link
-            HStack(spacing: 4) {
-              Text("Don't have an account?")
-                .foregroundStyle(.secondary)
-              Button("Create Account") {
-                showRegister = true
-              }
-            }
-            .font(.callout)
-
-            Spacer(minLength: geometry.size.height * 0.1)
+        VStack(spacing: 16) {
+          if let error = auth.lastError {
+            AuthErrorBanner(message: error)
           }
-          .padding(.horizontal, 20)
-          .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+
+          AuthField(placeholder: "Email", text: $email)
+            #if os(iOS)
+              .keyboardType(.emailAddress)
+            #endif
+
+          AuthField(placeholder: "Password", text: $password, isSecure: true)
+
+          AuthButton(title: "Sign In", isEnabled: isFormValid && !auth.isLoading) {
+            Task { await auth.login(email: email, password: password) }
+          }
+
+          AuthDivider(text: "or")
+
+          GoogleButton { auth.loginWithGoogle() }
+        }
+
+        AuthLink(text: "Don't have an account?", linkText: "Sign Up") {
+          auth.showRegisterView = true
         }
       }
+    }
+    .sheet(isPresented: $auth.showRegisterView) {
+      RegisterView().environment(auth)
     }
   }
 
@@ -112,6 +55,5 @@ struct LoginView: View {
 }
 
 #Preview {
-  LoginView()
-    .environment(AuthManager())
+  LoginView().environment(AuthManager())
 }

@@ -1,143 +1,75 @@
 /**
  * RegisterView.swift
- * OrchardGrid Registration Interface
+ * Registration screen
  */
 
 import SwiftUI
 
 struct RegisterView: View {
-  @Environment(AuthManager.self) private var authManager
+  @Environment(AuthManager.self) private var auth
+  @Environment(\.dismiss) private var dismiss
+
   @State private var email = ""
   @State private var password = ""
   @State private var confirmPassword = ""
-  @State private var name = ""
-  @State private var showPassword = false
-  @State private var showConfirmPassword = false
-  @Binding var showLogin: Bool
 
   var body: some View {
-    GeometryReader { geometry in
-      ScrollView {
+    @Bindable var auth = auth
+
+    NavigationStack {
+      AuthLayout {
         VStack(spacing: 32) {
-          Spacer(minLength: geometry.size.height * 0.08)
+          AuthHeader(title: "Create Account", subtitle: "Join OrchardGrid today")
+            .padding(.top, 20)
 
-          // Header
-          VStack(spacing: 8) {
-            Image(systemName: "cpu.fill")
-              .font(.system(size: 48))
-              .foregroundStyle(.blue.gradient)
-
-            Text("Create Account")
-              .font(.system(size: 28, weight: .bold, design: .rounded))
-
-            Text("Join OrchardGrid")
-              .font(.subheadline)
-              .foregroundStyle(.secondary)
-          }
-
-          // Form
           VStack(spacing: 16) {
-            TextField("Name (optional)", text: $name)
-              .textFieldStyle(.roundedBorder)
-              .textContentType(.name)
-
-            TextField("Email", text: $email)
-              .textFieldStyle(.roundedBorder)
-              .textContentType(.emailAddress)
-            #if os(iOS)
-              .autocapitalization(.none)
-              .keyboardType(.emailAddress)
-            #endif
-
-            HStack {
-              if showPassword {
-                TextField("Password", text: $password)
-                  .textContentType(.newPassword)
-              } else {
-                SecureField("Password", text: $password)
-                  .textContentType(.newPassword)
-              }
-              Button {
-                showPassword.toggle()
-              } label: {
-                Image(systemName: showPassword ? "eye.slash" : "eye")
-                  .foregroundStyle(.secondary)
-              }
-              .buttonStyle(.plain)
+            if let error = auth.lastError {
+              AuthErrorBanner(message: error)
             }
-            .textFieldStyle(.roundedBorder)
 
-            HStack {
-              if showConfirmPassword {
-                TextField("Confirm Password", text: $confirmPassword)
-                  .textContentType(.newPassword)
-              } else {
-                SecureField("Confirm Password", text: $confirmPassword)
-                  .textContentType(.newPassword)
-              }
-              Button {
-                showConfirmPassword.toggle()
-              } label: {
-                Image(systemName: showConfirmPassword ? "eye.slash" : "eye")
-                  .foregroundStyle(.secondary)
-              }
-              .buttonStyle(.plain)
+            AuthField(placeholder: "Email", text: $email)
+              #if os(iOS)
+                .keyboardType(.emailAddress)
+              #endif
+
+            AuthField(placeholder: "Password", text: $password, isSecure: true)
+
+            AuthField(placeholder: "Confirm Password", text: $confirmPassword, isSecure: true)
+
+            if !confirmPassword.isEmpty && password != confirmPassword {
+              Text("Passwords don't match")
+                .font(.caption)
+                .foregroundStyle(.red)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .textFieldStyle(.roundedBorder)
 
-            Text("Password must be at least 8 characters")
-              .font(.caption)
-              .foregroundStyle(.secondary)
-              .frame(maxWidth: .infinity, alignment: .leading)
-
-            Button {
-              Task {
-                await authManager.register(
-                  email: email,
-                  password: password,
-                  confirmPassword: confirmPassword,
-                  name: name.isEmpty ? nil : name
-                )
-              }
-            } label: {
-              Text("Create Account")
-                .frame(maxWidth: .infinity)
-                .frame(height: 44)
+            AuthButton(title: "Create Account", isEnabled: isFormValid && !auth.isLoading) {
+              Task { await auth.register(email: email, password: password) }
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(!isFormValid)
-          }
-          .padding(24)
-          .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-          .frame(maxWidth: 400)
 
-          // Error
-          if let error = authManager.lastError {
-            Text(error)
-              .font(.caption)
-              .foregroundStyle(.red)
-              .multilineTextAlignment(.center)
+            AuthDivider(text: "or")
+
+            GoogleButton { auth.loginWithGoogle() }
           }
 
-          // Login Link
-          HStack(spacing: 4) {
-            Text("Already have an account?")
-              .foregroundStyle(.secondary)
-            Button("Sign In") {
-              showLogin = false
-            }
+          AuthLink(text: "Already have an account?", linkText: "Sign In") {
+            dismiss()
           }
-          .font(.callout)
-
-          Spacer(minLength: geometry.size.height * 0.08)
         }
-        .padding(.horizontal, 20)
-        .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+      }
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Cancel") { dismiss() }
+        }
       }
     }
   }
 
   private var isFormValid: Bool {
-    !email.isEmpty && !password.isEmpty && !confirmPassword.isEmpty && password.count >= 8
+    !email.isEmpty && !password.isEmpty && password == confirmPassword && password.count >= 6
   }
+}
+
+#Preview {
+  RegisterView().environment(AuthManager())
 }

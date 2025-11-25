@@ -4,11 +4,11 @@
  */
 
 import Foundation
+import GoogleSignIn
 
 @MainActor
 @Observable
 final class AuthManager {
-  // Authentication state
   enum AuthState: Equatable {
     case loading
     case authenticated(User)
@@ -19,171 +19,156 @@ final class AuthManager {
   var currentUser: User?
   var authToken: String?
   var lastError: String?
+  var isLoading = false
+  var showRegisterView = false
 
-  // Computed property for backward compatibility
   var isAuthenticated: Bool {
-    if case .authenticated = authState {
-      return true
-    }
+    if case .authenticated = authState { return true }
     return false
   }
 
-  // API configuration
-  private let apiURL = Config.apiBaseURL
-  private let urlSession = Config.urlSession
-
-  // Callback for user ID changes
   var onUserIDChanged: ((String) -> Void)?
 
   init() {
     checkAuthStatus()
   }
 
-  // Check if user is already authenticated
   func checkAuthStatus() {
-    if let token = UserDefaultsManager.getToken() {
+    if let token = TokenStorage.get() {
       authToken = token
-      Task {
-        await fetchUserInfo()
-      }
+      Task { await fetchUserInfo() }
     } else {
-      authState = .unauthenticated
+      GIDSignIn.sharedInstance.restorePreviousSignIn { [weak self] user, _ in
+        Task { @MainActor in
+          if let idToken = user?.idToken?.tokenString {
+            await self?.authenticateWithGoogle(idToken: idToken)
+          } else {
+            self?.authState = .unauthenticated
+          }
+        }
+      }
     }
   }
 
-  // Register with email and password
-  func register(email: String, password: String, confirmPassword: String, name: String?) async {
+  // MARK: - Email/Password
+
+  func register(email: String, password: String) async {
     guard !email.isEmpty, !password.isEmpty else {
       lastError = "Email and password are required"
       return
     }
 
-    guard password == confirmPassword else {
-      lastError = "Passwords do not match"
-      return
-    }
-
-    guard password.count >= 8 else {
-      lastError = "Password must be at least 8 characters"
-      return
-    }
+    isLoading = true
+    defer { isLoading = false }
 
     do {
-      let url = URL(string: "\(apiURL)/auth/register")!
-      var request = URLRequest(url: url)
-      request.httpMethod = "POST"
-      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-      var body: [String: String] = [
-        "email": email,
-        "password": password,
-      ]
-      if let name {
-        body["name"] = name
-      }
-      request.httpBody = try JSONEncoder().encode(body)
-
-      let (data, _) = try await urlSession.data(for: request)
-      let response = try JSONDecoder().decode(AuthResponse.self, from: data)
-
-      // Save token
-      UserDefaultsManager.saveToken(response.token)
-      authToken = response.token
-      authState = .authenticated(response.user)
-      currentUser = response.user
-      lastError = nil
-
-      Logger.success(.auth, "Registration successful: \(response.user.email)")
-      onUserIDChanged?(response.user.id)
+      let response: AuthResponse = try await post("/auth/register", body: ["email": email, "password": password])
+      handleAuthSuccess(response)
+      showRegisterView = false
     } catch {
-      Logger.error(.auth, "Registration failed: \(error)")
-      lastError = error.localizedDescription
-      authState = .unauthenticated
+      handleAuthError(error)
     }
   }
 
-  // Login with email and password
   func login(email: String, password: String) async {
     guard !email.isEmpty, !password.isEmpty else {
       lastError = "Email and password are required"
       return
     }
+
+    isLoading = true
+    defer { isLoading = false }
+
     do {
-      let url = URL(string: "\(apiURL)/auth/login")!
-      var request = URLRequest(url: url)
-      request.httpMethod = "POST"
-      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-      request.httpBody = try JSONEncoder().encode(["email": email, "password": password])
-
-      let (data, response) = try await urlSession.data(for: request)
-
-      guard let httpResponse = response as? HTTPURLResponse else {
-        Logger.error(.auth, "Login failed: Invalid response")
-        lastError = "Unable to sign in. Please try again."
-        authState = .unauthenticated
-        return
-      }
-
-      // Handle non-200 responses with user-friendly messages
-      guard httpResponse.statusCode == 200 else {
-        // Common case: wrong email or password -> normalize to a friendly prompt, avoid leaking
-        // backend details
-        if httpResponse.statusCode == 400 || httpResponse.statusCode == 401 {
-          lastError = "Incorrect email or password. Please check and try again."
-        } else {
-          // For other errors, prefer readable server message if available; otherwise use a generic
-          // fallback
-          if let message = try? decodeAPIErrorMessage(from: data) {
-            lastError = message
-          } else {
-            lastError = "Unable to sign in. Please try again later. (Error code \(httpResponse.statusCode))"
-          }
-        }
-
-        Logger.error(
-          .auth,
-          "Login failed with status \(httpResponse.statusCode): \(lastError ?? "Unknown error")"
-        )
-        authState = .unauthenticated
-        return
-      }
-
-      // Success path
-      let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
-
-      // Save token and update state
-      UserDefaultsManager.saveToken(authResponse.token)
-      authToken = authResponse.token
-      authState = .authenticated(authResponse.user)
-      currentUser = authResponse.user
-      lastError = nil
-
-      Logger.success(.auth, "Login successful: \(authResponse.user.email)")
-      onUserIDChanged?(authResponse.user.id)
+      let response: AuthResponse = try await post("/auth/login", body: ["email": email, "password": password])
+      handleAuthSuccess(response)
     } catch {
-      Logger.error(.auth, "Login failed: \(error)")
-
-      // Avoid surfacing confusing low-level decoding/network messages to users
-      if (error as NSError).domain == NSCocoaErrorDomain {
-        lastError = "Unable to sign in due to a temporary issue. Please try again."
-      } else {
-        lastError = "Unable to sign in. Please check your network connection and try again."
-      }
-
-      authState = .unauthenticated
+      handleAuthError(error)
     }
   }
 
-  // Fetch user info from API
+  func logout() {
+    GIDSignIn.sharedInstance.signOut()
+    TokenStorage.delete()
+    authToken = nil
+    currentUser = nil
+        authState = .unauthenticated
+  }
+
+  // MARK: - Google Sign-In
+
+  func loginWithGoogle() {
+    isLoading = true
+
+    #if os(iOS)
+      guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+            let root = scene.windows.first?.rootViewController
+      else {
+        lastError = "Unable to present sign-in"
+        isLoading = false
+        return
+      }
+      GIDSignIn.sharedInstance.signIn(withPresenting: root) { [weak self] result, error in
+        Task { @MainActor in await self?.handleGoogleResult(result, error) }
+      }
+    #else
+      guard let window = NSApplication.shared.windows.first else {
+        lastError = "Unable to present sign-in"
+        isLoading = false
+        return
+      }
+      GIDSignIn.sharedInstance.signIn(withPresenting: window) { [weak self] result, error in
+        Task { @MainActor in await self?.handleGoogleResult(result, error) }
+      }
+    #endif
+  }
+
+  private func handleGoogleResult(_ result: GIDSignInResult?, _ error: Error?) async {
+    defer { isLoading = false }
+
+    if let error {
+      if (error as NSError).code != GIDSignInError.canceled.rawValue {
+        lastError = error.localizedDescription
+        Logger.error(.auth, "Google Sign-In failed: \(error.localizedDescription)")
+      } else {
+        Logger.log(.auth, "Google Sign-In canceled by user")
+      }
+      return
+    }
+
+    guard let idToken = result?.user.idToken?.tokenString else {
+      lastError = "Failed to get authentication token"
+      Logger.error(.auth, "Google Sign-In succeeded but ID token is missing")
+      return
+    }
+
+    Logger.success(.auth, "Google Sign-In succeeded. User: \(result?.user.profile?.email ?? "unknown")")
+    await authenticateWithGoogle(idToken: idToken)
+  }
+
+  private func authenticateWithGoogle(idToken: String) async {
+    Logger.log(.auth, "Authenticating with backend...")
+    do {
+      let response: AuthResponse = try await post("/auth/google", body: ["idToken": idToken])
+      Logger.success(.auth, "Backend authentication successful")
+      handleAuthSuccess(response)
+      showRegisterView = false
+    } catch {
+      Logger.error(.auth, "Backend authentication failed: \(error.localizedDescription)")
+      handleAuthError(error)
+    }
+  }
+
+  // MARK: - Private
+
   private func fetchUserInfo() async {
     guard let token = authToken else { return }
 
     do {
-      let url = URL(string: "\(apiURL)/auth/me")!
-      var request = URLRequest(url: url)
+      var request = URLRequest(url: URL(string: "\(Config.apiBaseURL)/auth/me")!)
       request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
-      let (data, _) = try await urlSession.data(for: request)
+      let (data, _) = try await Config.urlSession.data(for: request)
       let user = try JSONDecoder().decode(User.self, from: data)
 
       authState = .authenticated(user)
@@ -191,20 +176,38 @@ final class AuthManager {
       lastError = nil
       onUserIDChanged?(user.id)
     } catch {
-      Logger.error(.auth, "Failed to fetch user info: \(error)")
-      lastError = error.localizedDescription
-      authState = .unauthenticated
       logout()
     }
   }
 
-  // Logout
-  func logout() {
-    UserDefaultsManager.deleteToken()
-    authToken = nil
-    currentUser = nil
+  private func handleAuthSuccess(_ response: AuthResponse) {
+    TokenStorage.save(response.token)
+    authToken = response.token
+    authState = .authenticated(response.user)
+    currentUser = response.user
+    lastError = nil
+    onUserIDChanged?(response.user.id)
+  }
+
+  private func handleAuthError(_ error: Error) {
+    lastError = (error as? AuthError)?.message ?? "Authentication failed"
     authState = .unauthenticated
-    Logger.log(.auth, "User logged out")
+  }
+
+  private func post<T: Decodable>(_ path: String, body: [String: String]) async throws -> T {
+    var request = URLRequest(url: URL(string: "\(Config.apiBaseURL)\(path)")!)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.httpBody = try JSONEncoder().encode(body)
+
+    let (data, response) = try await Config.urlSession.data(for: request)
+
+    guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+      let message = (try? JSONDecoder().decode(APIError.self, from: data))?.message ?? "Request failed"
+      throw AuthError(message: message)
+    }
+
+    return try JSONDecoder().decode(T.self, from: data)
   }
 }
 
@@ -227,96 +230,28 @@ struct AuthResponse: Codable {
   let user: User
 }
 
-// MARK: - Error Response Helpers
+struct AuthError: Error {
+  let message: String
+}
 
-private struct APIErrorResponse: Codable {
-  struct NestedError: Codable {
-    let message: String?
-    let type: String?
-    let code: Int?
-  }
-
-  let error: String?
+private struct APIError: Codable {
   let message: String?
-  let type: String?
-  let code: Int?
-  let nestedError: NestedError?
-
-  // Support payloads like { "error": { "message": "...", "type": "...", "code": 401 } }
-  init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    error = try container.decodeIfPresent(String.self, forKey: .error)
-    message = try container.decodeIfPresent(String.self, forKey: .message)
-    type = try container.decodeIfPresent(String.self, forKey: .type)
-    code = try container.decodeIfPresent(Int.self, forKey: .code)
-
-    if let nested = try container.decodeIfPresent(NestedError.self, forKey: .error) {
-      nestedError = nested
-    } else {
-      nestedError = nil
-    }
-  }
-
-  private enum CodingKeys: String, CodingKey {
-    case error
-    case message
-    case type
-    case code
-  }
 }
 
-private func decodeAPIErrorMessage(from data: Data) throws -> String? {
-  guard !data.isEmpty else { return nil }
-  let decoder = JSONDecoder()
-  if let errorResponse = try? decoder.decode(APIErrorResponse.self, from: data) {
-    // 1) Prefer the top-level message
-    if let message = errorResponse.message, !message.isEmpty {
-      return message
-    }
-    // 2) Then try nested error.message
-    if let nestedMessage = errorResponse.nestedError?.message, !nestedMessage.isEmpty {
-      return nestedMessage
-    }
-    // 3) Finally fall back to the top-level error field if readable
-    if let error = errorResponse.error, !error.isEmpty {
-      return error
-    }
-  }
-  // Fallback: try plain-text body
-  if let text = String(data: data, encoding: .utf8),
-     !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-  {
-    return text
-  }
-  return nil
-}
+// MARK: - Token Storage
 
-// MARK: - UserDefaults Manager
+private enum TokenStorage {
+  private static let key = "orchardgrid_auth_token"
 
-/// Simple token storage using UserDefaults
-/// WARNING: This stores tokens in plain text and is NOT secure.
-/// Only use this for development environments.
-/// For production, use Keychain or other secure storage.
-enum UserDefaultsManager {
-  /// Environment-specific key for token storage
-  private static var tokenKey: String {
-    "auth_token_\(Config.environment.rawValue)"
+  static func save(_ token: String) {
+    UserDefaults.standard.set(token, forKey: key)
   }
 
-  /// Save authentication token to UserDefaults
-  static func saveToken(_ token: String) {
-    UserDefaults.standard.set(token, forKey: tokenKey)
-    UserDefaults.standard.synchronize()
+  static func get() -> String? {
+    UserDefaults.standard.string(forKey: key)
   }
 
-  /// Retrieve authentication token from UserDefaults
-  static func getToken() -> String? {
-    UserDefaults.standard.string(forKey: tokenKey)
-  }
-
-  /// Delete authentication token from UserDefaults
-  static func deleteToken() {
-    UserDefaults.standard.removeObject(forKey: tokenKey)
-    UserDefaults.standard.synchronize()
+  static func delete() {
+    UserDefaults.standard.removeObject(forKey: key)
   }
 }

@@ -1,69 +1,28 @@
 /**
  * Config.swift
  * OrchardGrid Configuration
- *
- * Environment-specific configuration using .xcconfig files
  */
 
 import Foundation
 
 enum Config {
-  /// API Base URL
-  /// Priority: Environment Variable > Info.plist > Compile-time Default
   static var apiBaseURL: String {
-    // 1. Environment variable (for testing/CI)
-    if let envURL = ProcessInfo.processInfo.environment["API_BASE_URL"] {
-      return envURL
-    }
-
-    // 2. Info.plist (from .xcconfig)
-    if let plistURL = Bundle.main.infoDictionary?["API_BASE_URL"] as? String {
-      return plistURL
-    }
-
-    // 3. Compile-time default
-    return "https://api.orchardgrid.com"
+    ProcessInfo.processInfo.environment["API_BASE_URL"]
+      ?? Bundle.main.infoDictionary?["API_BASE_URL"] as? String
+      ?? "https://api.orchardgrid.com"
   }
 
-  /// Google OAuth Client ID
+  // Google Sign-In Client IDs
+  // Note: Client ID is primarily loaded from Info.plist via GIDSignIn SDK
+  // This property is kept for reference or legacy compatibility if needed
   static var googleClientID: String {
-    if let envID = ProcessInfo.processInfo.environment["GOOGLE_CLIENT_ID"] {
-      return envID
-    }
-
-    if let plistID = Bundle.main.infoDictionary?["GOOGLE_CLIENT_ID"] as? String {
-      return plistID
-    }
-
-    return "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+    return "600208131492-kn9b46tihg0l85nda6gfstle98du99c7.apps.googleusercontent.com"
   }
 
-  /// Current environment
-  static var environment: Environment {
-    #if DEBUG
-      .development
-    #else
-      .production
-    #endif
-  }
-
-  enum Environment: String {
-    case development
-    case production
-
-    var displayName: String {
-      switch self {
-      case .development: "Development"
-      case .production: "Production"
-      }
-    }
-  }
-
-  /// Shared URLSession with optimized timeout configuration
   static let urlSession: URLSession = {
-    let configuration = URLSessionConfiguration.default
-    configuration.timeoutIntervalForRequest = 10 // 10 seconds per request
-    configuration.timeoutIntervalForResource = 30 // 30 seconds for entire resource
-    return URLSession(configuration: configuration)
+    let config = URLSessionConfiguration.default
+    config.timeoutIntervalForRequest = 10
+    config.timeoutIntervalForResource = 30
+    return URLSession(configuration: config)
   }()
 }

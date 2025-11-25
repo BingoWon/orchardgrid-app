@@ -1,10 +1,9 @@
 /**
  * Logger.swift
  * OrchardGrid Logging Utility
- *
- * Unified logging system for Console.app
  */
 
+import Foundation
 import OSLog
 
 enum Logger {
@@ -20,17 +19,30 @@ enum Logger {
     var logger: os.Logger {
       os.Logger(subsystem: Logger.subsystem, category: rawValue)
     }
+
+    var emoji: String {
+      switch self {
+      case .auth: "🔐"
+      case .websocket: "🔌"
+      case .api: "🌐"
+      case .devices: "📱"
+      case .app: "📦"
+      }
+    }
   }
 
   static func log(_ category: Category, _ message: String) {
-    category.logger.info("\(message, privacy: .public)")
+    let output = "\(category.emoji) [\(category.rawValue.uppercased())] \(message)"
+    category.logger.info("\(output, privacy: .public)")
   }
 
   static func error(_ category: Category, _ message: String) {
-    category.logger.error("ERROR: \(message, privacy: .public)")
+    let output = "❌ [\(category.rawValue.uppercased())] \(message)"
+    category.logger.error("\(output, privacy: .public)")
   }
 
   static func success(_ category: Category, _ message: String) {
-    category.logger.notice("SUCCESS: \(message, privacy: .public)")
+    let output = "✅ [\(category.rawValue.uppercased())] \(message)"
+    category.logger.notice("\(output, privacy: .public)")
   }
 }

@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		D7D7177F2ED56620007E5111 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = D7D7177E2ED56620007E5111 /* GoogleSignIn */; };
+		D7D717812ED56620007E5111 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = D7D717802ED56620007E5111 /* GoogleSignInSwift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		1F09A5D42E8F86E700C41C40 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		1F09A5D62E8F86F100C41C40 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
@@ -25,6 +30,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D7D7177F2ED56620007E5111 /* GoogleSignIn in Frameworks */,
+				D7D717812ED56620007E5111 /* GoogleSignInSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -77,6 +84,8 @@
 			);
 			name = "orchardgrid-app";
 			packageProductDependencies = (
+				D7D7177E2ED56620007E5111 /* GoogleSignIn */,
+				D7D717802ED56620007E5111 /* GoogleSignInSwift */,
 			);
 			productName = "orchardgrid-app";
 			productReference = 1F5D97D72E8CFE2C006FE734 /* OrchardGrid Dev.app */;
@@ -106,6 +115,9 @@
 			);
 			mainGroup = 1F5D97CE2E8CFE2C006FE734;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				D7D7177D2ED56620007E5111 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1F5D97D82E8CFE2C006FE734 /* Products */;
 			projectDirPath = "";
@@ -373,6 +385,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		D7D7177D2ED56620007E5111 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		D7D7177E2ED56620007E5111 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D7D7177D2ED56620007E5111 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		D7D717802ED56620007E5111 /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D7D7177D2ED56620007E5111 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 1F5D97CF2E8CFE2C006FE734 /* Project object */;
 }
