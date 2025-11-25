@@ -90,19 +90,10 @@ struct AllDevicesView: View {
         .font(.headline)
         .foregroundStyle(.secondary)
 
-      HStack(spacing: 40) {
-        StatView(
-          title: "Total Devices",
-          value: "\(devicesManager.devices.count)"
-        )
-        StatView(
-          title: "Online",
-          value: "\(devicesManager.onlineDevices.count)"
-        )
-        StatView(
-          title: "Total Tasks",
-          value: "\(devicesManager.totalTasksProcessed)"
-        )
+      HStack(spacing: 16) {
+        SummaryStatCard(title: "Total", value: "\(devicesManager.devices.count)")
+        SummaryStatCard(title: "Online", value: "\(devicesManager.onlineDevices.count)")
+        SummaryStatCard(title: "Tasks", value: "\(devicesManager.totalTasksProcessed)")
       }
     }
     .padding(Constants.standardPadding)
@@ -293,6 +284,27 @@ struct DeviceCard: View {
 
   private var statusColor: Color {
     device.statusColor == "green" ? .green : .gray
+  }
+}
+
+// MARK: - Summary Stat Card
+
+private struct SummaryStatCard: View {
+  let title: String
+  let value: String
+
+  var body: some View {
+    VStack(spacing: 4) {
+      Text(value)
+        .font(.title2.bold())
+
+      Text(title)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+    .frame(maxWidth: .infinity)
+    .padding(.vertical, 12)
+    .background(.ultraThinMaterial, in: .rect(cornerRadius: 10))
   }
 }
 
