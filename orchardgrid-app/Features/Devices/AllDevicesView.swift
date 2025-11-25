@@ -49,13 +49,12 @@ struct AllDevicesView: View {
       refreshButton
     }
     .task {
-      if let token = authManager.authToken {
-        await devicesManager.fetchDevices(authToken: token)
-        await devicesManager.startAutoRefresh(interval: RefreshConfig.interval, authToken: token)
+      if let token = authManager.authToken, let user = authManager.currentUser {
+        await devicesManager.startMonitoring(authToken: token, userId: user.id)
       }
     }
     .onDisappear {
-      devicesManager.stopAutoRefresh()
+      devicesManager.stopMonitoring()
     }
   }
 
