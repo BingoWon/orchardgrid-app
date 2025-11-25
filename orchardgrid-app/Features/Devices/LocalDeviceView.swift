@@ -14,11 +14,11 @@ struct LocalDeviceView: View {
     ScrollView {
       GlassEffectContainer {
         VStack(alignment: .leading, spacing: 24) {
-          // Platform Connection Card
-          platformConnectionCard
+          // Share to Cloud Card
+          cloudShareCard
 
-          // API Server Card
-          apiServerCard
+          // Share Locally Card
+          localShareCard
         }
         .padding()
       }
@@ -26,16 +26,16 @@ struct LocalDeviceView: View {
     .navigationTitle(DeviceInfo.deviceName)
   }
 
-  // MARK: - Platform Connection Card
+  // MARK: - Share to Cloud Card
 
-  private var platformConnectionCard: some View {
+  private var cloudShareCard: some View {
     VStack(alignment: .leading, spacing: 16) {
       // Header with Toggle
       HStack {
         VStack(alignment: .leading, spacing: 4) {
-          Text("Platform Connection")
+          Text("Share to Cloud")
             .font(.headline)
-          Text("Share computing power with OrchardGrid")
+          Text("Contribute computing power to OrchardGrid")
             .font(.caption)
             .foregroundStyle(.secondary)
         }
@@ -79,16 +79,16 @@ struct LocalDeviceView: View {
     .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
   }
 
-  // MARK: - API Server Card
+  // MARK: - Share Locally Card
 
-  private var apiServerCard: some View {
+  private var localShareCard: some View {
     VStack(alignment: .leading, spacing: 16) {
       // Header with Toggle
       HStack {
         VStack(alignment: .leading, spacing: 4) {
-          Text("Local API Server")
+          Text("Share Locally")
             .font(.headline)
-          Text("OpenAI-compatible API for local development")
+          Text("OpenAI-compatible API for local apps")
             .font(.caption)
             .foregroundStyle(.secondary)
         }
@@ -310,7 +310,7 @@ struct DeviceNotEligibleView: View {
           .fontWeight(.medium)
       }
 
-      Text("Your device doesn't support Apple Intelligence. Platform Connection requires:")
+      Text("Your device doesn't support Apple Intelligence. Share to Cloud requires:")
         .font(.caption)
         .foregroundStyle(.secondary)
 
@@ -385,7 +385,7 @@ struct ModelNotReadyView: View {
         .font(.caption)
         .foregroundStyle(.secondary)
 
-      Text("Platform Connection will be available once the download completes.")
+      Text("Share to Cloud will be available once the download completes.")
         .font(.caption)
         .foregroundStyle(.secondary)
     }

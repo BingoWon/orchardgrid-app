@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Tab View Bottom Accessory - shows this device's Platform Connection status
+/// Tab View Bottom Accessory - shows this device's Share to Cloud status
 /// Similar to Apple Music's MiniPlayer, provides quick access to the local device connection info
 struct LocalDeviceAccessory: View {
   @Environment(\.tabViewBottomAccessoryPlacement) private var placement
