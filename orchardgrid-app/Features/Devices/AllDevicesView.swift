@@ -203,10 +203,16 @@ struct DeviceCard: View {
 
       // Info
       VStack(alignment: .leading, spacing: 4) {
-        // Device name
-        if let deviceName = device.deviceName {
-          Text(deviceName)
-            .font(.headline)
+        // Device name with flag
+        HStack(spacing: 6) {
+          if let deviceName = device.deviceName {
+            Text(deviceName)
+              .font(.headline)
+          }
+          if !device.flagEmoji.isEmpty {
+            Text(device.flagEmoji)
+              .font(.headline)
+          }
         }
 
         // Platform and OS version

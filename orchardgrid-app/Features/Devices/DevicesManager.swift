@@ -10,6 +10,8 @@ struct Device: Codable, Identifiable {
   let deviceName: String?
   let chipModel: String?
   let memoryGb: Double?
+  let ipAddress: String?
+  let countryCode: String?
   let isOnline: Bool
   let lastHeartbeat: Int?
   let tasksProcessed: Int
@@ -25,12 +27,22 @@ struct Device: Codable, Identifiable {
     case deviceName = "device_name"
     case chipModel = "chip_model"
     case memoryGb = "memory_gb"
+    case ipAddress = "ip_address"
+    case countryCode = "country_code"
     case isOnline = "is_online"
     case lastHeartbeat = "last_heartbeat"
     case tasksProcessed = "tasks_processed"
     case failureCount = "failure_count"
     case createdAt = "created_at"
     case updatedAt = "updated_at"
+  }
+
+  /// Convert country code to flag emoji
+  var flagEmoji: String {
+    guard let code = countryCode, code.count == 2 else { return "" }
+    return code.uppercased().unicodeScalars
+      .map { String(UnicodeScalar(127397 + $0.value)!) }
+      .joined()
   }
 
   var isActuallyOnline: Bool {
