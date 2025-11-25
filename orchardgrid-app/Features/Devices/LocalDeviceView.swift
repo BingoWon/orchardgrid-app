@@ -9,18 +9,34 @@ import SwiftUI
 struct LocalDeviceView: View {
   @Environment(WebSocketClient.self) private var wsClient
   @Environment(APIServer.self) private var apiServer
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+  private var isWideLayout: Bool {
+    #if os(macOS)
+      return true
+    #else
+      return horizontalSizeClass == .regular
+    #endif
+  }
 
   var body: some View {
     ScrollView {
       GlassEffectContainer {
-        VStack(alignment: .leading, spacing: 24) {
-          // Share to Cloud Card
-          cloudShareCard
-
-          // Share Locally Card
-          localShareCard
+        if isWideLayout {
+          // Wide layout: side by side
+          HStack(alignment: .top, spacing: 16) {
+            cloudShareCard
+            localShareCard
+          }
+          .padding()
+        } else {
+          // Compact layout: stacked
+          VStack(alignment: .leading, spacing: 24) {
+            cloudShareCard
+            localShareCard
+          }
+          .padding()
         }
-        .padding()
       }
     }
     .navigationTitle(DeviceInfo.deviceName)
@@ -76,6 +92,7 @@ struct LocalDeviceView: View {
       }
     }
     .padding()
+    .frame(maxWidth: .infinity, alignment: .leading)
     .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
   }
 
@@ -165,6 +182,7 @@ struct LocalDeviceView: View {
       }
     }
     .padding()
+    .frame(maxWidth: .infinity, alignment: .leading)
     .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
   }
 

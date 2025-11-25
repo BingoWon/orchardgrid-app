@@ -6,6 +6,7 @@ struct OrchardGridApp: App {
   @State private var authManager: AuthManager
   @State private var wsClient: WebSocketClient
   @State private var observerClient: ObserverClient
+  @State private var navigationState = NavigationState()
   @State private var apiServer = APIServer()
   @State private var devicesManager = DevicesManager()
   @State private var windowSize: CGSize = .zero
@@ -56,6 +57,7 @@ struct OrchardGridApp: App {
             .environment(authManager)
             .environment(wsClient)
             .environment(observerClient)
+            .environment(navigationState)
             .environment(apiServer)
             .environment(devicesManager)
             .onGeometryChange(for: CGSize.self) { geometry in

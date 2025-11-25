@@ -28,7 +28,7 @@ enum ObserverEvent: Decodable {
 
     enum CodingKeys: String, CodingKey {
       case id, platform
-      case deviceName = "deviceName"
+      case deviceName
       case isOnline
       case lastHeartbeat
     }
@@ -144,9 +144,9 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
   // MARK: - URLSessionWebSocketDelegate
 
   nonisolated func urlSession(
-    _ session: URLSession,
-    webSocketTask: URLSessionWebSocketTask,
-    didOpenWithProtocol protocol: String?
+    _: URLSession,
+    webSocketTask _: URLSessionWebSocketTask,
+    didOpenWithProtocol _: String?
   ) {
     Task { @MainActor in
       Logger.success(.observer, "Connected")
@@ -155,10 +155,10 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
   }
 
   nonisolated func urlSession(
-    _ session: URLSession,
-    webSocketTask: URLSessionWebSocketTask,
+    _: URLSession,
+    webSocketTask _: URLSessionWebSocketTask,
     didCloseWith closeCode: URLSessionWebSocketTask.CloseCode,
-    reason: Data?
+    reason _: Data?
   ) {
     Task { @MainActor in
       Logger.log(.observer, "Disconnected (code: \(closeCode.rawValue))")
@@ -252,4 +252,3 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
     }
   }
 }
-

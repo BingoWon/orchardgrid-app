@@ -4,6 +4,15 @@ struct AllDevicesView: View {
   @Environment(DevicesManager.self) private var devicesManager
   @Environment(AuthManager.self) private var authManager
   @Environment(ObserverClient.self) private var observerClient
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+  private var isWideLayout: Bool {
+    #if os(macOS)
+      return true
+    #else
+      return horizontalSizeClass == .regular
+    #endif
+  }
 
   var body: some View {
     ScrollView {
@@ -11,7 +20,6 @@ struct AllDevicesView: View {
         VStack(alignment: .leading, spacing: Constants.standardSpacing) {
           // Connection Status & Last Updated
           HStack {
-            // Real-time status indicator
             HStack(spacing: 4) {
               Circle()
                 .fill(observerClient.status == .connected ? .green : .gray)
@@ -26,20 +34,26 @@ struct AllDevicesView: View {
             LastUpdatedView(lastUpdatedText: devicesManager.lastUpdatedText)
           }
 
-          // This Mac Quick Control
-          LocalDeviceQuickControl()
-
-          // Summary Card
-          summaryCard
-
-          // Online Devices
-          if !devicesManager.onlineDevices.isEmpty {
-            deviceSection(title: "Online Devices", devices: devicesManager.onlineDevices)
+          // Wide layout: QuickControl + Summary side by side
+          if isWideLayout {
+            HStack(alignment: .top, spacing: 16) {
+              LocalDeviceQuickControl()
+              summaryCard
+            }
+          } else {
+            // Compact layout: stacked
+            summaryCard
           }
 
-          // Offline Devices
-          if !devicesManager.offlineDevices.isEmpty {
-            deviceSection(title: "Offline Devices", devices: devicesManager.offlineDevices)
+          // Device List
+          if !devicesManager.devices.isEmpty {
+            if isWideLayout {
+              // Table view for wide screens
+              deviceTableSection
+            } else {
+              // Card view for compact screens
+              deviceCardSections
+            }
           }
 
           // Empty State
@@ -67,11 +81,9 @@ struct AllDevicesView: View {
       refreshButton
     }
     .task {
-      // Initial fetch
       if let token = authManager.authToken {
         await devicesManager.fetchDevices(authToken: token)
       }
-      // Set up real-time refresh callback
       observerClient.onDevicesChanged = {
         Task {
           if let token = authManager.authToken {
@@ -97,10 +109,37 @@ struct AllDevicesView: View {
       }
     }
     .padding(Constants.standardPadding)
+    .frame(maxWidth: .infinity, alignment: .leading)
     .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
   }
 
-  // MARK: - Device Section
+  // MARK: - Device Table Section (Wide Layout)
+
+  private var deviceTableSection: some View {
+    VStack(alignment: .leading, spacing: Constants.summaryCardSpacing) {
+      Text("All Devices")
+        .font(.headline)
+        .foregroundStyle(.secondary)
+
+      DeviceTableView(devices: devicesManager.devices)
+        .frame(minHeight: 200)
+    }
+    .padding(Constants.standardPadding)
+    .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
+  }
+
+  // MARK: - Device Card Sections (Compact Layout)
+
+  @ViewBuilder
+  private var deviceCardSections: some View {
+    if !devicesManager.onlineDevices.isEmpty {
+      deviceSection(title: "Online Devices", devices: devicesManager.onlineDevices)
+    }
+
+    if !devicesManager.offlineDevices.isEmpty {
+      deviceSection(title: "Offline Devices", devices: devicesManager.offlineDevices)
+    }
+  }
 
   private func deviceSection(title: String, devices: [Device]) -> some View {
     VStack(alignment: .leading, spacing: Constants.summaryCardSpacing) {
@@ -315,4 +354,5 @@ private struct SummaryStatCard: View {
     .environment(ObserverClient())
     .environment(WebSocketClient())
     .environment(APIServer())
+    .environment(NavigationState())
 }

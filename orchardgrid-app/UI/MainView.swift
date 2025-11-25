@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MainView: View {
-  @State private var selectedItem: NavigationItem = .allDevices
+  @Environment(NavigationState.self) private var navigationState
   @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
   var body: some View {
@@ -19,7 +19,8 @@ struct MainView: View {
   // MARK: - Tab View (iPhone)
 
   private var tabView: some View {
-    TabView(selection: $selectedItem) {
+    @Bindable var navState = navigationState
+    return TabView(selection: $navState.selectedItem) {
       ForEach(NavigationItem.allCases.filter { $0 != .localDevice }) { item in
         Tab(item.title, systemImage: item.icon, value: item) {
           NavigationStack {
@@ -28,35 +29,36 @@ struct MainView: View {
         }
       }
     }
-    #if !os(macOS)
     .tabBarMinimizeBehavior(.onScrollDown)
     .tabViewBottomAccessory {
       LocalDeviceAccessory()
     }
-    #endif
   }
 
   // MARK: - Split View (iPad & Mac)
 
   private var splitView: some View {
-    NavigationSplitView(columnVisibility: $columnVisibility) {
+    @Bindable var navState = navigationState
+    return NavigationSplitView(columnVisibility: $columnVisibility) {
       List {
         ForEach(NavigationItem.allCases) { item in
-          NavigationLink(value: item) {
+          Button {
+            navState.selectedItem = item
+          } label: {
             Label(item.title, systemImage: item.icon)
           }
+          .buttonStyle(.plain)
+          .listRowBackground(
+            navState.selectedItem == item
+              ? Color.accentColor.opacity(0.2)
+              : Color.clear
+          )
         }
       }
       .navigationTitle("OrchardGrid")
       .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 300)
-      .navigationDestination(for: NavigationItem.self) { item in
-        detailView(for: item)
-        #if !os(macOS)
-          .navigationBarTitleDisplayMode(.inline)
-        #endif
-      }
     } detail: {
-      detailView(for: selectedItem)
+      detailView(for: navigationState.selectedItem)
       #if !os(macOS)
         .navigationBarTitleDisplayMode(.inline)
       #endif
@@ -85,4 +87,5 @@ struct MainView: View {
 #Preview {
   MainView()
     .environment(AuthManager())
+    .environment(NavigationState())
 }

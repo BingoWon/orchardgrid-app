@@ -41,7 +41,7 @@ struct Device: Codable, Identifiable {
   var flagEmoji: String {
     guard let code = countryCode, code.count == 2 else { return "" }
     return code.uppercased().unicodeScalars
-      .map { String(UnicodeScalar(127397 + $0.value)!) }
+      .map { String(UnicodeScalar(127_397 + $0.value)!) }
       .joined()
   }
 

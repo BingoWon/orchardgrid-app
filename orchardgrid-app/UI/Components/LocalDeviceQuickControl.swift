@@ -2,10 +2,11 @@ import FoundationModels
 import SwiftUI
 
 /// Quick control card for This Mac - displays Share to Cloud and Share Locally toggles
+/// On macOS: navigates to This Mac in sidebar; On iOS: opens sheet
 struct LocalDeviceQuickControl: View {
   @Environment(WebSocketClient.self) private var wsClient
   @Environment(APIServer.self) private var apiServer
-  @State private var showDeviceSheet = false
+  @Environment(NavigationState.self) private var navigationState
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
@@ -18,7 +19,8 @@ struct LocalDeviceQuickControl: View {
         Spacer()
 
         Button {
-          showDeviceSheet = true
+          // macOS: Navigate to sidebar item; iOS would use sheet but this component is macOS-only
+          navigationState.navigateTo(.localDevice)
         } label: {
           HStack(spacing: 4) {
             Text("Details")
@@ -58,39 +60,11 @@ struct LocalDeviceQuickControl: View {
     }
     .padding(Constants.standardPadding)
     .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
-    .sheet(isPresented: $showDeviceSheet) {
-      NavigationStack {
-        LocalDeviceView()
-          #if !os(macOS)
-          .navigationBarTitleDisplayMode(.inline)
-          #endif
-          .toolbar {
-            #if os(macOS)
-            ToolbarItem(placement: .automatic) {
-              Button("Close") {
-                showDeviceSheet = false
-              }
-            }
-            #else
-            ToolbarItem(placement: .topBarTrailing) {
-              Button(role: .close) {
-                showDeviceSheet = false
-              }
-            }
-            #endif
-          }
-      }
-      #if !os(macOS)
-      .presentationDetents([.large])
-      .presentationDragIndicator(.visible)
-      #endif
-    }
   }
 
   // MARK: - Status Text
 
   private var cloudStatusText: String? {
-    // Only show status when there's something to report
     if !wsClient.canEnable {
       return unavailableReason
     }
@@ -112,18 +86,18 @@ struct LocalDeviceQuickControl: View {
   private var unavailableReason: String {
     switch wsClient.modelAvailability {
     case .unavailable(.deviceNotEligible):
-      return "Not Supported"
+      "Not Supported"
     case .unavailable(.appleIntelligenceNotEnabled):
-      return "Enable in Settings"
+      "Enable in Settings"
     case .unavailable(.modelNotReady):
-      return "Downloading..."
+      "Downloading..."
     default:
-      return "Unavailable"
+      "Unavailable"
     }
   }
 
   private var localStatusText: String? {
-    if apiServer.isEnabled && !apiServer.isRunning {
+    if apiServer.isEnabled, !apiServer.isRunning {
       return "Starting..."
     }
     return nil
@@ -165,6 +139,6 @@ private struct ToggleCard: View {
   LocalDeviceQuickControl()
     .environment(WebSocketClient())
     .environment(APIServer())
+    .environment(NavigationState())
     .padding()
 }
-
