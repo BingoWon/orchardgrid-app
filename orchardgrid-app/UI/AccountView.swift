@@ -26,9 +26,10 @@ struct AccountView: View {
           .foregroundStyle(.secondary)
 
           HStack(spacing: 12) {
-            Image(systemName: "link")
-              .font(.title3)
-              .foregroundStyle(.primary)
+            Image("GitHubLogo")
+              .resizable()
+              .scaledToFit()
+              .frame(width: 24, height: 24)
 
             VStack(alignment: .leading, spacing: 4) {
               Text("GitHub Repository")
@@ -41,10 +42,8 @@ struct AccountView: View {
 
             Spacer()
 
-            Link(destination: repoURL) {
-              Label("Open", systemImage: "arrow.up.right")
-            }
-            .buttonStyle(.borderedProminent)
+            Link("Open", destination: repoURL)
+              .buttonStyle(.borderedProminent)
           }
         }
         .padding(.vertical, 4)
