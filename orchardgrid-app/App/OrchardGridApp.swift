@@ -9,6 +9,7 @@ struct OrchardGridApp: App {
   @State private var navigationState = NavigationState()
   @State private var apiServer = APIServer()
   @State private var devicesManager = DevicesManager()
+  @State private var logsManager = LogsManager()
   @State private var windowSize: CGSize = .zero
   @Environment(\.scenePhase) private var scenePhase
 
@@ -53,8 +54,6 @@ struct OrchardGridApp: App {
           .frame(maxWidth: .infinity, maxHeight: .infinity)
 
         case .authenticated, .guest:
-          // Both authenticated and guest users see MainView
-          // Individual views adapt based on auth state
           MainView()
             .environment(authManager)
             .environment(wsClient)
@@ -62,24 +61,38 @@ struct OrchardGridApp: App {
             .environment(navigationState)
             .environment(apiServer)
             .environment(devicesManager)
+            .environment(logsManager)
             .onGeometryChange(for: CGSize.self) { geometry in
               geometry.size
             } action: {
               windowSize = $0
             }
-            .task {
-              // Connect observer for real-time updates (only if authenticated)
-              if let token = authManager.authToken {
-                observerClient.connect(authToken: token)
-              }
-            }
         }
       }
       .frame(minWidth: 375.0, minHeight: 375.0)
+      // React to auth token changes - connect/disconnect observer
+      .onChange(of: authManager.authToken) { oldToken, newToken in
+        if let token = newToken {
+          Logger.log(.app, "Auth token available, connecting observer...")
+          observerClient.connect(authToken: token)
+          setupObserverCallbacks()
+        } else if oldToken != nil {
+          Logger.log(.app, "Auth token removed, disconnecting observer...")
+          observerClient.disconnect()
+        }
+      }
+      // Initial connection if token exists at launch
+      .task {
+        if let token = authManager.authToken {
+          Logger.log(.app, "Initial auth token found, connecting observer...")
+          observerClient.connect(authToken: token)
+          setupObserverCallbacks()
+        }
+      }
     }
     #if os(macOS)
     .commands {
-      SidebarCommands() // Enable standard View menu commands for Sidebar toggling
+      SidebarCommands()
     }
     #endif
     .onChange(of: scenePhase) { _, newPhase in
@@ -87,17 +100,37 @@ struct OrchardGridApp: App {
     }
   }
 
+  /// Setup observer callbacks for real-time data updates
+  private func setupObserverCallbacks() {
+    observerClient.onDevicesChanged = { [devicesManager, authManager] in
+      Task {
+        if let token = authManager.authToken {
+          await devicesManager.fetchDevices(authToken: token, isManualRefresh: false)
+        }
+      }
+    }
+
+    observerClient.onTasksChanged = { [logsManager, authManager] in
+      Task {
+        if let token = authManager.authToken {
+          await logsManager.reload(authToken: token, isManualRefresh: false)
+        }
+      }
+    }
+  }
+
   private func handleScenePhaseChange(_ phase: ScenePhase) {
     switch phase {
     case .active:
       Logger.log(.app, "App became active")
-    // No need to manually call connect() here
-    // startReconnection() already handles reconnection logic
+      // Reconnect observer if disconnected
+      if let token = authManager.authToken, observerClient.status == .disconnected {
+        observerClient.connect(authToken: token)
+      }
     case .inactive:
       Logger.log(.app, "App became inactive")
     case .background:
       Logger.log(.app, "App entered background")
-    // Don't pause reconnection - maintain aggressive connection strategy
     @unknown default:
       break
     }

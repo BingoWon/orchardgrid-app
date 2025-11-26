@@ -16,6 +16,12 @@ final class LogsManager: Refreshable {
   private let apiURL = Config.apiBaseURL
   private let urlSession = Config.urlSession
 
+  /// Quick reload for real-time updates (uses default pagination)
+  func reload(authToken: String, isManualRefresh: Bool = false) async {
+    await loadConsumingTasks(authToken: authToken, isManualRefresh: isManualRefresh)
+    await loadProvidingTasks(authToken: authToken, isManualRefresh: isManualRefresh)
+  }
+
   func loadConsumingTasks(
     limit: Int = 50,
     offset: Int = 0,

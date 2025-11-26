@@ -2,8 +2,7 @@ import SwiftUI
 
 struct LogsView: View {
   @Environment(AuthManager.self) private var authManager
-  @Environment(ObserverClient.self) private var observerClient
-  @State private var manager = LogsManager()
+  @Environment(LogsManager.self) private var manager
   @State private var selectedTab = 0
   @State private var consumingStatus = "all"
   @State private var providingStatus = "all"
@@ -50,9 +49,6 @@ struct LogsView: View {
     }
     .task {
       await loadData()
-      observerClient.onTasksChanged = {
-        Task { await loadData(isManualRefresh: false) }
-      }
     }
   }
 
@@ -424,4 +420,5 @@ struct LogsView: View {
 #Preview {
   LogsView()
     .environment(AuthManager())
+    .environment(LogsManager())
 }

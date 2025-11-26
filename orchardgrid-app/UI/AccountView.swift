@@ -227,7 +227,7 @@ struct OpenSourceCard: View {
 
         Text(repoURL.absoluteString)
           .font(.subheadline)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(.primary)
           .textSelection(.enabled)
 
         Spacer()

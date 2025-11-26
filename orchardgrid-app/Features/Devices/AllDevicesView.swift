@@ -103,13 +103,6 @@ struct AllDevicesView: View {
       if let token = authManager.authToken {
         await devicesManager.fetchDevices(authToken: token)
       }
-      observerClient.onDevicesChanged = {
-        Task {
-          if let token = authManager.authToken {
-            await devicesManager.fetchDevices(authToken: token, isManualRefresh: false)
-          }
-        }
-      }
     }
   }
 
