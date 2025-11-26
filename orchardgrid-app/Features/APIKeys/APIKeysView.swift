@@ -18,6 +18,7 @@ struct APIKeysView: View {
   @State private var visibleKeys: Set<String> = []
   @State private var showDeleteConfirmation = false
   @State private var keyToDelete: APIKey?
+  @State private var copiedText: String?
 
   var body: some View {
     ScrollView {
@@ -184,6 +185,7 @@ struct APIKeysView: View {
           key: key,
           isVisible: visibleKeys.contains(key.key),
           isEditing: editingKey == key.key,
+          isCopied: copiedText == key.key,
           editingName: $editingName,
           onToggleVisibility: { toggleKeyVisibility(key.key) },
           onCopy: { copyKey(key.key) },
@@ -269,9 +271,17 @@ struct APIKeysView: View {
     Button {
       copyToClipboard(text)
     } label: {
-      Image(systemName: "doc.on.doc")
-        .font(.caption)
-        .foregroundStyle(.blue)
+      HStack(spacing: 4) {
+        Image(systemName: copiedText == text ? "checkmark" : "doc.on.doc")
+          .font(.caption)
+          .foregroundStyle(copiedText == text ? .green : .blue)
+        if copiedText == text {
+          Text("Copied")
+            .font(.caption2)
+            .foregroundStyle(.green)
+        }
+      }
+      .animation(.easeInOut(duration: 0.2), value: copiedText)
     }
     .buttonStyle(.plain)
   }
@@ -304,6 +314,15 @@ struct APIKeysView: View {
     #else
       UIPasteboard.general.string = text
     #endif
+
+    // Show feedback
+    copiedText = text
+    Task {
+      try? await Task.sleep(for: .seconds(2))
+      if copiedText == text {
+        copiedText = nil
+      }
+    }
   }
 
   private func toggleKeyVisibility(_ key: String) {
@@ -326,6 +345,7 @@ private struct APIKeyCard: View {
   let key: APIKey
   let isVisible: Bool
   let isEditing: Bool
+  let isCopied: Bool
   @Binding var editingName: String
   let onToggleVisibility: () -> Void
   let onCopy: () -> Void
@@ -362,8 +382,16 @@ private struct APIKeyCard: View {
 
         HStack(spacing: 16) {
           Button { onCopy() } label: {
-            Image(systemName: "doc.on.doc")
-              .foregroundStyle(.blue)
+            HStack(spacing: 4) {
+              Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
+                .foregroundStyle(isCopied ? .green : .blue)
+              if isCopied {
+                Text("Copied")
+                  .font(.caption2)
+                  .foregroundStyle(.green)
+              }
+            }
+            .animation(.easeInOut(duration: 0.2), value: isCopied)
           }
           .buttonStyle(.plain)
 
