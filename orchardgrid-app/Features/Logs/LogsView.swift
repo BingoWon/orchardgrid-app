@@ -3,6 +3,7 @@ import SwiftUI
 struct LogsView: View {
   @Environment(AuthManager.self) private var authManager
   @Environment(LogsManager.self) private var manager
+  @Environment(ObserverClient.self) private var observerClient
   @State private var selectedTab = 0
   @State private var consumingStatus = "all"
   @State private var providingStatus = "all"
@@ -12,14 +13,28 @@ struct LogsView: View {
   @State private var providingPage = 1
 
   private let statusOptions = ["all", "completed", "failed", "processing", "pending"]
-  private let pageSizeOptions = [10, 25, 50, 100]
 
   var body: some View {
-    Group {
-      if authManager.isAuthenticated {
-        authenticatedContent
-      } else {
-        guestContent
+    ScrollView {
+      GlassEffectContainer {
+        VStack(alignment: .leading, spacing: Constants.standardSpacing) {
+          if authManager.isAuthenticated {
+            authenticatedContent
+          } else {
+            GuestFeaturePrompt(
+              icon: "list.bullet.rectangle",
+              title: "View Task History",
+              description: "Sign in to see your complete task history with detailed logs.",
+              benefits: [
+                "View consuming and providing tasks",
+                "Filter by status",
+                "Track task duration and performance",
+              ],
+              buttonTitle: "Sign In to View Logs"
+            )
+          }
+        }
+        .padding(Constants.standardPadding)
       }
     }
     .refreshable {
@@ -30,21 +45,7 @@ struct LogsView: View {
     .toolbarTitleDisplayMode(.inlineLarge)
     .withPlatformToolbar {
       if authManager.isAuthenticated {
-        HStack(spacing: 12) {
-          if manager.isRefreshing {
-            ProgressView()
-              .controlSize(.small)
-          }
-
-          Button {
-            Task {
-              await loadData(isManualRefresh: true)
-            }
-          } label: {
-            Image(systemName: "arrow.clockwise")
-          }
-          .disabled(manager.isRefreshing)
-        }
+        refreshButton
       }
     }
     .task {
@@ -52,274 +53,162 @@ struct LogsView: View {
     }
   }
 
-  // MARK: - Guest Content
-
-  private var guestContent: some View {
-    ScrollView {
-      GuestFeaturePrompt(
-        icon: "list.bullet.rectangle",
-        title: "View Task History",
-        description: "Sign in to see your complete task history with detailed logs.",
-        benefits: [
-          "View consuming and providing tasks",
-          "Filter by status",
-          "Track task duration and performance",
-        ],
-        buttonTitle: "Sign In to View Logs"
-      )
-      .padding()
-    }
-  }
-
   // MARK: - Authenticated Content
 
+  @ViewBuilder
   private var authenticatedContent: some View {
-    VStack(spacing: 0) {
-      // Last Updated
+    // Status Bar
+    HStack {
+      HStack(spacing: 4) {
+        Circle()
+          .fill(observerClient.status == .connected ? .green : .gray)
+          .frame(width: 6, height: 6)
+        Text(observerClient.status == .connected ? "Live" : "Offline")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+
+      Spacer()
+
       if !manager.isInitialLoading {
         LastUpdatedView(lastUpdatedText: manager.lastUpdatedText)
-          .padding(.horizontal)
-          .padding(.top, 8)
       }
+    }
 
-      // Error State
-      if let errorMessage = manager.errorMessage {
-        errorState(error: errorMessage)
-          .padding()
-      }
+    // Loading State
+    if manager.isInitialLoading {
+      loadingState
+    }
+    // Error State
+    else if let error = manager.errorMessage {
+      errorState(error: error)
+    }
+    // Content
+    else {
+      // Summary Card
+      summaryCard
 
-      if manager.isInitialLoading {
-        ProgressView("Loading logs...")
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      // Tab Selector
+      tabSelector
+
+      // Task List
+      if selectedTab == 0 {
+        taskSection(
+          title: "Consuming Tasks",
+          tasks: manager.consumingTasks,
+          total: manager.consumingTotal,
+          status: $consumingStatus,
+          page: $consumingPage,
+          pageSize: consumingPageSize,
+          totalPages: consumingTotalPages,
+          onReload: { Task { await loadConsumingTasks() } }
+        )
       } else {
-        // Tabs
-        Picker("", selection: $selectedTab) {
-          Text("Consuming").tag(0)
-          Text("Providing").tag(1)
-        }
-        .pickerStyle(.segmented)
-        .padding()
-
-        // Content
-        if selectedTab == 0 {
-          consumingView
-        } else {
-          providingView
-        }
+        taskSection(
+          title: "Providing Tasks",
+          tasks: manager.providingTasks,
+          total: manager.providingTotal,
+          status: $providingStatus,
+          page: $providingPage,
+          pageSize: providingPageSize,
+          totalPages: providingTotalPages,
+          onReload: { Task { await loadProvidingTasks() } }
+        )
       }
     }
   }
 
-  private var consumingView: some View {
-    taskListView(
-      tasks: manager.consumingTasks,
-      total: manager.consumingTotal,
-      status: $consumingStatus,
-      pageSize: $consumingPageSize,
-      page: $consumingPage,
-      totalPages: consumingTotalPages,
-      onReload: { Task { await loadConsumingTasks() } }
-    )
+  // MARK: - Summary Card
+
+  private var summaryCard: some View {
+    VStack(alignment: .leading, spacing: Constants.summaryCardSpacing) {
+      Text("Summary")
+        .font(.headline)
+        .foregroundStyle(.secondary)
+
+      HStack(spacing: 16) {
+        SummaryStatView(title: "Consuming", value: "\(manager.consumingTotal)")
+        SummaryStatView(title: "Providing", value: "\(manager.providingTotal)")
+        SummaryStatView(
+          title: "Total",
+          value: "\(manager.consumingTotal + manager.providingTotal)"
+        )
+      }
+    }
+    .padding(Constants.standardPadding)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
   }
 
-  private var providingView: some View {
-    taskListView(
-      tasks: manager.providingTasks,
-      total: manager.providingTotal,
-      status: $providingStatus,
-      pageSize: $providingPageSize,
-      page: $providingPage,
-      totalPages: providingTotalPages,
-      onReload: { Task { await loadProvidingTasks() } }
-    )
+  // MARK: - Tab Selector
+
+  private var tabSelector: some View {
+    Picker("", selection: $selectedTab) {
+      Text("Consuming").tag(0)
+      Text("Providing").tag(1)
+    }
+    .pickerStyle(.segmented)
   }
 
-  private var consumingTotalPages: Int {
-    max(1, Int(ceil(Double(manager.consumingTotal) / Double(consumingPageSize))))
-  }
-
-  private var providingTotalPages: Int {
-    max(1, Int(ceil(Double(manager.providingTotal) / Double(providingPageSize))))
-  }
+  // MARK: - Task Section
 
   @ViewBuilder
-  private func taskListView(
+  private func taskSection(
+    title: String,
     tasks: [ComputeTask],
     total: Int,
     status: Binding<String>,
-    pageSize: Binding<Int>,
     page: Binding<Int>,
+    pageSize: Int,
     totalPages: Int,
     onReload: @escaping () -> Void
   ) -> some View {
-    VStack(spacing: 16) {
-      // Filters
+    VStack(alignment: .leading, spacing: Constants.summaryCardSpacing) {
+      // Header with Filter
       HStack {
+        Text(title)
+          .font(.headline)
+          .foregroundStyle(.secondary)
+
+        Spacer()
+
         Picker("Status", selection: status) {
-          ForEach(statusOptions, id: \.self) { status in
-            Text(status.capitalized).tag(status)
+          ForEach(statusOptions, id: \.self) { s in
+            Text(s.capitalized).tag(s)
           }
         }
-        .frame(width: 150)
+        .labelsHidden()
+        .frame(width: 120)
         .onChange(of: status.wrappedValue) {
           page.wrappedValue = 1
           onReload()
         }
-
-        Picker("Per Page", selection: pageSize) {
-          ForEach(pageSizeOptions, id: \.self) { size in
-            Text("\(size) / page").tag(size)
-          }
-        }
-        .frame(width: 160)
-        .onChange(of: pageSize.wrappedValue) {
-          page.wrappedValue = 1
-          onReload()
-        }
-
-        Spacer()
       }
-      .padding(.horizontal)
 
-      // Content
+      // Tasks
       if tasks.isEmpty {
-        Text("No logs found")
-          .foregroundStyle(.secondary)
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
+        emptyTasksState
       } else {
-        taskTable(tasks: tasks)
+        ForEach(tasks) { task in
+          TaskCard(task: task)
+        }
+
+        // Pagination
         paginationBar(
           page: page,
-          pageSize: pageSize.wrappedValue,
+          pageSize: pageSize,
           total: total,
           totalPages: totalPages,
           onReload: onReload
         )
       }
     }
-    .padding()
   }
 
-  @ViewBuilder
-  private func taskTable(tasks: [ComputeTask]) -> some View {
-    #if os(macOS)
-      // macOS: Use Table for better desktop experience
-      Table(tasks) {
-        TableColumn("Time") { task in
-          Text(task.createdDate, format: .dateTime.year().month().day().hour().minute().second())
-            .font(.system(.body, design: .monospaced))
-        }
-        .width(min: 150, ideal: 180)
+  // MARK: - Task Card
 
-        TableColumn("Task ID") { task in
-          Text(task.id.prefix(8) + "...")
-            .font(.system(.body, design: .monospaced))
-        }
-        .width(min: 100, ideal: 120)
+  // MARK: - Pagination
 
-        TableColumn("Device") { task in
-          if let deviceId = task.deviceId {
-            Text(deviceId.prefix(8) + "...")
-              .font(.system(.body, design: .monospaced))
-          } else {
-            Text("-")
-          }
-        }
-        .width(min: 100, ideal: 120)
-
-        TableColumn("Status") { task in
-          HStack(spacing: 4) {
-            Circle()
-              .fill(statusColor(for: task.status))
-              .frame(width: 8, height: 8)
-            Text(task.status.capitalized)
-          }
-        }
-        .width(min: 100, ideal: 120)
-
-        TableColumn("Duration") { task in
-          Text(task.durationText)
-            .font(.system(.body, design: .monospaced))
-        }
-        .width(min: 80, ideal: 100)
-      }
-    #else
-      // iOS/iPadOS: Use List for better mobile experience
-      ScrollView {
-        LazyVStack(spacing: 12) {
-          ForEach(tasks) { task in
-            taskCard(task: task)
-          }
-        }
-        .padding()
-      }
-    #endif
-  }
-
-  @ViewBuilder
-  private func taskCard(task: ComputeTask) -> some View {
-    VStack(alignment: .leading, spacing: 12) {
-      // Header: Status and Time
-      HStack {
-        HStack(spacing: 6) {
-          Circle()
-            .fill(statusColor(for: task.status))
-            .frame(width: 10, height: 10)
-          Text(task.status.capitalized)
-            .font(.subheadline)
-            .fontWeight(.medium)
-        }
-
-        Spacer()
-
-        Text(task.createdDate, format: .dateTime.month().day().hour().minute())
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      }
-
-      // Details
-      VStack(alignment: .leading, spacing: 8) {
-        HStack {
-          Text("Task ID")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .frame(width: 70, alignment: .leading)
-          Text(task.id.prefix(12) + "...")
-            .font(.system(.caption, design: .monospaced))
-        }
-
-        if let deviceId = task.deviceId {
-          HStack {
-            Text("Device")
-              .font(.caption)
-              .foregroundStyle(.secondary)
-              .frame(width: 70, alignment: .leading)
-            Text(deviceId.prefix(12) + "...")
-              .font(.system(.caption, design: .monospaced))
-          }
-        }
-
-        HStack {
-          Text("Duration")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .frame(width: 70, alignment: .leading)
-          Text(task.durationText)
-            .font(.system(.caption, design: .monospaced))
-        }
-      }
-    }
-    .padding()
-    #if os(macOS)
-      .background(Color(nsColor: .controlBackgroundColor))
-    #else
-      .background(Color(uiColor: .systemBackground))
-    #endif
-      .cornerRadius(12)
-      .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-  }
-
-  @ViewBuilder
   private func paginationBar(
     page: Binding<Int>,
     pageSize: Int,
@@ -328,43 +217,63 @@ struct LogsView: View {
     onReload: @escaping () -> Void
   ) -> some View {
     HStack {
-      Text(
-        "Showing \((page.wrappedValue - 1) * pageSize + 1) to \(min(page.wrappedValue * pageSize, total)) of \(total) logs"
-      )
-      .font(.caption)
-      .foregroundStyle(.secondary)
+      Text("\((page.wrappedValue - 1) * pageSize + 1)-\(min(page.wrappedValue * pageSize, total)) of \(total)")
+        .font(.caption)
+        .foregroundStyle(.secondary)
 
       Spacer()
 
-      Button("Previous") {
-        page.wrappedValue = max(1, page.wrappedValue - 1)
-        onReload()
-      }
-      .disabled(page.wrappedValue == 1)
+      HStack(spacing: 8) {
+        Button {
+          page.wrappedValue = max(1, page.wrappedValue - 1)
+          onReload()
+        } label: {
+          Image(systemName: "chevron.left")
+        }
+        .disabled(page.wrappedValue == 1)
 
-      Text("Page \(page.wrappedValue) of \(totalPages)")
-        .font(.caption)
+        Text("\(page.wrappedValue)/\(totalPages)")
+          .font(.caption)
+          .monospacedDigit()
 
-      Button("Next") {
-        page.wrappedValue = min(totalPages, page.wrappedValue + 1)
-        onReload()
+        Button {
+          page.wrappedValue = min(totalPages, page.wrappedValue + 1)
+          onReload()
+        } label: {
+          Image(systemName: "chevron.right")
+        }
+        .disabled(page.wrappedValue >= totalPages)
       }
-      .disabled(page.wrappedValue == totalPages)
+      .buttonStyle(.plain)
     }
-    .padding(.horizontal)
+    .padding(.top, 8)
   }
 
-  private func statusColor(for status: String) -> Color {
-    switch status {
-    case "completed": .green
-    case "failed": .red
-    case "processing": .orange
-    case "pending": .gray
-    default: .gray
+  // MARK: - States
+
+  private var loadingState: some View {
+    VStack(spacing: 16) {
+      ProgressView()
+      Text("Loading logs...")
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
     }
+    .frame(maxWidth: .infinity)
+    .padding(.vertical, 60)
   }
 
-  // MARK: - Error State
+  private var emptyTasksState: some View {
+    VStack(spacing: 12) {
+      Image(systemName: "tray")
+        .font(.system(size: 32))
+        .foregroundStyle(.secondary)
+      Text("No tasks found")
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+    }
+    .frame(maxWidth: .infinity)
+    .padding(.vertical, 40)
+  }
 
   private func errorState(error: String) -> some View {
     HStack {
@@ -377,15 +286,43 @@ struct LogsView: View {
       Spacer()
 
       Button("Retry") {
-        Task {
-          await loadData(isManualRefresh: true)
-        }
+        Task { await loadData(isManualRefresh: true) }
       }
       .buttonStyle(.glass)
     }
     .padding()
     .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
   }
+
+  // MARK: - Refresh Button
+
+  private var refreshButton: some View {
+    Button {
+      Task { await loadData(isManualRefresh: true) }
+    } label: {
+      Image(systemName: "arrow.clockwise")
+        .rotationEffect(.degrees(manager.isRefreshing ? 360 : 0))
+        .animation(
+          manager.isRefreshing
+            ? .linear(duration: 1).repeatForever(autoreverses: false)
+            : .default,
+          value: manager.isRefreshing
+        )
+    }
+    .disabled(manager.isRefreshing)
+  }
+
+  // MARK: - Computed Properties
+
+  private var consumingTotalPages: Int {
+    max(1, Int(ceil(Double(manager.consumingTotal) / Double(consumingPageSize))))
+  }
+
+  private var providingTotalPages: Int {
+    max(1, Int(ceil(Double(manager.providingTotal) / Double(providingPageSize))))
+  }
+
+  // MARK: - Data Loading
 
   private func loadData(isManualRefresh: Bool = false) async {
     await loadConsumingTasks(isManualRefresh: isManualRefresh)
@@ -417,8 +354,83 @@ struct LogsView: View {
   }
 }
 
+// MARK: - Summary Stat View
+
+private struct SummaryStatView: View {
+  let title: String
+  let value: String
+
+  var body: some View {
+    VStack(spacing: 4) {
+      Text(value)
+        .font(.title2.bold())
+
+      Text(title)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+    .frame(maxWidth: .infinity)
+    .padding(.vertical, 12)
+    .background(.ultraThinMaterial, in: .rect(cornerRadius: 10))
+  }
+}
+
+// MARK: - Task Card
+
+private struct TaskCard: View {
+  let task: ComputeTask
+
+  var body: some View {
+    HStack(spacing: 12) {
+      // Status Indicator
+      Circle()
+        .fill(statusColor)
+        .frame(width: 10, height: 10)
+
+      // Info
+      VStack(alignment: .leading, spacing: 4) {
+        HStack {
+          Text(task.status.capitalized)
+            .font(.subheadline)
+            .fontWeight(.medium)
+
+          Spacer()
+
+          Text(task.createdDate, format: .dateTime.month().day().hour().minute())
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+
+        HStack(spacing: 16) {
+          Label(task.id.prefix(8) + "...", systemImage: "number")
+          if let deviceId = task.deviceId {
+            Label(deviceId.prefix(8) + "...", systemImage: "desktopcomputer")
+          }
+          Label(task.durationText, systemImage: "clock")
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .labelStyle(.titleOnly)
+      }
+    }
+    .padding(12)
+    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
+  }
+
+  private var statusColor: Color {
+    switch task.status {
+    case "completed": .green
+    case "failed": .red
+    case "processing": .orange
+    case "pending": .gray
+    default: .gray
+    }
+  }
+}
+
 #Preview {
   LogsView()
     .environment(AuthManager())
     .environment(LogsManager())
+    .environment(ObserverClient())
 }

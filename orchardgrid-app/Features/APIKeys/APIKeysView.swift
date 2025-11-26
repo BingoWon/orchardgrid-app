@@ -11,18 +11,40 @@ private let maskMinLength = 24
 
 struct APIKeysView: View {
   @Environment(AuthManager.self) private var authManager
+  @Environment(ObserverClient.self) private var observerClient
   @State private var manager = APIKeysManager()
   @State private var editingKey: String?
   @State private var editingName = ""
   @State private var visibleKeys: Set<String> = []
+  @State private var showDeleteConfirmation = false
+  @State private var keyToDelete: APIKey?
 
   var body: some View {
-    Group {
-      if authManager.isAuthenticated {
-        authenticatedContent
-      } else {
-        guestContent
+    ScrollView {
+      GlassEffectContainer {
+        VStack(alignment: .leading, spacing: Constants.standardSpacing) {
+          if authManager.isAuthenticated {
+            authenticatedContent
+          } else {
+            GuestFeaturePrompt(
+              icon: "key.fill",
+              title: "Get Your API Keys",
+              description: "Sign in to create API keys and access OrchardGrid from your applications.",
+              benefits: [
+                "OpenAI-compatible API format",
+                "Works with any OpenAI SDK",
+                "Manage multiple API keys",
+              ],
+              buttonTitle: "Sign In to Create API Key"
+            )
+          }
+        }
+        .padding(Constants.standardPadding)
       }
+    }
+    .refreshable {
+      guard let token = authManager.authToken else { return }
+      await manager.loadAPIKeys(authToken: token, isManualRefresh: true)
     }
     .navigationTitle("API Keys")
     .toolbarRole(.editor)
@@ -38,171 +60,220 @@ struct APIKeysView: View {
           Button {
             createKey()
           } label: {
-            Label("Create API Key", systemImage: "plus")
+            Label("Create", systemImage: "plus")
           }
           .disabled(authManager.authToken == nil)
         }
       }
     }
-    .refreshable {
-      guard let token = authManager.authToken else { return }
-      await manager.loadAPIKeys(authToken: token, isManualRefresh: true)
-    }
     .task {
       guard let token = authManager.authToken else { return }
       await manager.loadAPIKeys(authToken: token)
     }
-  }
-
-  // MARK: - Guest Content
-
-  private var guestContent: some View {
-    ScrollView {
-      GuestFeaturePrompt(
-        icon: "key.fill",
-        title: "Get Your API Keys",
-        description: "Sign in to create API keys and access OrchardGrid from your applications.",
-        benefits: [
-          "OpenAI-compatible API format",
-          "Works with any OpenAI SDK",
-          "Manage multiple API keys",
-        ],
-        buttonTitle: "Sign In to Create API Key"
-      )
-      .padding()
+    .alert("Delete API Key?", isPresented: $showDeleteConfirmation) {
+      Button("Cancel", role: .cancel) {}
+      Button("Delete", role: .destructive) {
+        if let key = keyToDelete {
+          Task {
+            guard let token = authManager.authToken else { return }
+            await manager.deleteAPIKey(key: key.key, authToken: token)
+          }
+        }
+      }
+    } message: {
+      if let key = keyToDelete {
+        Text("Are you sure you want to delete \"\(key.name ?? "this API key")\"?")
+      }
     }
   }
 
   // MARK: - Authenticated Content
 
+  @ViewBuilder
   private var authenticatedContent: some View {
-    VStack(spacing: 0) {
-      // Last Updated
-      if !manager.isInitialLoading {
-        LastUpdatedView(lastUpdatedText: manager.lastUpdatedText)
-          .padding(.horizontal)
-          .padding(.top, 8)
+    // Status Bar
+    HStack {
+      HStack(spacing: 4) {
+        Circle()
+          .fill(observerClient.status == .connected ? .green : .gray)
+          .frame(width: 6, height: 6)
+        Text(observerClient.status == .connected ? "Live" : "Offline")
+          .font(.caption)
+          .foregroundStyle(.secondary)
       }
 
-      if manager.isInitialLoading {
-        ProgressView("Loading API keys...")
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-      } else if let error = manager.lastError {
-        ContentUnavailableView {
-          Label("Error", systemImage: "exclamationmark.triangle")
-        } description: {
-          Text(error)
-        } actions: {
-          Button("Retry") {
-            Task {
-              guard let token = authManager.authToken else { return }
-              await manager.loadAPIKeys(authToken: token)
-            }
-          }
+      Spacer()
+
+      if !manager.isInitialLoading {
+        LastUpdatedView(lastUpdatedText: manager.lastUpdatedText)
+      }
+    }
+
+    // Loading State
+    if manager.isInitialLoading {
+      loadingState
+    }
+    // Error State
+    else if let error = manager.lastError {
+      errorState(error: error)
+    }
+    // Empty State
+    else if manager.apiKeys.isEmpty {
+      emptyState
+    }
+    // Content
+    else {
+      // Usage Instructions Card
+      usageInstructionsCard
+
+      // API Keys List
+      apiKeysSection
+    }
+  }
+
+  // MARK: - Usage Instructions Card
+
+  private var usageInstructionsCard: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      HStack {
+        Label("Quick Start", systemImage: "info.circle.fill")
+          .font(.headline)
+          .foregroundStyle(.blue)
+        Spacer()
+      }
+
+      VStack(alignment: .leading, spacing: 8) {
+        HStack {
+          Text("Model")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(width: 80, alignment: .leading)
+          Text("apple-intelligence")
+            .font(.system(.subheadline, design: .monospaced))
+          Spacer()
+          copyButton(text: "apple-intelligence")
         }
-      } else if manager.apiKeys.isEmpty {
-        ContentUnavailableView {
-          Label("No API Keys", systemImage: "key.fill")
-        } description: {
-          Text("Create an API key to get started")
-        } actions: {
-          Button("Create API Key") {
-            createKey()
-          }
-          .buttonStyle(.borderedProminent)
-        }
-      } else {
-        List {
-          // Usage Instructions Section
-          Section {
-            UsageInstructionsView()
-          }
-          .listRowInsets(EdgeInsets())
-          .listRowBackground(Color.clear)
 
-          // API Keys Section
-          Section {
-            ForEach(manager.apiKeys) { key in
-              VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                  if editingKey == key.key {
-                    TextField("Name", text: $editingName)
-                      .textFieldStyle(.roundedBorder)
-                    Button("Save") {
-                      updateKeyName(key)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    Button("Cancel") {
-                      editingKey = nil
-                      editingName = ""
-                    }
-                  } else {
-                    Text(key.name ?? "Unnamed")
-                      .font(.headline)
-                    Button {
-                      editingKey = key.key
-                      editingName = key.name ?? ""
-                    } label: {
-                      Image(systemName: "pencil")
-                        .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                  }
-                  Spacer()
-                  Button {
-                    copyKey(key.key)
-                  } label: {
-                    Image(systemName: "doc.on.doc")
-                      .foregroundColor(.blue)
-                  }
-                  .buttonStyle(.plain)
-                  Button {
-                    deleteKey(key)
-                  } label: {
-                    Image(systemName: "trash")
-                      .foregroundColor(.red)
-                  }
-                  .buttonStyle(.plain)
-                }
-
-                HStack {
-                  Text(visibleKeys.contains(key.key) ? key.key : maskKey(key.key))
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(.secondary)
-                    .textSelection(.enabled)
-                  Button {
-                    toggleKeyVisibility(key.key)
-                  } label: {
-                    Image(systemName: visibleKeys.contains(key.key) ? "eye.slash" : "eye")
-                      .foregroundColor(.secondary)
-                  }
-                  .buttonStyle(.plain)
-                }
-
-                HStack {
-                  Text("Created: \(formatDate(key.created_at))")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                  Spacer()
-
-                  if let lastUsed = key.last_used_at {
-                    Text("Last used: \(formatLastUsed(lastUsed))")
-                      .font(.caption)
-                      .foregroundColor(.secondary)
-                  } else {
-                    Text("Never used")
-                      .font(.caption)
-                      .foregroundColor(.secondary)
-                  }
-                }
-              }
-              .padding(.vertical, 4)
-            }
-          }
+        HStack {
+          Text("Endpoint")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(width: 80, alignment: .leading)
+          Text(Config.apiBaseURL)
+            .font(.system(.caption, design: .monospaced))
+            .lineLimit(1)
+          Spacer()
+          copyButton(text: Config.apiBaseURL)
         }
       }
     }
+    .padding(Constants.standardPadding)
+    .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
+  }
+
+  // MARK: - API Keys Section
+
+  private var apiKeysSection: some View {
+    VStack(alignment: .leading, spacing: Constants.summaryCardSpacing) {
+      Text("Your API Keys")
+        .font(.headline)
+        .foregroundStyle(.secondary)
+
+      ForEach(manager.apiKeys) { key in
+        APIKeyCard(
+          key: key,
+          isVisible: visibleKeys.contains(key.key),
+          isEditing: editingKey == key.key,
+          editingName: $editingName,
+          onToggleVisibility: { toggleKeyVisibility(key.key) },
+          onCopy: { copyKey(key.key) },
+          onEdit: {
+            editingKey = key.key
+            editingName = key.name ?? ""
+          },
+          onSave: { updateKeyName(key) },
+          onCancelEdit: {
+            editingKey = nil
+            editingName = ""
+          },
+          onDelete: {
+            keyToDelete = key
+            showDeleteConfirmation = true
+          }
+        )
+      }
+    }
+  }
+
+  // MARK: - States
+
+  private var loadingState: some View {
+    VStack(spacing: 16) {
+      ProgressView()
+      Text("Loading API keys...")
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+    }
+    .frame(maxWidth: .infinity)
+    .padding(.vertical, 60)
+  }
+
+  private var emptyState: some View {
+    VStack(spacing: 16) {
+      Image(systemName: "key.fill")
+        .font(.system(size: 48))
+        .foregroundStyle(.secondary)
+
+      Text("No API Keys")
+        .font(.title2)
+        .fontWeight(.semibold)
+
+      Text("Create an API key to get started")
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+
+      Button("Create API Key") {
+        createKey()
+      }
+      .buttonStyle(.borderedProminent)
+    }
+    .frame(maxWidth: .infinity)
+    .padding(.vertical, 60)
+  }
+
+  private func errorState(error: String) -> some View {
+    HStack {
+      Image(systemName: "exclamationmark.triangle.fill")
+        .foregroundStyle(.orange)
+
+      Text(error)
+        .font(.subheadline)
+
+      Spacer()
+
+      Button("Retry") {
+        Task {
+          guard let token = authManager.authToken else { return }
+          await manager.loadAPIKeys(authToken: token)
+        }
+      }
+      .buttonStyle(.glass)
+    }
+    .padding()
+    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
+  }
+
+  // MARK: - Helpers
+
+  private func copyButton(text: String) -> some View {
+    Button {
+      copyToClipboard(text)
+    } label: {
+      Image(systemName: "doc.on.doc")
+        .font(.caption)
+        .foregroundStyle(.blue)
+    }
+    .buttonStyle(.plain)
   }
 
   private func createKey() {
@@ -223,11 +294,15 @@ struct APIKeysView: View {
   }
 
   private func copyKey(_ key: String) {
+    copyToClipboard(key)
+  }
+
+  private func copyToClipboard(_ text: String) {
     #if os(macOS)
       NSPasteboard.general.clearContents()
-      NSPasteboard.general.setString(key, forType: .string)
+      NSPasteboard.general.setString(text, forType: .string)
     #else
-      UIPasteboard.general.string = key
+      UIPasteboard.general.string = text
     #endif
   }
 
@@ -243,29 +318,107 @@ struct APIKeysView: View {
     guard key.count > maskMinLength else { return key }
     return "\(key.prefix(maskPrefixLength))...\(key.suffix(maskSuffixLength))"
   }
+}
 
-  private func deleteKey(_ key: APIKey) {
-    #if os(macOS)
-      let alert = NSAlert()
-      alert.messageText = "Delete API Key"
-      alert.informativeText = "Are you sure you want to delete \"\(key.name ?? "this API key")\"?"
-      alert.alertStyle = .warning
-      alert.addButton(withTitle: "Cancel")
-      alert.addButton(withTitle: "Delete")
+// MARK: - API Key Card
 
-      if alert.runModal() == .alertSecondButtonReturn {
-        Task {
-          guard let token = authManager.authToken else { return }
-          await manager.deleteAPIKey(key: key.key, authToken: token)
+private struct APIKeyCard: View {
+  let key: APIKey
+  let isVisible: Bool
+  let isEditing: Bool
+  @Binding var editingName: String
+  let onToggleVisibility: () -> Void
+  let onCopy: () -> Void
+  let onEdit: () -> Void
+  let onSave: () -> Void
+  let onCancelEdit: () -> Void
+  let onDelete: () -> Void
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      // Header: Name + Actions
+      HStack {
+        if isEditing {
+          TextField("Name", text: $editingName)
+            .textFieldStyle(.roundedBorder)
+            .frame(maxWidth: 200)
+          Button("Save") { onSave() }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+          Button("Cancel") { onCancelEdit() }
+            .controlSize(.small)
+        } else {
+          Text(key.name ?? "Unnamed")
+            .font(.headline)
+          Button { onEdit() } label: {
+            Image(systemName: "pencil")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+          .buttonStyle(.plain)
+        }
+
+        Spacer()
+
+        HStack(spacing: 16) {
+          Button { onCopy() } label: {
+            Image(systemName: "doc.on.doc")
+              .foregroundStyle(.blue)
+          }
+          .buttonStyle(.plain)
+
+          Button { onDelete() } label: {
+            Image(systemName: "trash")
+              .foregroundStyle(.red)
+          }
+          .buttonStyle(.plain)
         }
       }
-    #else
-      // iOS: Use SwiftUI alert (simplified for now)
-      Task {
-        guard let token = authManager.authToken else { return }
-        await manager.deleteAPIKey(key: key.key, authToken: token)
+
+      // Key Value
+      HStack {
+        Text(isVisible ? key.key : maskedKey)
+          .font(.system(.caption, design: .monospaced))
+          .foregroundStyle(.secondary)
+          .textSelection(.enabled)
+          .lineLimit(1)
+
+        Spacer()
+
+        Button { onToggleVisibility() } label: {
+          Image(systemName: isVisible ? "eye.slash" : "eye")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
       }
-    #endif
+
+      // Timestamps
+      HStack {
+        Text("Created: \(formatDate(key.created_at))")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+
+        Spacer()
+
+        if let lastUsed = key.last_used_at {
+          Text("Last used: \(formatRelativeTime(lastUsed))")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        } else {
+          Text("Never used")
+            .font(.caption)
+            .foregroundStyle(.tertiary)
+        }
+      }
+    }
+    .padding(12)
+    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
+  }
+
+  private var maskedKey: String {
+    guard key.key.count > 24 else { return key.key }
+    return "\(key.key.prefix(20))...\(key.key.suffix(4))"
   }
 
   private func formatDate(_ timestamp: Int) -> String {
@@ -276,10 +429,9 @@ struct APIKeysView: View {
     return formatter.string(from: date)
   }
 
-  private func formatLastUsed(_ timestamp: Int) -> String {
-    let now = Date()
+  private func formatRelativeTime(_ timestamp: Int) -> String {
     let date = Date(timeIntervalSince1970: TimeInterval(timestamp) / 1000)
-    let diff = now.timeIntervalSince(date)
+    let diff = Date().timeIntervalSince(date)
     let seconds = Int(diff)
     let minutes = seconds / 60
     let hours = minutes / 60
@@ -292,93 +444,8 @@ struct APIKeysView: View {
   }
 }
 
-// MARK: - Usage Instructions View
-
-struct UsageInstructionsView: View {
-  @State private var isExpanded = false
-
-  var body: some View {
-    GroupBox {
-      VStack(alignment: .leading, spacing: 12) {
-        // Header - Entire area is clickable
-        Button {
-          withAnimation {
-            isExpanded.toggle()
-          }
-        } label: {
-          HStack {
-            Label("API Usage", systemImage: "info.circle.fill")
-              .font(.headline)
-              .foregroundStyle(.blue)
-
-            Spacer()
-
-            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-              .foregroundStyle(.secondary)
-          }
-          .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-
-        if isExpanded {
-          Divider()
-
-          // Model Name
-          VStack(alignment: .leading, spacing: 4) {
-            Text("Model")
-              .font(.caption)
-              .foregroundStyle(.secondary)
-            HStack {
-              Text("apple-intelligence")
-                .font(.system(.body, design: .monospaced))
-                .textSelection(.enabled)
-              Button {
-                copyToClipboard("apple-intelligence")
-              } label: {
-                Image(systemName: "doc.on.doc")
-                  .foregroundStyle(.blue)
-              }
-              .buttonStyle(.plain)
-            }
-          }
-
-          Divider()
-
-          // API Endpoint
-          VStack(alignment: .leading, spacing: 4) {
-            Text("API Endpoint")
-              .font(.caption)
-              .foregroundStyle(.secondary)
-            HStack {
-              Text(Config.apiBaseURL)
-                .font(.system(.body, design: .monospaced))
-                .textSelection(.enabled)
-              Button {
-                copyToClipboard(Config.apiBaseURL)
-              } label: {
-                Image(systemName: "doc.on.doc")
-                  .foregroundStyle(.blue)
-              }
-              .buttonStyle(.plain)
-            }
-          }
-        }
-      }
-      .padding()
-    }
-  }
-
-  private func copyToClipboard(_ text: String) {
-    #if os(macOS)
-      NSPasteboard.general.clearContents()
-      NSPasteboard.general.setString(text, forType: .string)
-    #else
-      UIPasteboard.general.string = text
-    #endif
-  }
-}
-
 #Preview {
   APIKeysView()
     .environment(AuthManager())
+    .environment(ObserverClient())
 }
