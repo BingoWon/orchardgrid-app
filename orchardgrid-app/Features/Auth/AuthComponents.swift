@@ -36,13 +36,6 @@ enum SocialProvider {
     case .google: "Google"
     }
   }
-
-  var iconName: String {
-    switch self {
-    case .apple: "apple.logo"
-    case .google: "g.circle.fill"
-    }
-  }
 }
 
 struct SocialLoginButton: View {
@@ -95,24 +88,6 @@ struct SocialLoginButton: View {
       )
     }
     .buttonStyle(.plain)
-  }
-}
-
-// MARK: - Apple Sign In Wrapper
-
-struct AppleSignInButton: View {
-  let onCompletion: (Result<ASAuthorization, Error>) -> Void
-
-  var body: some View {
-    SignInWithAppleButton(.continue) { request in
-      request.requestedScopes = [.email, .fullName]
-    } onCompletion: { result in
-      onCompletion(result)
-    }
-    .signInWithAppleButtonStyle(.black)
-    .frame(height: 0)
-    .opacity(0)
-    .allowsHitTesting(false)
   }
 }
 

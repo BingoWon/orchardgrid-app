@@ -9,8 +9,6 @@ struct AccountView: View {
   @State private var showFinalConfirmation = false
   @State private var isDeleting = false
 
-  private let repoURL = URL(string: "https://github.com/BingoWon/orchardgrid-app")!
-
   var body: some View {
     Group {
       if authManager.isAuthenticated {
@@ -57,8 +55,7 @@ struct AccountView: View {
           buttonTitle: "Sign In"
         )
 
-        // Open Source section
-        openSourceSection
+        OpenSourceCard()
       }
       .padding()
     }
@@ -111,35 +108,8 @@ struct AccountView: View {
         }
       }
 
-      // Open Source section
       Section("Open Source") {
-        VStack(alignment: .leading, spacing: 12) {
-          Text("The OrchardGrid app is open source. Explore and contribute on GitHub.")
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-
-          HStack(spacing: 12) {
-            Image("GitHubLogo")
-              .resizable()
-              .scaledToFit()
-              .frame(width: 24, height: 24)
-
-            VStack(alignment: .leading, spacing: 4) {
-              Text("GitHub Repository")
-                .font(.headline)
-              Text(repoURL.absoluteString)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
-            }
-
-            Spacer()
-
-            Link("Open", destination: repoURL)
-              .buttonStyle(.borderedProminent)
-          }
-        }
-        .padding(.vertical, 4)
+        OpenSourceCard(style: .form)
       }
 
       Section("Session") {
@@ -161,44 +131,6 @@ struct AccountView: View {
       }
     }
     .formStyle(.grouped)
-  }
-
-  // MARK: - Open Source Section (for guest mode)
-
-  private var openSourceSection: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      Text("Open Source")
-        .font(.headline)
-
-      Text("The OrchardGrid app is open source. Explore and contribute on GitHub.")
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-
-      HStack(spacing: 12) {
-        Image("GitHubLogo")
-          .resizable()
-          .scaledToFit()
-          .frame(width: 24, height: 24)
-
-        VStack(alignment: .leading, spacing: 4) {
-          Text("GitHub Repository")
-            .font(.subheadline)
-            .fontWeight(.medium)
-          Text(repoURL.absoluteString)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .textSelection(.enabled)
-        }
-
-        Spacer()
-
-        Link("Open", destination: repoURL)
-          .buttonStyle(.borderedProminent)
-      }
-    }
-    .padding()
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
   }
 
   private func saveName() async {
@@ -263,6 +195,69 @@ struct AccountView: View {
       Logger.log(.auth, "Account deleted successfully")
     } catch {
       Logger.error(.auth, "Failed to delete account: \(error.localizedDescription)")
+    }
+  }
+}
+
+// MARK: - Open Source Card
+
+struct OpenSourceCard: View {
+  enum Style { case standalone, form }
+
+  var style: Style = .standalone
+
+  private let repoURL = URL(string: "https://github.com/BingoWon/orchardgrid-app")!
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      if style == .standalone {
+        Text("Open Source")
+          .font(.headline)
+      }
+
+      Text("The OrchardGrid app is open source. Explore and contribute on GitHub.")
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+
+      HStack(spacing: 12) {
+        Image("GitHubLogo")
+          .resizable()
+          .scaledToFit()
+          .frame(width: 24, height: 24)
+
+        VStack(alignment: .leading, spacing: 4) {
+          Text("GitHub Repository")
+            .font(style == .form ? .headline : .subheadline)
+            .fontWeight(.medium)
+          Text(repoURL.absoluteString)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .textSelection(.enabled)
+        }
+
+        Spacer()
+
+        Link("Open", destination: repoURL)
+          .buttonStyle(.borderedProminent)
+      }
+    }
+    .modifier(OpenSourceCardStyle(style: style))
+  }
+}
+
+private struct OpenSourceCardStyle: ViewModifier {
+  let style: OpenSourceCard.Style
+
+  func body(content: Content) -> some View {
+    switch style {
+    case .standalone:
+      content
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
+    case .form:
+      content
+        .padding(.vertical, 4)
     }
   }
 }

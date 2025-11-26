@@ -17,7 +17,7 @@ struct RegisterView: View {
     @Bindable var auth = auth
 
     NavigationStack {
-      AuthLayout {
+      ScrollView {
         VStack(spacing: 32) {
           AuthHeader(title: "Create account", subtitle: "Get started with OrchardGrid")
 
@@ -26,7 +26,6 @@ struct RegisterView: View {
               AuthErrorBanner(message: error)
             }
 
-            // Social Login
             SocialLoginButton(provider: .apple) {
               auth.loginWithApple()
             }
@@ -62,7 +61,13 @@ struct RegisterView: View {
             dismiss()
           }
         }
+        .padding(24)
+        .frame(maxWidth: 400)
       }
+      .navigationTitle("Create Account")
+      #if !os(macOS)
+        .navigationBarTitleDisplayMode(.inline)
+      #endif
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
           Button("Cancel") { dismiss() }
