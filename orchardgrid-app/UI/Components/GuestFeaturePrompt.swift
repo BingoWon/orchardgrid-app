@@ -145,8 +145,13 @@ struct SignInSheet: View {
             authManager.showRegisterView = true
           }
         }
+        .frame(maxWidth: 400)
         .padding(.bottom, 24)
       }
+      .frame(maxWidth: .infinity)
+      #if os(macOS)
+        .frame(minWidth: 420, idealWidth: 450, minHeight: 520, idealHeight: 560)
+      #endif
       .navigationTitle("Sign In")
       #if !os(macOS)
         .navigationBarTitleDisplayMode(.inline)

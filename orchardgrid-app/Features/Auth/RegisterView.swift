@@ -89,6 +89,9 @@ struct RegisterView: View {
         }
       }
     }
+    #if os(macOS)
+      .frame(minWidth: 420, idealWidth: 450, minHeight: 600, idealHeight: 650)
+    #endif
   }
 
   private var isFormValid: Bool {
