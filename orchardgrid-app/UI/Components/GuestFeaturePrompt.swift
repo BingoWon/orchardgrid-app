@@ -70,106 +70,80 @@ struct GuestFeaturePrompt: View {
 struct SignInSheet: View {
   @Environment(AuthManager.self) private var authManager
   @Environment(\.dismiss) private var dismiss
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @State private var email = ""
   @State private var password = ""
+
+  private var isWideLayout: Bool {
+    #if os(macOS)
+      return true
+    #else
+      return horizontalSizeClass == .regular
+    #endif
+  }
 
   var body: some View {
     NavigationStack {
       ScrollView {
         VStack(spacing: 24) {
           // Header
-          VStack(spacing: 8) {
-            Image(systemName: "person.crop.circle.badge.plus")
-              .font(.system(size: 56))
-              .foregroundStyle(.blue)
-
-            Text("Sign In")
-              .font(.title)
-              .fontWeight(.bold)
-
-            Text("Sign in to unlock all features")
-              .font(.subheadline)
-              .foregroundStyle(.secondary)
-          }
-          .padding(.top, 16)
+          AuthHeader(title: "Welcome back", subtitle: "Sign in to unlock all features")
+            .padding(.top, 16)
 
           // Error
           if let error = authManager.lastError {
-            Text(error)
-              .font(.caption)
-              .foregroundStyle(.red)
+            AuthErrorBanner(message: error)
               .padding(.horizontal)
-              .padding(.vertical, 8)
-              .background(.red.opacity(0.1))
-              .clipShape(RoundedRectangle(cornerRadius: 8))
           }
 
-          // Social Login
+          // Social Login - Side by side on wide screens
           VStack(spacing: 12) {
-            SocialLoginButton(provider: .apple) {
-              authManager.loginWithApple()
-            }
-
-            SocialLoginButton(provider: .google) {
-              authManager.loginWithGoogle()
+            if isWideLayout {
+              HStack(spacing: 12) {
+                SocialLoginButton(provider: .apple) {
+                  authManager.loginWithApple()
+                }
+                SocialLoginButton(provider: .google) {
+                  authManager.loginWithGoogle()
+                }
+              }
+            } else {
+              SocialLoginButton(provider: .apple) {
+                authManager.loginWithApple()
+              }
+              SocialLoginButton(provider: .google) {
+                authManager.loginWithGoogle()
+              }
             }
           }
           .padding(.horizontal)
 
           // Divider
-          HStack {
-            Rectangle()
-              .fill(.secondary.opacity(0.3))
-              .frame(height: 1)
-            Text("or")
-              .font(.caption)
-              .foregroundStyle(.secondary)
-            Rectangle()
-              .fill(.secondary.opacity(0.3))
-              .frame(height: 1)
-          }
-          .padding(.horizontal)
+          AuthDivider(text: "or continue with email")
+            .padding(.horizontal)
 
           // Email Login
           VStack(spacing: 12) {
-            TextField("Email", text: $email)
-              .textFieldStyle(.roundedBorder)
+            AuthField(placeholder: "Email", text: $email)
               #if os(iOS)
                 .keyboardType(.emailAddress)
-                .textContentType(.emailAddress)
-                .autocapitalization(.none)
               #endif
 
-            SecureField("Password", text: $password)
-              .textFieldStyle(.roundedBorder)
-              #if os(iOS)
-                .textContentType(.password)
-              #endif
+            AuthField(placeholder: "Password", text: $password, isSecure: true)
 
-            Button {
+            AuthButton(
+              title: "Sign In",
+              isEnabled: !email.isEmpty && !password.isEmpty && !authManager.isLoading
+            ) {
               Task { await authManager.login(email: email, password: password) }
-            } label: {
-              if authManager.isLoading {
-                ProgressView()
-                  .frame(maxWidth: .infinity)
-              } else {
-                Text("Sign In with Email")
-                  .frame(maxWidth: .infinity)
-              }
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(email.isEmpty || password.isEmpty || authManager.isLoading)
           }
           .padding(.horizontal)
 
           // Register Link
-          Button {
+          AuthLink(text: "Don't have an account?", linkText: "Sign Up") {
             authManager.showRegisterView = true
-          } label: {
-            Text("Don't have an account? **Sign Up**")
-              .font(.subheadline)
           }
-          .buttonStyle(.plain)
         }
         .padding(.bottom, 24)
       }
