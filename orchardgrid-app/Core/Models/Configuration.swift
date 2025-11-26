@@ -7,13 +7,17 @@
 
 import Foundation
 
+/// Shared LLM configuration
+enum LLMConfig {
+  /// Default system prompt for all LLM interactions
+  static let defaultSystemPrompt =
+    "You are a helpful AI assistant. Provide clear, concise, and accurate responses."
+}
+
 /// API Server configuration
 struct APIServerConfiguration {
   /// Server port
   let port: UInt16
-
-  /// Default system prompt for LLM
-  let defaultSystemPrompt: String
 
   /// Maximum request size in bytes
   let maxRequestSize: Int
@@ -21,7 +25,6 @@ struct APIServerConfiguration {
   /// Default configuration
   static let `default` = APIServerConfiguration(
     port: 8888,
-    defaultSystemPrompt: "You are a helpful AI assistant. Provide clear, concise, and accurate responses.",
     maxRequestSize: 65536
   )
 }

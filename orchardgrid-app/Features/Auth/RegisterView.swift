@@ -65,11 +65,11 @@ struct RegisterView: View {
       #if !os(macOS)
         .navigationBarTitleDisplayMode(.inline)
       #endif
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") { dismiss() }
+        .toolbar {
+          ToolbarItem(placement: .cancellationAction) {
+            Button("Cancel") { dismiss() }
+          }
         }
-      }
     }
   }
 

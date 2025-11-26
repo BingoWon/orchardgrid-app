@@ -100,9 +100,9 @@ struct SignInSheet: View {
         // Email Login
         VStack(spacing: 12) {
           AuthField(placeholder: "Email", text: $email)
-            #if os(iOS)
-              .keyboardType(.emailAddress)
-            #endif
+          #if os(iOS)
+            .keyboardType(.emailAddress)
+          #endif
 
           AuthField(placeholder: "Password", text: $password, isSecure: true)
 
@@ -125,25 +125,25 @@ struct SignInSheet: View {
       #if !os(macOS)
         .navigationBarTitleDisplayMode(.inline)
       #endif
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") {
+        .toolbar {
+          ToolbarItem(placement: .cancellationAction) {
+            Button("Cancel") {
+              dismiss()
+            }
+          }
+        }
+        .sheet(isPresented: Binding(
+          get: { authManager.showRegisterView },
+          set: { authManager.showRegisterView = $0 }
+        )) {
+          RegisterView()
+            .environment(authManager)
+        }
+        .onChange(of: authManager.isAuthenticated) { _, isAuth in
+          if isAuth {
             dismiss()
           }
         }
-      }
-      .sheet(isPresented: Binding(
-        get: { authManager.showRegisterView },
-        set: { authManager.showRegisterView = $0 }
-      )) {
-        RegisterView()
-          .environment(authManager)
-      }
-      .onChange(of: authManager.isAuthenticated) { _, isAuth in
-        if isAuth {
-          dismiss()
-        }
-      }
     }
   }
 }
@@ -168,4 +168,3 @@ struct SignInSheet: View {
   SignInSheet()
     .environment(AuthManager())
 }
-

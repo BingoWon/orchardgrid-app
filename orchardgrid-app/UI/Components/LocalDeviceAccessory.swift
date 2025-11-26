@@ -1,142 +1,116 @@
 import SwiftUI
 
-/// Tab View Bottom Accessory - shows this device's Share to Cloud status
-/// Similar to Apple Music's MiniPlayer, provides quick access to the local device connection info
+/// Tab View Bottom Accessory - displays both sharing modes status
+/// Similar to Apple Music's Now Playing, tapping opens the full device view
 struct LocalDeviceAccessory: View {
   @Environment(\.tabViewBottomAccessoryPlacement) private var placement
-  @Environment(WebSocketClient.self) private var wsClient
-  @State private var showDeviceSheet = false
+  @Environment(SharingManager.self) private var sharing
+  @Binding var showSheet: Bool
 
   var body: some View {
     Group {
       switch placement {
+      case .expanded:
+        expandedView
       case .inline:
         inlineView
-      case .expanded, nil:
-        expandedView
-      @unknown default:
+      default:
         expandedView
       }
     }
     .contentShape(Rectangle())
     .onTapGesture {
-      showDeviceSheet = true
+      showSheet = true
     }
-    .sheet(isPresented: $showDeviceSheet) {
-      NavigationStack {
-        LocalDeviceView()
-        #if !os(macOS)
-          .navigationBarTitleDisplayMode(.inline)
-        #endif
-          .toolbar {
-            #if os(macOS)
-              ToolbarItem(placement: .automatic) {
-                Button("Close") {
-                  showDeviceSheet = false
-                }
-              }
-            #else
-              ToolbarItem(placement: .topBarTrailing) {
-                Button(role: .close) {
-                  showDeviceSheet = false
-                }
-              }
-            #endif
-          }
-      }
-      #if !os(macOS)
-      .presentationDetents([.large])
-      .presentationDragIndicator(.visible)
-      #endif
-    }
-  }
-
-  // MARK: - Inline View
-
-  private var inlineView: some View {
-    HStack {
-      connectionIndicator(size: 8)
-
-      Spacer()
-
-      Text(connectionStatusText)
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-
-      Spacer()
-
-      Image(systemName: "chevron.right")
-        .font(.caption)
-        .foregroundStyle(.tertiary)
-    }
-    .padding(.horizontal)
   }
 
   // MARK: - Expanded View
 
   private var expandedView: some View {
     HStack {
-      HStack(spacing: 8) {
-        connectionIndicator(size: 10)
-        Text(NavigationItem.localDeviceTitle)
-          .font(.headline)
-      }
+      Text(NavigationItem.localDeviceTitle)
+        .font(.subheadline)
+        .fontWeight(.semibold)
 
       Spacer()
 
-      HStack(spacing: 8) {
-        Text(connectionStatusText)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-
-        if wsClient.isConnected {
-          Text("-")
-            .foregroundStyle(.tertiary)
-
-          Text("\(wsClient.tasksProcessed)")
-            .font(.subheadline)
-            .fontWeight(.semibold)
-        }
+      HStack(spacing: 16) {
+        cloudStatus
+        localStatus
       }
-
-      Image(systemName: "chevron.right")
-        .font(.caption)
-        .foregroundStyle(.tertiary)
     }
     .padding(.horizontal)
   }
 
-  // MARK: - Helpers
+  // MARK: - Inline View
 
-  private func connectionIndicator(size: CGFloat) -> some View {
-    Circle()
-      .fill(connectionColor)
-      .frame(width: size, height: size)
+  private var inlineView: some View {
+    HStack {
+      Spacer()
+      cloudStatus
+      Spacer()
+      localStatus
+      Spacer()
+    }
   }
 
-  private var connectionColor: Color {
-    switch wsClient.connectionState {
+  // MARK: - Status Components
+
+  private var cloudStatus: some View {
+    HStack(spacing: 6) {
+      Circle()
+        .fill(cloudIndicatorColor)
+        .frame(width: 8, height: 8)
+
+      Text("Cloud")
+        .font(.subheadline)
+
+      if sharing.wantsCloudSharing {
+        Text("\(sharing.cloudTasksProcessed)")
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .monospacedDigit()
+      }
+    }
+  }
+
+  private var localStatus: some View {
+    HStack(spacing: 6) {
+      Circle()
+        .fill(localIndicatorColor)
+        .frame(width: 8, height: 8)
+
+      Text("Local")
+        .font(.subheadline)
+
+      if sharing.wantsLocalSharing {
+        Text("\(sharing.localRequestCount)")
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .monospacedDigit()
+      }
+    }
+  }
+
+  // MARK: - Indicator Colors
+
+  private var cloudIndicatorColor: Color {
+    guard sharing.wantsCloudSharing else { return .gray.opacity(0.5) }
+
+    switch sharing.cloudConnectionState {
     case .connected:
-      .green
+      return .green
     case .connecting, .reconnecting:
-      .orange
+      return .orange
+    case .failed:
+      return .red
     default:
-      .gray
+      return .gray
     }
   }
 
-  private var connectionStatusText: String {
-    switch wsClient.connectionState {
-    case .connected:
-      "Connected"
-    case .connecting:
-      "Connecting..."
-    case .reconnecting:
-      "Reconnecting..."
-    case .disconnected:
-      "Disconnected"
-    case .failed:
-      "Failed"
-    }
+  private var localIndicatorColor: Color {
+    guard sharing.wantsLocalSharing else { return .gray.opacity(0.5) }
+    return sharing.isLocalActive ? .green : .orange
   }
 }

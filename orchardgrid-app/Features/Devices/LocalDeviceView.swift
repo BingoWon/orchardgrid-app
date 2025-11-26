@@ -7,8 +7,7 @@ import SwiftUI
 #endif
 
 struct LocalDeviceView: View {
-  @Environment(WebSocketClient.self) private var wsClient
-  @Environment(APIServer.self) private var apiServer
+  @Environment(SharingManager.self) private var sharing
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
   private var isWideLayout: Bool {
@@ -22,21 +21,24 @@ struct LocalDeviceView: View {
   var body: some View {
     ScrollView {
       GlassEffectContainer {
-        if isWideLayout {
-          // Wide layout: side by side
-          HStack(alignment: .top, spacing: 16) {
-            cloudShareCard
-            localShareCard
+        VStack(alignment: .leading, spacing: 16) {
+          if !sharing.isModelAvailable {
+            AIStatusCard(availability: sharing.modelAvailability)
+          } else {
+            if isWideLayout {
+              HStack(alignment: .top, spacing: 16) {
+                cloudShareCard
+                localShareCard
+              }
+            } else {
+              VStack(alignment: .leading, spacing: 16) {
+                cloudShareCard
+                localShareCard
+              }
+            }
           }
-          .padding()
-        } else {
-          // Compact layout: stacked
-          VStack(alignment: .leading, spacing: 24) {
-            cloudShareCard
-            localShareCard
-          }
-          .padding()
         }
+        .padding()
       }
     }
     .navigationTitle(DeviceInfo.deviceName)
@@ -46,7 +48,6 @@ struct LocalDeviceView: View {
 
   private var cloudShareCard: some View {
     VStack(alignment: .leading, spacing: 16) {
-      // Header with Toggle
       HStack {
         VStack(alignment: .leading, spacing: 4) {
           Text("Share to Cloud")
@@ -59,36 +60,15 @@ struct LocalDeviceView: View {
         Spacer()
 
         Toggle("", isOn: Binding(
-          get: { wsClient.isEnabled },
-          set: { wsClient.isEnabled = $0 }
+          get: { sharing.wantsCloudSharing },
+          set: { sharing.setCloudSharing($0) }
         ))
         .toggleStyle(.switch)
-        .disabled(!wsClient.canEnable)
       }
 
-      // Content based on model availability
-      switch wsClient.modelAvailability {
-      case .available:
-        if wsClient.isEnabled {
-          Divider()
-          availableContent
-        }
-
-      case .unavailable(.deviceNotEligible):
+      if sharing.wantsCloudSharing {
         Divider()
-        DeviceNotEligibleView()
-
-      case .unavailable(.appleIntelligenceNotEnabled):
-        Divider()
-        AppleIntelligenceNotEnabledView()
-
-      case .unavailable(.modelNotReady):
-        Divider()
-        ModelNotReadyView()
-
-      case .unavailable:
-        Divider()
-        ModelUnavailableView()
+        cloudConnectionStatus
       }
     }
     .padding()
@@ -96,11 +76,85 @@ struct LocalDeviceView: View {
     .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
   }
 
+  @ViewBuilder
+  private var cloudConnectionStatus: some View {
+    switch sharing.cloudConnectionState {
+    case .disconnected:
+      StatusRow(
+        icon: "circle",
+        iconColor: .secondary,
+        title: "Disconnected",
+        subtitle: "Enable to start connecting"
+      )
+
+    case .connecting:
+      StatusRow(
+        isLoading: true,
+        title: "Connecting...",
+        subtitle: "Establishing connection"
+      )
+
+    case .connected:
+      StatusRow(
+        icon: "checkmark.circle.fill",
+        iconColor: .green,
+        title: "Connected",
+        subtitle: "Ready to process tasks"
+      )
+
+      Divider()
+
+      VStack(alignment: .leading, spacing: 12) {
+        InfoRow(label: "Device", value: DeviceInfo.deviceName)
+        InfoRow(label: "Chip", value: DeviceInfo.chipModel)
+        InfoRow(label: "Memory", value: DeviceInfo.formattedMemory)
+      }
+
+      Divider()
+
+      HStack(spacing: 40) {
+        StatView(title: "Tasks Processed", value: "\(sharing.cloudTasksProcessed)")
+        StatView(title: "Hardware ID", value: String(DeviceID.current.prefix(8)))
+      }
+
+    case let .reconnecting(attempt, nextRetryIn):
+      VStack(alignment: .leading, spacing: 12) {
+        StatusRow(
+          isLoading: true,
+          title: "Reconnecting...",
+          subtitle: nextRetryIn.map { "Attempt \(attempt), next retry in \(Int($0))s" }
+            ?? "Attempt \(attempt)"
+        )
+
+        Button("Retry Now") {
+          sharing.retryCloudConnection()
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+      }
+
+    case let .failed(error):
+      VStack(alignment: .leading, spacing: 12) {
+        StatusRow(
+          icon: "exclamationmark.triangle.fill",
+          iconColor: .orange,
+          title: "Connection Failed",
+          subtitle: error
+        )
+
+        Button("Retry") {
+          sharing.retryCloudConnection()
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.small)
+      }
+    }
+  }
+
   // MARK: - Share Locally Card
 
   private var localShareCard: some View {
     VStack(alignment: .leading, spacing: 16) {
-      // Header with Toggle
       HStack {
         VStack(alignment: .leading, spacing: 4) {
           Text("Share Locally")
@@ -113,62 +167,35 @@ struct LocalDeviceView: View {
         Spacer()
 
         Toggle("", isOn: Binding(
-          get: { apiServer.isEnabled },
-          set: { apiServer.isEnabled = $0 }
+          get: { sharing.wantsLocalSharing },
+          set: { sharing.setLocalSharing($0) }
         ))
         .toggleStyle(.switch)
       }
 
-      // Status and Information
-      if apiServer.isEnabled {
+      if sharing.wantsLocalSharing {
         Divider()
 
-        HStack {
-          Image(systemName: apiServer.isRunning ? "checkmark.circle.fill" : "hourglass.circle.fill")
-            .foregroundStyle(apiServer.isRunning ? .green : .orange)
+        StatusRow(
+          icon: sharing.isLocalActive ? "checkmark.circle.fill" : "hourglass.circle.fill",
+          iconColor: sharing.isLocalActive ? .green : .orange,
+          title: sharing.isLocalActive ? "Running" : "Starting...",
+          subtitle: "Port \(sharing.localPort)"
+        )
 
-          VStack(alignment: .leading, spacing: 2) {
-            Text(apiServer.isRunning ? "Running" : "Starting...")
-              .font(.subheadline)
-              .fontWeight(.medium)
-            Text("Port \(apiServer.port)")
-              .font(.caption)
-              .foregroundStyle(.secondary)
-          }
-
-          Spacer()
-        }
-
-        if apiServer.isRunning {
+        if sharing.isLocalActive {
           Divider()
 
           VStack(alignment: .leading, spacing: 12) {
-            // Model
-            HStack(alignment: .top, spacing: 8) {
-              Text("Model")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(width: 60, alignment: .leading)
-
-              Text("apple-intelligence")
-                .font(.caption)
-                .fontWeight(.medium)
-                .textSelection(.enabled)
-
-              Spacer()
-            }
-
-            // Local Endpoint
+            InfoRow(label: "Model", value: "apple-intelligence")
             EndpointRow(
               label: "Local",
-              url: "http://localhost:\(apiServer.port)/v1/chat/completions"
+              url: "http://localhost:\(sharing.localPort)/v1/chat/completions"
             )
-
-            // Network Endpoint (if available)
-            if let localIP = apiServer.localIPAddress {
+            if let localIP = sharing.localIPAddress {
               EndpointRow(
                 label: "Network",
-                url: "http://\(localIP):\(apiServer.port)/v1/chat/completions"
+                url: "http://\(localIP):\(sharing.localPort)/v1/chat/completions"
               )
             }
           }
@@ -176,7 +203,7 @@ struct LocalDeviceView: View {
           Divider()
 
           HStack(spacing: 40) {
-            StatView(title: "Requests Served", value: "\(apiServer.requestCount)")
+            StatView(title: "Requests Served", value: "\(sharing.localRequestCount)")
           }
         }
       }
@@ -185,254 +212,189 @@ struct LocalDeviceView: View {
     .frame(maxWidth: .infinity, alignment: .leading)
     .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
   }
+}
+
+// MARK: - AI Status Card
+
+struct AIStatusCard: View {
+  let availability: SystemLanguageModel.Availability
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 16) {
+      HStack {
+        Image(systemName: headerIcon)
+          .foregroundStyle(headerColor)
+          .font(.title2)
+        Text(headerTitle)
+          .font(.headline)
+      }
+
+      Text("Both sharing modes require Apple Intelligence to function.")
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+
+      Divider()
+
+      statusContent
+    }
+    .padding()
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
+  }
+
+  private var headerIcon: String {
+    switch availability {
+    case .available:
+      "checkmark.circle.fill"
+    case .unavailable(.modelNotReady):
+      "arrow.down.circle"
+    default:
+      "exclamationmark.triangle.fill"
+    }
+  }
+
+  private var headerColor: Color {
+    switch availability {
+    case .available:
+      .green
+    case .unavailable(.modelNotReady):
+      .blue
+    default:
+      .orange
+    }
+  }
+
+  private var headerTitle: String {
+    switch availability {
+    case .available:
+      "Apple Intelligence Ready"
+    case .unavailable(.deviceNotEligible):
+      "Device Not Supported"
+    case .unavailable(.appleIntelligenceNotEnabled):
+      "Apple Intelligence Not Enabled"
+    case .unavailable(.modelNotReady):
+      "Downloading Model..."
+    case .unavailable:
+      "Apple Intelligence Unavailable"
+    }
+  }
 
   @ViewBuilder
-  private var availableContent: some View {
-    switch wsClient.connectionState {
-    case .disconnected:
-      HStack {
-        Image(systemName: "circle")
+  private var statusContent: some View {
+    switch availability {
+    case .available:
+      EmptyView()
+
+    case .unavailable(.deviceNotEligible):
+      VStack(alignment: .leading, spacing: 12) {
+        Text("This device doesn't support Apple Intelligence. Compatible devices include:")
+          .font(.caption)
           .foregroundStyle(.secondary)
 
-        VStack(alignment: .leading, spacing: 2) {
-          Text("Disconnected")
-            .font(.subheadline)
-            .fontWeight(.medium)
-          Text("Enable to start connecting")
-            .font(.caption)
-            .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 6) {
+          Label("iPhone 15 Pro or later", systemImage: "iphone")
+          Label("iPad with M1 chip or later", systemImage: "ipad")
+          Label("Mac with Apple Silicon", systemImage: "desktopcomputer")
         }
+        .font(.caption)
+        .foregroundStyle(.secondary)
 
-        Spacer()
-      }
-
-    case .connecting:
-      HStack {
-        ProgressView()
+        Link("Learn More", destination: URL(string: "https://www.apple.com/apple-intelligence/")!)
+          .font(.caption)
+          .buttonStyle(.borderedProminent)
           .controlSize(.small)
-
-        VStack(alignment: .leading, spacing: 2) {
-          Text("Connecting...")
-            .font(.subheadline)
-            .fontWeight(.medium)
-          Text("Establishing connection")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-
-        Spacer()
       }
 
-    case .connected:
-      HStack {
-        Image(systemName: "checkmark.circle.fill")
-          .foregroundStyle(.green)
-
-        VStack(alignment: .leading, spacing: 2) {
-          Text("Connected")
-            .font(.subheadline)
-            .fontWeight(.medium)
-          Text("Ready to process tasks")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-
-        Spacer()
-      }
-
-      Divider()
-
-      // Device Information
+    case .unavailable(.appleIntelligenceNotEnabled):
       VStack(alignment: .leading, spacing: 12) {
-        InfoRow(label: "Device", value: DeviceInfo.deviceName)
-        InfoRow(label: "Chip", value: DeviceInfo.chipModel)
-        InfoRow(label: "Memory", value: DeviceInfo.formattedMemory)
-      }
+        Text("Enable Apple Intelligence in Settings to use this app.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
 
-      Divider()
-
-      HStack(spacing: 40) {
-        StatView(title: "Tasks Processed", value: "\(wsClient.tasksProcessed)")
-        StatView(title: "Hardware ID", value: String(DeviceID.current.prefix(8)))
-      }
-
-    case let .reconnecting(attempt, nextRetryIn):
-      VStack(alignment: .leading, spacing: 12) {
-        HStack {
-          ProgressView()
-            .controlSize(.small)
-
-          VStack(alignment: .leading, spacing: 2) {
-            Text("Reconnecting...")
-              .font(.subheadline)
-              .fontWeight(.medium)
-            if let nextRetryIn {
-              Text("Attempt \(attempt), next retry in \(Int(nextRetryIn))s")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            } else {
-              Text("Attempt \(attempt)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        #if os(iOS)
+          Button("Open Settings") {
+            if let url = URL(string: UIApplication.openSettingsURLString) {
+              UIApplication.shared.open(url)
             }
           }
-
-          Spacer()
-        }
-
-        Button("Retry Now") {
-          wsClient.retry()
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
-      }
-
-    case let .failed(error):
-      VStack(alignment: .leading, spacing: 12) {
-        HStack {
-          Image(systemName: "exclamationmark.triangle.fill")
-            .foregroundStyle(.orange)
-
-          VStack(alignment: .leading, spacing: 2) {
-            Text("Connection Failed")
-              .font(.subheadline)
-              .fontWeight(.medium)
-            Text(error)
-              .font(.caption)
-              .foregroundStyle(.secondary)
-          }
-
-          Spacer()
-        }
-
-        Button("Retry") {
-          wsClient.retry()
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.small)
-      }
-    }
-  }
-}
-
-// MARK: - Availability Status Views
-
-struct DeviceNotEligibleView: View {
-  var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      HStack {
-        Image(systemName: "exclamationmark.triangle.fill")
-          .foregroundStyle(.orange)
-        Text("Device Not Supported")
-          .font(.subheadline)
-          .fontWeight(.medium)
-      }
-
-      Text("Your device doesn't support Apple Intelligence. Share to Cloud requires:")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-
-      VStack(alignment: .leading, spacing: 4) {
-        Label("iPhone 15 Pro or later", systemImage: "iphone")
-        Label("iPad with M1 chip or later", systemImage: "ipad")
-        Label("Mac with Apple Silicon", systemImage: "desktopcomputer")
-      }
-      .font(.caption)
-      .foregroundStyle(.secondary)
-
-      Link("Learn More", destination: URL(string: "https://www.apple.com/apple-intelligence/")!)
-        .font(.caption)
-        .buttonStyle(.borderedProminent)
-        .controlSize(.small)
-    }
-  }
-}
-
-struct AppleIntelligenceNotEnabledView: View {
-  var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      HStack {
-        Image(systemName: "exclamationmark.triangle.fill")
-          .foregroundStyle(.orange)
-        Text("Apple Intelligence Not Enabled")
-          .font(.subheadline)
-          .fontWeight(.medium)
-      }
-
-      Text("To share computing power, you need to enable Apple Intelligence in Settings.")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-
-      #if os(iOS)
-        Button("Open Settings") {
-          if let url = URL(string: UIApplication.openSettingsURLString) {
-            UIApplication.shared.open(url)
-          }
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.small)
-      #elseif os(macOS)
-        Button("Open System Settings") {
-          if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security") {
-            NSWorkspace.shared.open(url)
-          }
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.small)
-      #endif
-
-      Text("After enabling, restart this app.")
-        .font(.caption2)
-        .foregroundStyle(.tertiary)
-    }
-  }
-}
-
-struct ModelNotReadyView: View {
-  var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      HStack {
-        ProgressView()
+          .buttonStyle(.borderedProminent)
           .controlSize(.small)
-        Text("Apple Intelligence Downloading...")
-          .font(.subheadline)
-          .fontWeight(.medium)
+        #elseif os(macOS)
+          Button("Open System Settings") {
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security") {
+              NSWorkspace.shared.open(url)
+            }
+          }
+          .buttonStyle(.borderedProminent)
+          .controlSize(.small)
+        #endif
+
+        Text("After enabling, restart this app.")
+          .font(.caption2)
+          .foregroundStyle(.tertiary)
       }
 
-      Text("The on-device model is being downloaded. This may take a while.")
-        .font(.caption)
-        .foregroundStyle(.secondary)
+    case .unavailable(.modelNotReady):
+      VStack(alignment: .leading, spacing: 12) {
+        HStack(spacing: 8) {
+          ProgressView()
+            .controlSize(.small)
+          Text("The on-device model is being downloaded.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
 
-      Text("Share to Cloud will be available once the download completes.")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-    }
-  }
-}
-
-struct ModelUnavailableView: View {
-  var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      HStack {
-        Image(systemName: "exclamationmark.triangle.fill")
-          .foregroundStyle(.orange)
-        Text("Apple Intelligence Unavailable")
-          .font(.subheadline)
-          .fontWeight(.medium)
+        Text("This may take a while. Sharing modes will be available once the download completes.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
       }
 
-      Text("The on-device model is currently unavailable for an unknown reason.")
-        .font(.caption)
-        .foregroundStyle(.secondary)
+    case .unavailable:
+      VStack(alignment: .leading, spacing: 8) {
+        Text("The on-device model is currently unavailable.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
 
-      Text("Please try again later or contact support if the issue persists.")
-        .font(.caption)
-        .foregroundStyle(.secondary)
+        Text("Please try again later or contact support if the issue persists.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
     }
   }
 }
 
 // MARK: - Supporting Views
+
+struct StatusRow: View {
+  var icon: String?
+  var iconColor: Color = .secondary
+  var isLoading: Bool = false
+  let title: String
+  let subtitle: String
+
+  var body: some View {
+    HStack {
+      if isLoading {
+        ProgressView()
+          .controlSize(.small)
+      } else if let icon {
+        Image(systemName: icon)
+          .foregroundStyle(iconColor)
+      }
+
+      VStack(alignment: .leading, spacing: 2) {
+        Text(title)
+          .font(.subheadline)
+          .fontWeight(.medium)
+        Text(subtitle)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+
+      Spacer()
+    }
+  }
+}
 
 struct InfoRow: View {
   let label: String
@@ -466,14 +428,12 @@ struct EndpointRow: View {
         .foregroundStyle(.secondary)
         .frame(width: 60, alignment: .leading)
 
-      VStack(alignment: .leading, spacing: 4) {
-        Text(url)
-          .font(.caption)
-          .fontWeight(.medium)
-          .textSelection(.enabled)
-          .lineLimit(2)
-          .fixedSize(horizontal: false, vertical: true)
-      }
+      Text(url)
+        .font(.caption)
+        .fontWeight(.medium)
+        .textSelection(.enabled)
+        .lineLimit(2)
+        .fixedSize(horizontal: false, vertical: true)
 
       Spacer()
 
@@ -516,6 +476,5 @@ struct StatView: View {
 
 #Preview {
   LocalDeviceView()
-    .environment(WebSocketClient())
-    .environment(APIServer())
+    .environment(SharingManager())
 }

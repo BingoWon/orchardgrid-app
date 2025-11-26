@@ -339,7 +339,6 @@ private struct SummaryStatCard: View {
     .environment(DevicesManager())
     .environment(AuthManager())
     .environment(ObserverClient())
-    .environment(WebSocketClient())
-    .environment(APIServer())
+    .environment(SharingManager())
     .environment(NavigationState())
 }

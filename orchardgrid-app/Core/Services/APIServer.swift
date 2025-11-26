@@ -1,12 +1,15 @@
+/**
+ * APIServer.swift
+ * OrchardGrid Local API Server
+ *
+ * Provides OpenAI-compatible API for local apps
+ * Note: Lifecycle managed by SharingManager
+ */
+
 import Foundation
 @preconcurrency import FoundationModels
 import Network
 import OSLog
-
-// MARK: - Models
-//
-// All shared types are now defined in SharedTypes.swift
-// This ensures proper type resolution by SourceKit and Swift compiler
 
 // MARK: - HTTP Request
 
@@ -58,10 +61,12 @@ struct HTTPRequest: Sendable {
 @Observable
 @MainActor
 final class APIServer {
-  // Configuration
+  // MARK: - Configuration
+
   private let config = AppConfiguration.default.apiServer
 
-  // State
+  // MARK: - State
+
   private(set) var isRunning = false
   private(set) var requestCount = 0
   private(set) var lastRequest = ""
@@ -69,10 +74,13 @@ final class APIServer {
   private(set) var errorMessage = ""
   private(set) var localIPAddress: String?
 
+  nonisolated var port: UInt16 { config.port }
+
+  // MARK: - Enabled State (Managed by SharingManager)
+
   var isEnabled = false {
     didSet {
       guard oldValue != isEnabled else { return }
-      UserDefaults.standard.set(isEnabled, forKey: "APIServer.isEnabled")
       if isEnabled {
         Task { await start() }
       } else {
@@ -81,24 +89,24 @@ final class APIServer {
     }
   }
 
-  // Port from configuration
-  nonisolated var port: UInt16 { config.port }
+  // MARK: - Private State
 
-  // Services
-  private let llmProcessor = LLMProcessor()
-  private let jsonDecoder = JSONDecoder()
-
-  // Network
   private var listener: NWListener?
   private var pathMonitor: NWPathMonitor?
+  private let jsonDecoder = JSONDecoder()
 
-  init() {
-    // Start network monitoring
+  // MARK: - Injected Dependencies
+
+  private let llmProcessor: LLMProcessor
+
+  // MARK: - Initialization
+
+  init(llmProcessor: LLMProcessor) {
+    self.llmProcessor = llmProcessor
     startNetworkMonitoring()
-
-    // Restore previous state (didSet will auto-start if enabled)
-    isEnabled = UserDefaults.standard.bool(forKey: "APIServer.isEnabled")
   }
+
+  // MARK: - Server Lifecycle
 
   nonisolated func start() async {
     await MainActor.run {
@@ -151,7 +159,6 @@ final class APIServer {
     listener = nil
     isRunning = false
     errorMessage = ""
-    stopNetworkMonitoring()
   }
 
   // MARK: - Network Monitoring
@@ -170,14 +177,11 @@ final class APIServer {
     updateLocalIPAddress()
   }
 
-  private func stopNetworkMonitoring() {
-    pathMonitor?.cancel()
-    pathMonitor = nil
-  }
-
   private func updateLocalIPAddress() {
     localIPAddress = NetworkInfo.localIPAddress
   }
+
+  // MARK: - Request Handling
 
   private nonisolated func handleConnection(_ connection: NWConnection) async {
     connection.start(queue: .global())
@@ -194,16 +198,16 @@ final class APIServer {
 
   private nonisolated func receiveRequest(from connection: NWConnection) async -> String? {
     await withCheckedContinuation { continuation in
-      connection
-        .receive(minimumIncompleteLength: 1,
-                 maximumLength: config.maxRequestSize)
-        { data, _, _, _ in
-          if let data, let request = String(data: data, encoding: .utf8) {
-            continuation.resume(returning: request)
-          } else {
-            continuation.resume(returning: nil)
-          }
+      connection.receive(
+        minimumIncompleteLength: 1,
+        maximumLength: config.maxRequestSize
+      ) { data, _, _, _ in
+        if let data, let request = String(data: data, encoding: .utf8) {
+          continuation.resume(returning: request)
+        } else {
+          continuation.resume(returning: nil)
         }
+      }
     }
   }
 
@@ -211,10 +215,8 @@ final class APIServer {
     switch (request.method, request.path) {
     case ("GET", "/v1/models"):
       await sendModels(to: connection)
-
     case ("POST", "/v1/chat/completions"):
       await handleChatCompletion(request: request, connection: connection)
-
     default:
       await sendError(.notFound, to: connection)
     }
@@ -239,11 +241,8 @@ final class APIServer {
         return
       }
 
-      // Extract system prompt from messages
       let systemPrompt = chatRequest.messages.first(where: { $0.role == "system" })?
-        .content ?? config.defaultSystemPrompt
-
-      // Get conversation messages (excluding system)
+        .content ?? LLMConfig.defaultSystemPrompt
       let conversationMessages = chatRequest.messages.filter { $0.role != "system" }
 
       guard let lastUserMessage = conversationMessages.last(where: { $0.role == "user" }) else {
@@ -424,7 +423,6 @@ final class APIServer {
       await sendStreamEnd(to: connection)
     } catch {
       let errorContent = "Error: \(error.localizedDescription)"
-
       let chunk = StreamChunk(
         id: id,
         object: "chat.completion.chunk",
@@ -461,19 +459,12 @@ final class APIServer {
   }
 
   private nonisolated func send(_ response: some Encodable, to connection: NWConnection) async {
-    // Create local encoder for thread-safe encoding without MainActor
     let encoder = JSONEncoder()
     encoder.keyEncodingStrategy = .convertToSnakeCase
 
-    // Encode in a nonisolated context
     guard let data = try? encoder.encode(response),
           let json = String(data: data, encoding: .utf8)
-    else {
-      return
-    }
-
-    // Log response for debugging
-    await logResponse(json)
+    else { return }
 
     let httpResponse = """
     HTTP/1.1 200 OK\r
@@ -485,12 +476,6 @@ final class APIServer {
     """
 
     await send(httpResponse, to: connection, closeAfter: true)
-  }
-
-  private nonisolated func logResponse(_ json: String) async {
-    #if DEBUG
-      print("API Response: \(json)")
-    #endif
   }
 
   private nonisolated func sendStreamHeaders(to connection: NWConnection) async {
@@ -509,15 +494,12 @@ final class APIServer {
     _ chunk: some Encodable,
     to connection: NWConnection
   ) async {
-    // Create local encoder for thread-safe encoding without MainActor
     let encoder = JSONEncoder()
     encoder.keyEncodingStrategy = .convertToSnakeCase
 
     guard let data = try? encoder.encode(chunk),
           let json = String(data: data, encoding: .utf8)
-    else {
-      return
-    }
+    else { return }
 
     await send("data: \(json)\n\n", to: connection, closeAfter: false)
   }
@@ -539,7 +521,6 @@ final class APIServer {
       )
     )
 
-    // Create local encoder for thread-safe encoding without MainActor
     let encoder = JSONEncoder()
     encoder.keyEncodingStrategy = .convertToSnakeCase
 
@@ -556,12 +537,10 @@ final class APIServer {
       return
     }
 
-    let dataCount = data.count
-
     let httpResponse = """
     HTTP/1.1 \(error.statusCode) \(error.statusMessage)\r
     Content-Type: application/json\r
-    Content-Length: \(dataCount)\r
+    Content-Length: \(data.count)\r
     Connection: close\r
     \r
     \(json)

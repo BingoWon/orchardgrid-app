@@ -1,11 +1,9 @@
 import FoundationModels
 import SwiftUI
 
-/// Quick control card for local device - displays Share to Cloud and Share Locally toggles
-/// On macOS/iPad: navigates to sidebar; On iPhone: opens sheet
+/// Quick control card for local device - displays AI status and sharing toggles
 struct LocalDeviceQuickControl: View {
-  @Environment(WebSocketClient.self) private var wsClient
-  @Environment(APIServer.self) private var apiServer
+  @Environment(SharingManager.self) private var sharing
   @Environment(NavigationState.self) private var navigationState
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @State private var showDeviceSheet = false
@@ -30,10 +28,8 @@ struct LocalDeviceQuickControl: View {
 
         Button {
           if isWideLayout {
-            // macOS/iPad: Navigate to sidebar item
             navigationState.navigateTo(.localDevice)
           } else {
-            // iPhone: Open sheet
             showDeviceSheet = true
           }
         } label: {
@@ -48,29 +44,11 @@ struct LocalDeviceQuickControl: View {
         .buttonStyle(.plain)
       }
 
-      // Toggles Row
-      HStack(spacing: 16) {
-        // Share to Cloud
-        ToggleCard(
-          title: "Share to Cloud",
-          isOn: Binding(
-            get: { wsClient.isEnabled },
-            set: { wsClient.isEnabled = $0 }
-          ),
-          isDisabled: !wsClient.canEnable,
-          statusText: cloudStatusText
-        )
-
-        // Share Locally
-        ToggleCard(
-          title: "Share Locally",
-          isOn: Binding(
-            get: { apiServer.isEnabled },
-            set: { apiServer.isEnabled = $0 }
-          ),
-          isDisabled: false,
-          statusText: localStatusText
-        )
+      // AI Status or Toggles
+      if !sharing.isModelAvailable {
+        aiUnavailableStatus
+      } else {
+        togglesRow
       }
     }
     .padding(Constants.standardPadding)
@@ -94,83 +72,142 @@ struct LocalDeviceQuickControl: View {
     #endif
   }
 
+  // MARK: - AI Unavailable Status
+
+  private var aiUnavailableStatus: some View {
+    HStack(spacing: 12) {
+      Image(systemName: statusIcon)
+        .foregroundStyle(statusColor)
+        .font(.title2)
+
+      VStack(alignment: .leading, spacing: 2) {
+        Text(statusTitle)
+          .font(.subheadline)
+          .fontWeight(.medium)
+        Text("Tap Details for more information")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+
+      Spacer()
+    }
+    .padding(12)
+    .background(.ultraThinMaterial, in: .rect(cornerRadius: 10))
+  }
+
+  private var statusIcon: String {
+    switch sharing.modelAvailability {
+    case .unavailable(.modelNotReady):
+      "arrow.down.circle"
+    default:
+      "exclamationmark.triangle.fill"
+    }
+  }
+
+  private var statusColor: Color {
+    switch sharing.modelAvailability {
+    case .unavailable(.modelNotReady):
+      .blue
+    default:
+      .orange
+    }
+  }
+
+  private var statusTitle: String {
+    switch sharing.modelAvailability {
+    case .unavailable(.deviceNotEligible):
+      "Device Not Supported"
+    case .unavailable(.appleIntelligenceNotEnabled):
+      "Apple Intelligence Disabled"
+    case .unavailable(.modelNotReady):
+      "Downloading Model..."
+    default:
+      "Apple Intelligence Unavailable"
+    }
+  }
+
+  // MARK: - Toggles
+
+  private var togglesRow: some View {
+    VStack(spacing: 8) {
+      ToggleRow(
+        title: "Share to Cloud",
+        isOn: Binding(
+          get: { sharing.wantsCloudSharing },
+          set: { sharing.setCloudSharing($0) }
+        ),
+        statusText: cloudStatusText
+      )
+
+      ToggleRow(
+        title: "Share Locally",
+        isOn: Binding(
+          get: { sharing.wantsLocalSharing },
+          set: { sharing.setLocalSharing($0) }
+        ),
+        statusText: localStatusText
+      )
+    }
+  }
+
   // MARK: - Status Text
 
   private var cloudStatusText: String? {
-    if !wsClient.canEnable {
-      return unavailableReason
-    }
-    if wsClient.isEnabled {
-      switch wsClient.connectionState {
-      case .connecting:
-        return "Connecting..."
-      case .reconnecting:
-        return "Reconnecting..."
-      case .failed:
-        return "Failed"
-      default:
-        return nil
-      }
-    }
-    return nil
-  }
-
-  private var unavailableReason: String {
-    switch wsClient.modelAvailability {
-    case .unavailable(.deviceNotEligible):
-      "Not Supported"
-    case .unavailable(.appleIntelligenceNotEnabled):
-      "Enable in Settings"
-    case .unavailable(.modelNotReady):
-      "Downloading..."
+    guard sharing.wantsCloudSharing else { return nil }
+    switch sharing.cloudConnectionState {
+    case .connecting:
+      return "Connecting..."
+    case .reconnecting:
+      return "Reconnecting..."
+    case .failed:
+      return "Failed"
+    case .connected:
+      return "Connected"
     default:
-      "Unavailable"
+      return nil
     }
   }
 
   private var localStatusText: String? {
-    if apiServer.isEnabled, !apiServer.isRunning {
-      return "Starting..."
-    }
-    return nil
+    guard sharing.wantsLocalSharing else { return nil }
+    return sharing.isLocalActive ? "Running" : "Starting..."
   }
 }
 
-// MARK: - Toggle Card
+// MARK: - Toggle Row
 
-private struct ToggleCard: View {
+private struct ToggleRow: View {
   let title: String
   @Binding var isOn: Bool
-  let isDisabled: Bool
   let statusText: String?
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
+    HStack {
       Text(title)
         .font(.subheadline)
         .fontWeight(.medium)
 
-      Toggle("", isOn: $isOn)
-        .toggleStyle(.switch)
-        .labelsHidden()
-        .disabled(isDisabled)
+      Spacer()
 
       if let status = statusText {
         Text(status)
           .font(.caption)
-          .foregroundStyle(isDisabled ? .orange : .secondary)
+          .foregroundStyle(.secondary)
       }
+
+      Toggle("", isOn: $isOn)
+        .toggleStyle(.switch)
+        .labelsHidden()
     }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .padding(12)
+    .padding(.horizontal, 12)
+    .padding(.vertical, 10)
     .background(.ultraThinMaterial, in: .rect(cornerRadius: 10))
   }
 }
 
 #Preview {
   LocalDeviceQuickControl()
-    .environment(WebSocketClient())
-    .environment(APIServer())
+    .environment(SharingManager())
     .environment(NavigationState())
     .padding()
 }

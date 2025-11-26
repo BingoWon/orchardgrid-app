@@ -17,7 +17,4 @@ enum DeviceConfig {
   static let connectionRequestTimeout: TimeInterval = 60
   static let connectionTimeout: TimeInterval = 30
   static let reconnectionCheckInterval: TimeInterval = 5
-
-  // LLM settings
-  static let defaultSystemPrompt = "You are a helpful AI assistant. Provide clear, concise, and accurate responses."
 }

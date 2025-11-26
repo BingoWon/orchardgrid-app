@@ -217,9 +217,11 @@ struct LogsView: View {
     onReload: @escaping () -> Void
   ) -> some View {
     HStack {
-      Text("\((page.wrappedValue - 1) * pageSize + 1)-\(min(page.wrappedValue * pageSize, total)) of \(total)")
-        .font(.caption)
-        .foregroundStyle(.secondary)
+      Text(
+        "\((page.wrappedValue - 1) * pageSize + 1)-\(min(page.wrappedValue * pageSize, total)) of \(total)"
+      )
+      .font(.caption)
+      .foregroundStyle(.secondary)
 
       Spacer()
 

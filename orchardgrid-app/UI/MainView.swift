@@ -4,6 +4,7 @@ struct MainView: View {
   @Environment(NavigationState.self) private var navigationState
   @Environment(AuthManager.self) private var authManager
   @State private var columnVisibility: NavigationSplitViewVisibility = .all
+  @State private var showLocalDeviceSheet = false
 
   var body: some View {
     Group {
@@ -43,7 +44,22 @@ struct MainView: View {
       }
       .tabBarMinimizeBehavior(.onScrollDown)
       .tabViewBottomAccessory {
-        LocalDeviceAccessory()
+        LocalDeviceAccessory(showSheet: $showLocalDeviceSheet)
+      }
+      .sheet(isPresented: $showLocalDeviceSheet) {
+        NavigationStack {
+          LocalDeviceView()
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+              ToolbarItem(placement: .confirmationAction) {
+                Button("Done") {
+                  showLocalDeviceSheet = false
+                }
+              }
+            }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
       }
     }
   #endif

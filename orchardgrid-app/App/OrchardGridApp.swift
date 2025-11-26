@@ -4,10 +4,9 @@ import SwiftUI
 @main
 struct OrchardGridApp: App {
   @State private var authManager: AuthManager
-  @State private var wsClient: WebSocketClient
+  @State private var sharingManager: SharingManager
   @State private var observerClient: ObserverClient
   @State private var navigationState = NavigationState()
-  @State private var apiServer = APIServer()
   @State private var devicesManager = DevicesManager()
   @State private var logsManager = LogsManager()
   @State private var windowSize: CGSize = .zero
@@ -17,22 +16,22 @@ struct OrchardGridApp: App {
     Logger.log(.app, "OrchardGrid starting...")
     Logger.log(.app, "API: \(Config.apiBaseURL)")
 
-    let wsClient = WebSocketClient()
+    let sharingManager = SharingManager()
     let authManager = AuthManager()
     let observerClient = ObserverClient()
 
     authManager.onUserIDChanged = { userId in
       Logger.log(.app, "User authenticated: \(userId)")
-      wsClient.setUserID(userId)
+      sharingManager.setUserID(userId)
     }
 
     authManager.onLogout = {
       Logger.log(.app, "User logged out, disconnecting...")
-      wsClient.clearUserID()
+      sharingManager.clearUserID()
       observerClient.disconnect()
     }
 
-    _wsClient = State(initialValue: wsClient)
+    _sharingManager = State(initialValue: sharingManager)
     _authManager = State(initialValue: authManager)
     _observerClient = State(initialValue: observerClient)
 
@@ -56,10 +55,9 @@ struct OrchardGridApp: App {
         case .authenticated, .guest:
           MainView()
             .environment(authManager)
-            .environment(wsClient)
+            .environment(sharingManager)
             .environment(observerClient)
             .environment(navigationState)
-            .environment(apiServer)
             .environment(devicesManager)
             .environment(logsManager)
             .onGeometryChange(for: CGSize.self) { geometry in
@@ -70,7 +68,6 @@ struct OrchardGridApp: App {
         }
       }
       .frame(minWidth: 375.0, minHeight: 375.0)
-      // React to auth token changes - connect/disconnect observer
       .onChange(of: authManager.authToken) { oldToken, newToken in
         if let token = newToken {
           Logger.log(.app, "Auth token available, connecting observer...")
@@ -81,7 +78,6 @@ struct OrchardGridApp: App {
           observerClient.disconnect()
         }
       }
-      // Initial connection if token exists at launch
       .task {
         if let token = authManager.authToken {
           Logger.log(.app, "Initial auth token found, connecting observer...")
@@ -100,7 +96,6 @@ struct OrchardGridApp: App {
     }
   }
 
-  /// Setup observer callbacks for real-time data updates
   private func setupObserverCallbacks() {
     observerClient.onDevicesChanged = { [devicesManager, authManager] in
       Task {
@@ -123,6 +118,8 @@ struct OrchardGridApp: App {
     switch phase {
     case .active:
       Logger.log(.app, "App became active")
+      // Refresh availability when app becomes active (user might have changed AI settings)
+      sharingManager.refreshAvailability()
       // Reconnect observer if disconnected
       if let token = authManager.authToken, observerClient.status == .disconnected {
         observerClient.connect(authToken: token)
