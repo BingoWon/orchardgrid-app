@@ -1,106 +1,185 @@
-# Giant Big
+<p align="center">
+  <img src="https://orchardgrid.com/logo-with-text.svg" alt="OrchardGrid" height="80" />
+</p>
 
-**OpenAI-Compatible API Server for Apple Intelligence**
+<p align="center">
+  <strong>Share Apple Intelligence Anywhere You Want</strong>
+</p>
 
-A modern macOS application that wraps Apple's Foundation Models (Apple Intelligence) as an OpenAI-compatible HTTP API server, enabling seamless integration with existing OpenAI client libraries and tools.
+<p align="center">
+  Transform your Apple devices into an AI API server.<br/>
+  OpenAI-compatible interface, privacy-first architecture, completely free and open source.
+</p>
 
-## Features
+<p align="center">
+  <a href="https://apps.apple.com/us/app/orchardgrid/id6754092757">
+    <img src="https://img.shields.io/badge/Download_on_the-App_Store-black?style=for-the-badge&logo=apple&logoColor=white" alt="App Store" />
+  </a>
+  <a href="https://orchardgrid.com">
+    <img src="https://img.shields.io/badge/Website-orchardgrid.com-015135?style=for-the-badge" alt="Website" />
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-E4DFB8?style=for-the-badge" alt="MIT License" />
+  </a>
+</p>
 
-- ✅ **OpenAI API Compatible** - Drop-in replacement for OpenAI API
-- ✅ **Structured Output** - Full JSON Schema support with runtime validation
-- ✅ **Streaming Support** - Server-Sent Events (SSE) for real-time responses
-- ✅ **Multi-turn Conversations** - Stateful session management with Transcript
-- ✅ **Type-Safe** - Built with Swift 6 concurrency and Sendable protocols
-- ✅ **Modern SwiftUI** - Clean, native macOS interface
-- ✅ **Comprehensive Tests** - 100% coverage of structured output scenarios
+---
 
-## Requirements
+## ✨ Features
 
-- macOS 15.4+ (Sequoia)
-- Xcode 16.0+
-- Apple Intelligence enabled
-- Python 3.8+ (for testing)
+- **OpenAI API Compatible** — Drop-in replacement for OpenAI API, works with any OpenAI client
+- **Two Sharing Modes** — Share locally on your network or remotely via cloud relay
+- **Structured Output** — Full JSON Schema support with runtime validation
+- **Streaming Support** — Server-Sent Events (SSE) for real-time responses
+- **Multi-turn Conversations** — Stateful session management
+- **Privacy First** — All AI processing happens on your device
+- **Cross-Platform** — Native apps for iOS, iPadOS, and macOS
+- **Completely Free** — No subscriptions, no hidden costs, open source
 
-## Installation
+## 📋 Requirements
 
-### 1. Clone the repository
+- **macOS 26.0+** / **iOS 26.0+** / **iPadOS 26.0+**
+- Apple Silicon (M-series chips) with Neural Engine
+- Apple Intelligence enabled on your device
+- Xcode 26.0+ (for development)
+
+## 📲 Installation
+
+### App Store (Recommended)
+
+Download OrchardGrid from the [App Store](https://apps.apple.com/us/app/orchardgrid/id6754092757).
+
+### Build from Source
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/giant_big.git
-cd giant_big
+# Clone the repository
+git clone https://github.com/BingoWon/orchardgrid-app.git
+cd orchardgrid-app
+
+# Open in Xcode
+open OrchardGrid.xcodeproj
+
+# Build and Run (Cmd+R)
 ```
 
-### 2. Open in Xcode
+## 🌐 Sharing Modes
+
+OrchardGrid offers two ways to share your Apple Intelligence API:
+
+### Share Locally
+
+Share within your local network. Perfect for home or office use where all devices are on the same WiFi/LAN.
+
+| Property | Value |
+|----------|-------|
+| **Endpoint** | `http://<local-ip>:8080/v1` |
+| **Access** | Same network only |
+| **Latency** | Lowest (direct connection) |
+| **Privacy** | Maximum (data stays on LAN) |
+| **Requirements** | Devices on same network |
 
 ```bash
-open giant_big.xcodeproj
+# Find your local IP
+ipconfig getifaddr en0  # macOS WiFi
+
+# Example endpoint
+http://192.168.1.100:8080/v1/chat/completions
 ```
 
-### 3. Build and Run
+### Share to Cloud
 
-Press `Cmd+R` or click the Run button in Xcode.
+Share via OrchardGrid's cloud relay service. Access your AI API from anywhere in the world.
 
-The server will start on `http://localhost:8888`.
+| Property | Value |
+|----------|-------|
+| **Endpoint** | `https://api.orchardgrid.com/v1` |
+| **Access** | Anywhere with internet |
+| **Latency** | Higher (relayed connection) |
+| **Privacy** | High (E2E encrypted, no data stored) |
+| **Requirements** | OrchardGrid account, API key |
 
-## API Usage
-
-The API server is accessible in two ways:
-
-- **Local Access**: `http://localhost:8888` - Access from the same device
-- **Network Access**: `http://<your-local-ip>:8888` - Access from other devices on your LAN
-
-To find your local IP address, check the app's Local Device view or run:
 ```bash
-# macOS
-ipconfig getifaddr en0  # WiFi
-ipconfig getifaddr en1  # Ethernet
-
-# Linux
-hostname -I
+# Example endpoint (with your API key)
+curl -X POST https://api.orchardgrid.com/v1/chat/completions \
+  -H "Authorization: Bearer og_your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "apple-intelligence", "messages": [{"role": "user", "content": "Hello!"}]}'
 ```
 
-### Basic Chat Completion
+> **Note:** Cloud sharing requires signing in to your OrchardGrid account and generating an API key from the [dashboard](https://orchardgrid.com/dashboard).
+
+## 📖 API Reference
+
+### Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/v1/chat/completions` | Create a chat completion |
+| `GET` | `/v1/models` | List available models |
+
+### Chat Completions
+
+**Request:**
+
+```json
+{
+  "model": "apple-intelligence",
+  "messages": [
+    {"role": "system", "content": "You are a helpful assistant."},
+    {"role": "user", "content": "Hello!"}
+  ],
+  "stream": false,
+  "response_format": {
+    "type": "json_schema",
+    "json_schema": { ... }
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": "chatcmpl-xxxxx",
+  "object": "chat.completion",
+  "created": 1234567890,
+  "model": "apple-intelligence",
+  "choices": [{
+    "index": 0,
+    "message": {
+      "role": "assistant",
+      "content": "Hello! How can I help you today?"
+    },
+    "finish_reason": "stop"
+  }],
+  "usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "total_tokens": 0
+  }
+}
+```
+
+### Streaming
+
+Enable streaming responses with Server-Sent Events:
 
 ```bash
-# Local access
-curl -X POST http://localhost:8888/v1/chat/completions \
+curl -N -X POST http://192.168.1.100:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "apple-intelligence",
-    "messages": [
-      {"role": "user", "content": "Hello!"}
-    ]
-  }'
-
-# Network access (replace with your local IP)
-curl -X POST http://192.168.1.100:8888/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "apple-intelligence",
-    "messages": [
-      {"role": "user", "content": "Hello!"}
-    ]
-  }'
-```
-
-### Streaming Response
-
-```bash
-curl -N -X POST http://localhost:8888/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "apple-intelligence",
-    "messages": [
-      {"role": "user", "content": "Count from 1 to 5"}
-    ],
+    "messages": [{"role": "user", "content": "Count from 1 to 10"}],
     "stream": true
   }'
 ```
 
 ### Structured Output
 
+Generate structured JSON responses with schema validation:
+
 ```bash
-curl -X POST http://localhost:8888/v1/chat/completions \
+curl -X POST http://192.168.1.100:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "apple-intelligence",
@@ -126,215 +205,95 @@ curl -X POST http://localhost:8888/v1/chat/completions \
   }'
 ```
 
-### Multi-turn Conversation
-
-```bash
-curl -X POST http://localhost:8888/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "apple-intelligence",
-    "messages": [
-      {"role": "user", "content": "My name is Bob"},
-      {"role": "assistant", "content": "Nice to meet you, Bob!"},
-      {"role": "user", "content": "What is my name?"}
-    ]
-  }'
-```
-
-## Testing
-
-### Install Python Dependencies
-
-```bash
-cd tests
-pip3 install -r requirements.txt
-```
-
-### Run Tests
-
-```bash
-python3 test_structured_output.py
-```
-
-### Test Coverage
-
-The test suite covers all JSON Schema features:
-
-- ✅ Basic types (string, integer, number, boolean)
-- ✅ Array types (string[], number[], boolean[], object[])
-- ✅ Nested objects (single-level, multi-level)
-- ✅ Enum types (anyOf constraints)
-- ✅ Constraints (minimum, maximum, minItems, maxItems)
-- ✅ Optional fields (isOptional: true)
-- ✅ Complex nested structures (arrays of objects)
-- ✅ Edge cases (boundary values, empty optionals)
-
-## Architecture
-
-### Project Structure
-
-```
-giant_big/
-├── giant_big/
-│   ├── APIServer.swift          # Core HTTP server and API logic
-│   ├── SchemaConverter.swift    # JSON Schema to DynamicGenerationSchema converter
-│   ├── ServerStatusView.swift   # SwiftUI status interface
-│   └── giant_bigApp.swift       # Application entry point
-├── tests/
-│   ├── schemas/                 # JSON Schema test files
-│   │   ├── test_cases.json      # Test configuration
-│   │   ├── basic_types.json
-│   │   ├── array_types.json
-│   │   ├── nested_objects.json
-│   │   ├── enum_types.json
-│   │   ├── constraints.json
-│   │   ├── optional_fields.json
-│   │   ├── complex_nested.json
-│   │   └── edge_cases.json
-│   ├── test_structured_output.py
-│   ├── validators.py
-│   └── requirements.txt
-└── README.md
-```
-
-### Key Components
-
-#### APIServer.swift (734 lines)
-- HTTP request parsing and routing
-- OpenAI API compatibility layer
-- Streaming response handling (SSE)
-- Multi-turn conversation management
-- Error handling and validation
-
-#### SchemaConverter.swift (258 lines)
-- Converts OpenAI JSON Schema to Apple's `DynamicGenerationSchema`
-- Supports all JSON Schema types and constraints
-- Recursive handling of nested structures
-- Dependency management for schema references
-
-#### ServerStatusView.swift (183 lines)
-- Real-time server status display
-- Request statistics and monitoring
-- Modern SwiftUI interface with `.ultraThinMaterial`
-
-## Supported JSON Schema Features
+## 🔧 Supported JSON Schema Features
 
 ### Types
-- `string` - Text values
-- `integer` - Whole numbers
-- `number` - Decimal numbers (Double)
-- `boolean` - true/false values
-- `array` - Lists of values
-- `object` - Nested structures
-- `enum` - Enumerated string values (anyOf)
+
+| Type | Description |
+|------|-------------|
+| `string` | Text values |
+| `integer` | Whole numbers |
+| `number` | Decimal numbers |
+| `boolean` | true/false values |
+| `array` | Lists of values |
+| `object` | Nested structures |
+| `enum` | Enumerated values (via anyOf) |
 
 ### Constraints
-- `minimum` / `maximum` - Numeric bounds
-- `minItems` / `maxItems` - Array length bounds
-- `required` - Required fields
-- `additionalProperties` - Strict mode (false)
+
+- `minimum` / `maximum` — Numeric bounds
+- `minItems` / `maxItems` — Array length bounds
+- `required` — Required fields
+- `additionalProperties` — Strict mode
 
 ### Advanced Features
+
 - Nested objects (multi-level)
 - Arrays of objects
 - Optional fields
-- Enum constraints (anyOf)
+- Enum constraints
 - Schema references
 
-## API Endpoints
+## 🏗️ Architecture
 
-### POST /v1/chat/completions
-
-OpenAI-compatible chat completion endpoint.
-
-**Request Body:**
-```json
-{
-  "model": "apple-intelligence",
-  "messages": [
-    {"role": "user", "content": "Hello"}
-  ],
-  "stream": false,
-  "response_format": {
-    "type": "json_schema",
-    "json_schema": { ... }
-  }
-}
+```
+OrchardGrid/
+├── OrchardGrid/
+│   ├── App/
+│   │   └── OrchardGridApp.swift      # Application entry point
+│   ├── Core/
+│   │   ├── APIServer.swift           # HTTP server & OpenAI API layer
+│   │   └── SchemaConverter.swift     # JSON Schema → DynamicGenerationSchema
+│   ├── Views/
+│   │   ├── MainView.swift            # Main interface
+│   │   └── ServerStatusView.swift    # Server status & monitoring
+│   └── Resources/
+│       └── Assets.xcassets           # App icons & images
+├── Tests/
+│   ├── schemas/                      # JSON Schema test files
+│   └── test_structured_output.py     # Python test suite
+└── README.md
 ```
 
-**Response:**
-```json
-{
-  "object": "chat.completion",
-  "model": "apple-intelligence",
-  "choices": [{
-    "finish_reason": "stop",
-    "message": {
-      "content": "Hello! How can I help you?",
-      "role": "assistant"
-    },
-    "index": 0
-  }],
-  "created": 1234567890,
-  "id": "chatcmpl-xxxxx",
-  "usage": {
-    "prompt_tokens": 0,
-    "completion_tokens": 0,
-    "total_tokens": 0
-  }
-}
-```
+### Technical Stack
 
-### GET /v1/models
+- **Language:** Swift 6 with strict concurrency
+- **UI Framework:** SwiftUI
+- **Networking:** Apple Network framework (NWListener, NWConnection)
+- **AI Engine:** Apple Foundation Models (LanguageModelSession)
+- **Protocol:** HTTP/1.1 with Server-Sent Events (SSE)
 
-List available models.
+## 🔒 Privacy
 
-**Response:**
-```json
-{
-  "object": "list",
-  "data": [{
-    "id": "apple-intelligence",
-    "object": "model",
-    "created": 1234567890,
-    "owned_by": "apple"
-  }]
-}
-```
+OrchardGrid is built with privacy as a core principle:
 
-## Technical Details
+- **On-Device Processing** — All AI inference happens locally using Apple's Neural Engine
+- **No Data Storage** — Cloud relay mode uses end-to-end encryption, no data is stored on servers
+- **No Data Collection** — We don't collect any personal data or AI queries
+- **Open Source** — Full transparency, audit the code yourself
 
-### Concurrency
-- Built with Swift 6 strict concurrency
-- Uses `async/await` for all asynchronous operations
-- `@MainActor` isolation for UI updates
-- `nonisolated` for network operations
-- `Sendable` protocol for thread-safe data
-
-### Networking
-- Apple's Network framework (`NWListener`, `NWConnection`)
-- HTTP/1.1 protocol
-- Server-Sent Events (SSE) for streaming
-- Port 8888 (configurable)
-
-### Apple Intelligence Integration
-- `LanguageModelSession` for stateful conversations
-- `Transcript` for multi-turn dialogue
-- `DynamicGenerationSchema` for runtime structured output
-- `GenerationSchema` for validated schemas
-- `GeneratedContent` for structured responses
-
-## License
-
-MIT License - See LICENSE file for details
-
-## Contributing
+## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## Acknowledgments
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-- Built with Apple's Foundation Models framework
-- Inspired by OpenAI's API design
-- Uses Swift 6 modern concurrency features
+## 📄 License
 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🔗 Links
+
+- **Website:** [orchardgrid.com](https://orchardgrid.com)
+- **App Store:** [Download](https://apps.apple.com/us/app/orchardgrid/id6754092757)
+- **Dashboard:** [orchardgrid.com/dashboard](https://orchardgrid.com/dashboard)
+
+---
+
+<p align="center">
+  Made with ❤️ for the Apple ecosystem
+</p>
