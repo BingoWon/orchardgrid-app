@@ -13,21 +13,13 @@ struct AuthLayout<Content: View>: View {
   }
 
   var body: some View {
-    GeometryReader { geometry in
-      ScrollView {
-        VStack {
-          content
-        }
-        .frame(maxWidth: 400) // Content width limit
-        .padding(.horizontal, 24)
-        .padding(.vertical, 40)
-        .frame(minHeight: geometry.size
-          .height) // Ensure full height for vertical centering if needed
+    ScrollView {
+      VStack {
+        content
       }
-      .frame(maxWidth: .infinity) // ScrollView takes full width for better touch targets
-      #if os(macOS)
-        .frame(minWidth: 360, minHeight: 600)
-      #endif
+      .frame(maxWidth: 400)
+      .padding(.horizontal, 24)
+      .padding(.vertical, 40)
     }
   }
 }

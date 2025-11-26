@@ -8,19 +8,10 @@ import SwiftUI
 struct RegisterView: View {
   @Environment(AuthManager.self) private var auth
   @Environment(\.dismiss) private var dismiss
-  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
   @State private var email = ""
   @State private var password = ""
   @State private var confirmPassword = ""
-
-  private var isWideLayout: Bool {
-    #if os(macOS)
-      return true
-    #else
-      return horizontalSizeClass == .regular
-    #endif
-  }
 
   var body: some View {
     @Bindable var auth = auth
@@ -35,23 +26,12 @@ struct RegisterView: View {
               AuthErrorBanner(message: error)
             }
 
-            // Social Login - Side by side on wide screens
-            if isWideLayout {
-              HStack(spacing: 12) {
-                SocialLoginButton(provider: .apple) {
-                  auth.loginWithApple()
-                }
-                SocialLoginButton(provider: .google) {
-                  auth.loginWithGoogle()
-                }
-              }
-            } else {
-              SocialLoginButton(provider: .apple) {
-                auth.loginWithApple()
-              }
-              SocialLoginButton(provider: .google) {
-                auth.loginWithGoogle()
-              }
+            // Social Login
+            SocialLoginButton(provider: .apple) {
+              auth.loginWithApple()
+            }
+            SocialLoginButton(provider: .google) {
+              auth.loginWithGoogle()
             }
 
             AuthDivider(text: "or continue with email")
@@ -89,9 +69,6 @@ struct RegisterView: View {
         }
       }
     }
-    #if os(macOS)
-      .frame(minWidth: 420, idealWidth: 450, minHeight: 600, idealHeight: 650)
-    #endif
   }
 
   private var isFormValid: Bool {

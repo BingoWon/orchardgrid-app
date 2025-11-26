@@ -70,88 +70,57 @@ struct GuestFeaturePrompt: View {
 struct SignInSheet: View {
   @Environment(AuthManager.self) private var authManager
   @Environment(\.dismiss) private var dismiss
-  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @State private var email = ""
   @State private var password = ""
 
-  private var isWideLayout: Bool {
-    #if os(macOS)
-      return true
-    #else
-      return horizontalSizeClass == .regular
-    #endif
-  }
-
   var body: some View {
     NavigationStack {
-      ScrollView {
-        VStack(spacing: 24) {
-          // Header
-          AuthHeader(title: "Welcome back", subtitle: "Sign in to unlock all features")
-            .padding(.top, 16)
+      VStack(spacing: 24) {
+        // Header
+        AuthHeader(title: "Welcome back", subtitle: "Sign in to unlock all features")
 
-          // Error
-          if let error = authManager.lastError {
-            AuthErrorBanner(message: error)
-              .padding(.horizontal)
+        // Error
+        if let error = authManager.lastError {
+          AuthErrorBanner(message: error)
+        }
+
+        // Social Login
+        VStack(spacing: 12) {
+          SocialLoginButton(provider: .apple) {
+            authManager.loginWithApple()
           }
-
-          // Social Login - Side by side on wide screens
-          VStack(spacing: 12) {
-            if isWideLayout {
-              HStack(spacing: 12) {
-                SocialLoginButton(provider: .apple) {
-                  authManager.loginWithApple()
-                }
-                SocialLoginButton(provider: .google) {
-                  authManager.loginWithGoogle()
-                }
-              }
-            } else {
-              SocialLoginButton(provider: .apple) {
-                authManager.loginWithApple()
-              }
-              SocialLoginButton(provider: .google) {
-                authManager.loginWithGoogle()
-              }
-            }
-          }
-          .padding(.horizontal)
-
-          // Divider
-          AuthDivider(text: "or continue with email")
-            .padding(.horizontal)
-
-          // Email Login
-          VStack(spacing: 12) {
-            AuthField(placeholder: "Email", text: $email)
-              #if os(iOS)
-                .keyboardType(.emailAddress)
-              #endif
-
-            AuthField(placeholder: "Password", text: $password, isSecure: true)
-
-            AuthButton(
-              title: "Sign In",
-              isEnabled: !email.isEmpty && !password.isEmpty && !authManager.isLoading
-            ) {
-              Task { await authManager.login(email: email, password: password) }
-            }
-          }
-          .padding(.horizontal)
-
-          // Register Link
-          AuthLink(text: "Don't have an account?", linkText: "Sign Up") {
-            authManager.showRegisterView = true
+          SocialLoginButton(provider: .google) {
+            authManager.loginWithGoogle()
           }
         }
-        .frame(maxWidth: 400)
-        .padding(.bottom, 24)
+
+        // Divider
+        AuthDivider(text: "or continue with email")
+
+        // Email Login
+        VStack(spacing: 12) {
+          AuthField(placeholder: "Email", text: $email)
+            #if os(iOS)
+              .keyboardType(.emailAddress)
+            #endif
+
+          AuthField(placeholder: "Password", text: $password, isSecure: true)
+
+          AuthButton(
+            title: "Sign In",
+            isEnabled: !email.isEmpty && !password.isEmpty && !authManager.isLoading
+          ) {
+            Task { await authManager.login(email: email, password: password) }
+          }
+        }
+
+        // Register Link
+        AuthLink(text: "Don't have an account?", linkText: "Sign Up") {
+          authManager.showRegisterView = true
+        }
       }
-      .frame(maxWidth: .infinity)
-      #if os(macOS)
-        .frame(minWidth: 420, idealWidth: 450, minHeight: 520, idealHeight: 560)
-      #endif
+      .padding(24)
+      .frame(maxWidth: 400)
       .navigationTitle("Sign In")
       #if !os(macOS)
         .navigationBarTitleDisplayMode(.inline)

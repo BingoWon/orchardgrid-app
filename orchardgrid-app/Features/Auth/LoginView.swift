@@ -7,17 +7,8 @@ import SwiftUI
 
 struct LoginView: View {
   @Environment(AuthManager.self) private var auth
-  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @State private var email = ""
   @State private var password = ""
-
-  private var isWideLayout: Bool {
-    #if os(macOS)
-      return true
-    #else
-      return horizontalSizeClass == .regular
-    #endif
-  }
 
   var body: some View {
     @Bindable var auth = auth
@@ -31,23 +22,12 @@ struct LoginView: View {
             AuthErrorBanner(message: error)
           }
 
-          // Social Login - Side by side on wide screens
-          if isWideLayout {
-            HStack(spacing: 12) {
-              SocialLoginButton(provider: .apple) {
-                auth.loginWithApple()
-              }
-              SocialLoginButton(provider: .google) {
-                auth.loginWithGoogle()
-              }
-            }
-          } else {
-            SocialLoginButton(provider: .apple) {
-              auth.loginWithApple()
-            }
-            SocialLoginButton(provider: .google) {
-              auth.loginWithGoogle()
-            }
+          // Social Login
+          SocialLoginButton(provider: .apple) {
+            auth.loginWithApple()
+          }
+          SocialLoginButton(provider: .google) {
+            auth.loginWithGoogle()
           }
 
           AuthDivider(text: "or continue with email")
