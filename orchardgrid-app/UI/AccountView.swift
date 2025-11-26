@@ -225,15 +225,10 @@ struct OpenSourceCard: View {
           .scaledToFit()
           .frame(width: 24, height: 24)
 
-        VStack(alignment: .leading, spacing: 4) {
-          Text("GitHub Repository")
-            .font(style == .form ? .headline : .subheadline)
-            .fontWeight(.medium)
-          Text(repoURL.absoluteString)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .textSelection(.enabled)
-        }
+        Text(repoURL.absoluteString)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .textSelection(.enabled)
 
         Spacer()
 
