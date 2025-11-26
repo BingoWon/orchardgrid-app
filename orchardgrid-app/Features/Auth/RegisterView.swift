@@ -17,53 +17,50 @@ struct RegisterView: View {
     @Bindable var auth = auth
 
     NavigationStack {
-      ScrollView {
-        VStack(spacing: 32) {
-          AuthHeader(title: "Create account", subtitle: "Get started with OrchardGrid")
+      VStack(spacing: 24) {
+        AuthHeader(title: "Create account", subtitle: "Get started with OrchardGrid")
 
-          VStack(spacing: 12) {
-            if let error = auth.lastError {
-              AuthErrorBanner(message: error)
-            }
-
-            SocialLoginButton(provider: .apple) {
-              auth.loginWithApple()
-            }
-            SocialLoginButton(provider: .google) {
-              auth.loginWithGoogle()
-            }
-
-            AuthDivider(text: "or continue with email")
-              .padding(.vertical, 4)
-
-            AuthField(placeholder: "Email", text: $email)
-            #if os(iOS)
-              .keyboardType(.emailAddress)
-            #endif
-
-            AuthField(placeholder: "Password", text: $password, isSecure: true)
-
-            AuthField(placeholder: "Confirm Password", text: $confirmPassword, isSecure: true)
-
-            if !confirmPassword.isEmpty, password != confirmPassword {
-              Text("Passwords don't match")
-                .font(.caption)
-                .foregroundStyle(.red)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            AuthButton(title: "Create Account", isEnabled: isFormValid && !auth.isLoading) {
-              Task { await auth.register(email: email, password: password) }
-            }
+        VStack(spacing: 12) {
+          if let error = auth.lastError {
+            AuthErrorBanner(message: error)
           }
 
-          AuthLink(text: "Already have an account?", linkText: "Sign In") {
-            dismiss()
+          SocialLoginButton(provider: .apple) {
+            auth.loginWithApple()
+          }
+          SocialLoginButton(provider: .google) {
+            auth.loginWithGoogle()
+          }
+
+          AuthDivider(text: "or continue with email")
+
+          AuthField(placeholder: "Email", text: $email)
+          #if os(iOS)
+            .keyboardType(.emailAddress)
+          #endif
+
+          AuthField(placeholder: "Password", text: $password, isSecure: true)
+
+          AuthField(placeholder: "Confirm Password", text: $confirmPassword, isSecure: true)
+
+          if !confirmPassword.isEmpty, password != confirmPassword {
+            Text("Passwords don't match")
+              .font(.caption)
+              .foregroundStyle(.red)
+              .frame(maxWidth: .infinity, alignment: .leading)
+          }
+
+          AuthButton(title: "Create Account", isEnabled: isFormValid && !auth.isLoading) {
+            Task { await auth.register(email: email, password: password) }
           }
         }
-        .padding(24)
-        .frame(maxWidth: 400)
+
+        AuthLink(text: "Already have an account?", linkText: "Sign In") {
+          dismiss()
+        }
       }
+      .padding(24)
+      .frame(maxWidth: 400)
       .navigationTitle("Create Account")
       #if !os(macOS)
         .navigationBarTitleDisplayMode(.inline)
