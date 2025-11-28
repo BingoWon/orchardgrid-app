@@ -32,8 +32,8 @@ struct APIKeysView: View {
               title: "Get Your API Keys",
               description: "Sign in to create API keys and access OrchardGrid from your applications.",
               benefits: [
-                "OpenAI-compatible API format",
-                "Works with any OpenAI SDK",
+                "Standard Chat Completion API format",
+                "Works with popular AI tools",
                 "Manage multiple API keys",
               ],
               buttonTitle: "Sign In to Create API Key"

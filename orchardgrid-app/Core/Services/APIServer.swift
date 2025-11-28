@@ -2,7 +2,7 @@
  * APIServer.swift
  * OrchardGrid Local API Server
  *
- * Provides OpenAI-compatible API for local apps
+ * Provides Standard Chat Completion API for local apps
  * Note: Lifecycle managed by SharingManager
  */
 

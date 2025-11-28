@@ -159,7 +159,7 @@ struct LocalDeviceView: View {
         VStack(alignment: .leading, spacing: 4) {
           Text("Share Locally")
             .font(.headline)
-          Text("OpenAI-compatible API for local apps")
+          Text("Standard Chat Completion API for local apps")
             .font(.caption)
             .foregroundStyle(.secondary)
         }
