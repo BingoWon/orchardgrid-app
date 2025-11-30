@@ -90,6 +90,7 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
   private var urlSession: URLSession?
   private var connectionTask: Task<Void, Never>?
   private var pingTask: Task<Void, Never>?
+  private var isConnectionLoopActive = false
   private var authToken: String?
 
   // MARK: - Public API
@@ -109,6 +110,9 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
   private func startConnection() {
     connectionTask?.cancel()
     connectionTask = Task { @MainActor in
+      isConnectionLoopActive = true
+      defer { isConnectionLoopActive = false }
+
       var attempt = 0
       var delay: TimeInterval = 1
 
@@ -228,6 +232,12 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
       if nsError.domain == NSURLErrorDomain, nsError.code == -999 { return }
 
       Logger.error(.observer, "Connection error: \(error.localizedDescription)")
+      status = .disconnected
+
+      // Reconnect if connection loop is not already running
+      if authToken != nil, !isConnectionLoopActive {
+        startConnection()
+      }
     }
   }
 
@@ -248,8 +258,14 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
         case let .failure(error):
           let nsError = error as NSError
           // Ignore cancelled errors - expected during cleanup
-          if !(nsError.domain == NSURLErrorDomain && nsError.code == -999) {
-            Logger.error(.observer, "Receive error: \(error.localizedDescription)")
+          if nsError.domain == NSURLErrorDomain, nsError.code == -999 { return }
+
+          Logger.error(.observer, "Receive error: \(error.localizedDescription)")
+          self.status = .disconnected
+
+          // Reconnect if connection loop is not already running
+          if self.authToken != nil, !self.isConnectionLoopActive {
+            self.startConnection()
           }
         }
       }

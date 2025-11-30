@@ -59,6 +59,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   private var urlSession: URLSession?
   private var connectionTask: Task<Void, Never>?
   private var heartbeatTask: Task<Void, Never>?
+  private var isConnectionLoopActive = false
   private let networkMonitor = NWPathMonitor()
   private var isNetworkAvailable = true
   private var lastHeartbeatResponse: Date?
@@ -136,6 +137,9 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   private func startConnection() {
     connectionTask?.cancel()
     connectionTask = Task { @MainActor in
+      isConnectionLoopActive = true
+      defer { isConnectionLoopActive = false }
+
       var attempt = 0
       var delay: TimeInterval = 1
 
@@ -307,6 +311,11 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
       Logger.error(.websocket, "Connection error: \(error.localizedDescription)")
       connectionState = .failed(error.localizedDescription)
+
+      // Reconnect if connection loop is not already running
+      if isEnabled, isNetworkAvailable, !isConnectionLoopActive {
+        startConnection()
+      }
     }
   }
 
@@ -334,8 +343,14 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
         case let .failure(error):
           let nsError = error as NSError
           // Ignore cancelled errors - expected during cleanup
-          if !(nsError.domain == NSURLErrorDomain && nsError.code == -999) {
-            Logger.error(.websocket, "Receive error: \(error.localizedDescription)")
+          if nsError.domain == NSURLErrorDomain, nsError.code == -999 { return }
+
+          Logger.error(.websocket, "Receive error: \(error.localizedDescription)")
+          self.connectionState = .disconnected
+
+          // Reconnect if connection loop is not already running
+          if self.isEnabled, self.isNetworkAvailable, !self.isConnectionLoopActive {
+            self.startConnection()
           }
         }
       }
