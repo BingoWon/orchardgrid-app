@@ -28,7 +28,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     case disconnected
     case connecting
     case connected
-    case reconnecting(attempt: Int, nextRetryIn: TimeInterval?)
+    case reconnecting(attempt: Int, nextRetryIn: TimeInterval)
     case failed(String)
   }
 
@@ -40,24 +40,15 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     return false
   }
 
-  var lastError: String? {
-    if case let .failed(error) = connectionState { return error }
-    return nil
-  }
-
   // MARK: - Enabled State (Managed by SharingManager)
 
   var isEnabled = false {
     didSet {
       guard oldValue != isEnabled else { return }
       if isEnabled {
-        reconnectTask?.cancel()
-        reconnectTask = nil
-        retryTimerTask?.cancel()
-        retryTimerTask = nil
-        connect()
+        startConnection()
       } else {
-        disconnect()
+        stopConnection()
       }
     }
   }
@@ -66,12 +57,8 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
   private var webSocketTask: URLSessionWebSocketTask?
   private var urlSession: URLSession?
-  private var shouldAutoReconnect = false
-  private var reconnectTask: Task<Void, Never>?
+  private var connectionTask: Task<Void, Never>?
   private var heartbeatTask: Task<Void, Never>?
-  private var retryTimerTask: Task<Void, Never>?
-  private var connectionTimeoutTask: Task<Void, Never>?
-  private var isConnecting = false
   private let networkMonitor = NWPathMonitor()
   private var isNetworkAvailable = true
   private var lastHeartbeatResponse: Date?
@@ -121,11 +108,10 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     guard isEnabled else { return }
 
     if isConnected {
-      // Reconnect to update user identity on server
       Logger.log(.websocket, "Reconnecting with new user identity...")
-      disconnect()
+      stopConnection()
     }
-    connect()
+    startConnection()
   }
 
   func clearUserID() {
@@ -135,119 +121,77 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
     guard isEnabled, isConnected else { return }
 
-    // Reconnect as anonymous
     Logger.log(.websocket, "Reconnecting as anonymous...")
-    disconnect()
-    connect()
+    stopConnection()
+    startConnection()
   }
 
   func retry() {
+    guard isEnabled else { return }
     Logger.log(.websocket, "User requested retry")
-    reconnectTask?.cancel()
-    reconnectTask = nil
-    retryTimerTask?.cancel()
-    retryTimerTask = nil
-    isConnecting = false
-    connectionState = .connecting
-    connect()
+    stopConnection()
+    startConnection()
   }
 
-  // MARK: - URLSessionWebSocketDelegate
+  // MARK: - Connection Lifecycle
 
-  nonisolated func urlSession(
-    _: URLSession,
-    webSocketTask _: URLSessionWebSocketTask,
-    didOpenWithProtocol _: String?
-  ) {
-    Task { @MainActor in
-      isConnecting = false
-      connectionState = .connected
-      lastHeartbeatResponse = Date()
-      reconnectTask?.cancel()
-      reconnectTask = nil
-      retryTimerTask?.cancel()
-      retryTimerTask = nil
-      connectionTimeoutTask?.cancel()
-      connectionTimeoutTask = nil
-      startHeartbeat()
-      Logger.success(.websocket, "Connected")
-    }
-  }
+  private func startConnection() {
+    connectionTask?.cancel()
+    connectionTask = Task { @MainActor in
+      var attempt = 0
+      var delay: TimeInterval = 1
 
-  nonisolated func urlSession(
-    _: URLSession,
-    webSocketTask _: URLSessionWebSocketTask,
-    didCloseWith closeCode: URLSessionWebSocketTask.CloseCode,
-    reason _: Data?
-  ) {
-    Task { @MainActor in
-      isConnecting = false
-      connectionState = .disconnected
-      stopHeartbeat()
-      Logger.log(.websocket, "Closed: \(closeCode.rawValue)")
-      if shouldAutoReconnect, isNetworkAvailable {
-        startReconnection()
+      while !Task.isCancelled {
+        guard isNetworkAvailable else {
+          Logger.log(.websocket, "Network unavailable, waiting...")
+          connectionState = .disconnected
+          try? await Task.sleep(for: .seconds(1))
+          continue
+        }
+
+        if attempt > 0 {
+          connectionState = .reconnecting(attempt: attempt, nextRetryIn: delay)
+          Logger.log(.websocket, "Reconnection attempt \(attempt) in \(String(format: "%.1f", delay))s...")
+          await countdown(delay)
+          guard !Task.isCancelled else { break }
+        }
+
+        attempt += 1
+        let success = await attemptConnect()
+
+        if success {
+          Logger.success(.websocket, attempt > 1 ? "Reconnected after \(attempt) attempts" : "Connected")
+          break
+        }
+
+        // Exponential backoff: 1, 2, 4, 8, 16, 32, 60... after 10 attempts: 300
+        delay = attempt < 10 ? min(delay * 2, 60) : 300
       }
     }
   }
 
-  nonisolated func urlSession(
-    _: URLSession,
-    task: URLSessionTask,
-    didCompleteWithError error: Error?
-  ) {
-    Task { @MainActor in
-      guard let error else { return }
-      guard task is URLSessionWebSocketTask else { return }
-
-      let nsError = error as NSError
-      switch (nsError.domain, nsError.code) {
-      case (NSPOSIXErrorDomain, 57):
-        Logger.error(.websocket, "Connection failed: Socket not connected")
-        isConnecting = false
-        connectionState = .failed("Connection failed")
-        if shouldAutoReconnect, isNetworkAvailable {
-          startReconnection()
-        }
-      case (NSURLErrorDomain, -999):
-        Logger.log(.websocket, "Connection cancelled")
-        isConnecting = false
-      default:
-        Logger.error(.websocket, "Connection error: \(error.localizedDescription)")
-        isConnecting = false
-        connectionState = .failed(error.localizedDescription)
-        if shouldAutoReconnect, isNetworkAvailable {
-          startReconnection()
-        }
-      }
-    }
+  private func stopConnection() {
+    connectionTask?.cancel()
+    connectionTask = nil
+    cleanupConnection()
+    connectionState = .disconnected
+    Logger.log(.websocket, "Disconnected")
   }
 
-  // MARK: - Connection Management
-
-  private func connect() {
-    guard !isConnected, !isConnecting else {
-      Logger.log(.websocket, "Already connected or connecting")
-      return
-    }
-
-    guard isNetworkAvailable else {
-      Logger.log(.websocket, "Network unavailable, waiting...")
-      connectionState = .disconnected
-      return
-    }
+  private func attemptConnect() async -> Bool {
+    guard !Task.isCancelled else { return false }
 
     guard var urlComponents = URLComponents(string: serverURL) else {
       connectionState = .failed("Invalid server URL")
       Logger.error(.websocket, "Invalid server URL: \(serverURL)")
-      return
+      return false
     }
 
     guard urlComponents.scheme == "wss" || urlComponents.scheme == "ws" else {
       let scheme = urlComponents.scheme ?? "nil"
       connectionState = .failed("Invalid protocol: \(scheme)")
       Logger.error(.websocket, "WebSocket URL must use wss:// or ws://, got: \(scheme)")
-      return
+      return false
     }
 
     var queryItems = [
@@ -266,20 +210,13 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     guard let url = urlComponents.url else {
       connectionState = .failed("Failed to construct URL")
       Logger.error(.websocket, "Failed to construct URL from components")
-      return
+      return false
     }
 
     Logger.log(.websocket, "Connecting to: \(urlComponents.host ?? "unknown")")
-    isConnecting = true
     connectionState = .connecting
-    shouldAutoReconnect = true
 
-    reconnectTask?.cancel()
-    reconnectTask = nil
-    retryTimerTask?.cancel()
-    retryTimerTask = nil
-    connectionTimeoutTask?.cancel()
-    connectionTimeoutTask = nil
+    cleanupConnection()
 
     let configuration = URLSessionConfiguration.default
     configuration.timeoutIntervalForRequest = DeviceConfig.connectionRequestTimeout
@@ -292,33 +229,32 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     webSocketTask?.resume()
     receiveMessage()
 
-    connectionTimeoutTask = Task { @MainActor in
-      try? await Task.sleep(for: .seconds(DeviceConfig.connectionTimeout))
-      if isConnecting, !isConnected {
-        Logger.error(.websocket, "Connection timeout")
-        isConnecting = false
-        connectionState = .failed("Connection timeout")
-        cleanupConnection()
-        if shouldAutoReconnect, isNetworkAvailable {
-          startReconnection()
-        }
-      }
+    // Wait for connection with timeout
+    let deadline = Date().addingTimeInterval(DeviceConfig.connectionTimeout)
+    while !Task.isCancelled, Date() < deadline {
+      if isConnected { return true }
+      if case .failed = connectionState { return false }
+      try? await Task.sleep(for: .milliseconds(100))
     }
+
+    if !isConnected {
+      Logger.error(.websocket, "Connection timeout")
+      connectionState = .failed("Connection timeout")
+      cleanupConnection()
+    }
+
+    return false
   }
 
-  private func disconnect() {
-    Logger.log(.websocket, "Disconnecting...")
-    shouldAutoReconnect = false
-    isConnecting = false
-    reconnectTask?.cancel()
-    reconnectTask = nil
-    retryTimerTask?.cancel()
-    retryTimerTask = nil
-    connectionTimeoutTask?.cancel()
-    connectionTimeoutTask = nil
-    cleanupConnection()
-    connectionState = .disconnected
-    Logger.log(.websocket, "Disconnected")
+  private func countdown(_ seconds: TimeInterval) async {
+    var remaining = seconds
+    while remaining > 0, !Task.isCancelled {
+      if case let .reconnecting(attempt, _) = connectionState {
+        connectionState = .reconnecting(attempt: attempt, nextRetryIn: remaining)
+      }
+      try? await Task.sleep(for: .seconds(1))
+      remaining -= 1
+    }
   }
 
   private func cleanupConnection() {
@@ -329,11 +265,56 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     urlSession = nil
   }
 
+  // MARK: - URLSessionWebSocketDelegate
+
+  nonisolated func urlSession(
+    _: URLSession,
+    webSocketTask _: URLSessionWebSocketTask,
+    didOpenWithProtocol _: String?
+  ) {
+    Task { @MainActor in
+      connectionState = .connected
+      lastHeartbeatResponse = Date()
+      startHeartbeat()
+    }
+  }
+
+  nonisolated func urlSession(
+    _: URLSession,
+    webSocketTask _: URLSessionWebSocketTask,
+    didCloseWith closeCode: URLSessionWebSocketTask.CloseCode,
+    reason _: Data?
+  ) {
+    Task { @MainActor in
+      connectionState = .disconnected
+      stopHeartbeat()
+      Logger.log(.websocket, "Closed: \(closeCode.rawValue)")
+      if isEnabled, isNetworkAvailable {
+        startConnection()
+      }
+    }
+  }
+
+  nonisolated func urlSession(
+    _: URLSession,
+    task: URLSessionTask,
+    didCompleteWithError error: Error?
+  ) {
+    Task { @MainActor in
+      guard let error, task is URLSessionWebSocketTask else { return }
+
+      let nsError = error as NSError
+      // Ignore cancelled errors - expected during cleanup
+      if nsError.domain == NSURLErrorDomain, nsError.code == -999 { return }
+
+      Logger.error(.websocket, "Connection error: \(error.localizedDescription)")
+      connectionState = .failed(error.localizedDescription)
+    }
+  }
+
   // MARK: - Message Handling
 
   private func receiveMessage() {
-    guard shouldAutoReconnect || isConnected else { return }
-
     webSocketTask?.receive { [weak self] result in
       guard let self else { return }
       Task { @MainActor in
@@ -353,8 +334,10 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
             self.receiveMessage()
           }
         case let .failure(error):
-          if self.shouldAutoReconnect {
-            Logger.error(.websocket, "Message receive error: \(error.localizedDescription)")
+          let nsError = error as NSError
+          // Ignore cancelled errors - expected during cleanup
+          if !(nsError.domain == NSURLErrorDomain && nsError.code == -999) {
+            Logger.error(.websocket, "Receive error: \(error.localizedDescription)")
           }
         }
       }
@@ -404,11 +387,10 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
            Date().timeIntervalSince(lastResponse) > DeviceConfig.heartbeatTimeout
         {
           Logger.error(.websocket, "Heartbeat timeout - connection appears dead")
-          isConnecting = false
           connectionState = .disconnected
           stopHeartbeat()
-          if shouldAutoReconnect, isNetworkAvailable {
-            startReconnection()
+          if isEnabled, isNetworkAvailable {
+            startConnection()
           }
           return
         }
@@ -435,89 +417,16 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
         isNetworkAvailable = path.status == .satisfied
 
         if !wasAvailable, isNetworkAvailable {
-          Logger.log(.websocket, "Network recovered, attempting reconnection...")
-          if shouldAutoReconnect, !isConnected, !isConnecting {
-            reconnectTask?.cancel()
-            reconnectTask = nil
-            retryTimerTask?.cancel()
-            retryTimerTask = nil
-            connect()
+          Logger.log(.websocket, "Network recovered")
+          if isEnabled, !isConnected {
+            startConnection()
           }
         } else if wasAvailable, !isNetworkAvailable {
-          Logger.log(.websocket, "Network lost, pausing reconnection...")
-          reconnectTask?.cancel()
-          reconnectTask = nil
-          retryTimerTask?.cancel()
-          retryTimerTask = nil
+          Logger.log(.websocket, "Network lost")
         }
       }
     }
     networkMonitor.start(queue: .global(qos: .utility))
-  }
-
-  // MARK: - Reconnection
-
-  private func startReconnection() {
-    reconnectTask?.cancel()
-    retryTimerTask?.cancel()
-
-    reconnectTask = Task { @MainActor in
-      var delay = 1.0
-      var attempts = 0
-
-      while !isConnected, shouldAutoReconnect, !Task.isCancelled {
-        guard isNetworkAvailable else {
-          Logger.log(.websocket, "Network unavailable, pausing reconnection...")
-          return
-        }
-
-        attempts += 1
-        connectionState = .reconnecting(attempt: attempts, nextRetryIn: delay)
-        Logger.log(
-          .websocket,
-          "Reconnection attempt \(attempts) in \(String(format: "%.1f", delay))s..."
-        )
-
-        await startRetryCountdown(delay)
-
-        guard !Task.isCancelled, shouldAutoReconnect, !isConnected, isNetworkAvailable else {
-          Logger.log(.websocket, "Reconnection cancelled")
-          return
-        }
-
-        connectionState = .connecting
-        cleanupConnection()
-        try? await Task.sleep(for: .seconds(0.5))
-        connect()
-        try? await Task.sleep(for: .seconds(DeviceConfig.reconnectionCheckInterval))
-
-        if isConnected {
-          Logger.success(.websocket, "Reconnected after \(attempts) attempts")
-          return
-        }
-
-        if attempts < 10 {
-          delay = min(delay * 2, 60)
-        } else {
-          delay = 300
-        }
-      }
-    }
-  }
-
-  private func startRetryCountdown(_ totalSeconds: TimeInterval) async {
-    retryTimerTask?.cancel()
-    retryTimerTask = Task { @MainActor in
-      var remaining = totalSeconds
-      while remaining > 0, !Task.isCancelled {
-        if case let .reconnecting(attempt, _) = connectionState {
-          connectionState = .reconnecting(attempt: attempt, nextRetryIn: remaining)
-        }
-        try? await Task.sleep(for: .seconds(1))
-        remaining -= 1
-      }
-    }
-    await retryTimerTask?.value
   }
 
   // MARK: - Task Processing
