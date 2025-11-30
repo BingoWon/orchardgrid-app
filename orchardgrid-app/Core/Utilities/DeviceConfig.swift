@@ -15,4 +15,7 @@ enum DeviceConfig {
   // Connection timeouts
   static let connectionRequestTimeout: TimeInterval = 60
   static let connectionTimeout: TimeInterval = 30
+
+  // Stale device threshold in milliseconds (for UI status display)
+  static let staleThreshold: Int = 45000
 }

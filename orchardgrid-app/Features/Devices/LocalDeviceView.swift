@@ -122,8 +122,7 @@ struct LocalDeviceView: View {
         StatusRow(
           isLoading: true,
           title: "Reconnecting...",
-          subtitle: nextRetryIn.map { "Attempt \(attempt), next retry in \(Int($0))s" }
-            ?? "Attempt \(attempt)"
+          subtitle: "Attempt \(attempt), next retry in \(Int(nextRetryIn))s"
         )
 
         Button("Retry Now") {

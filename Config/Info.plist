@@ -39,6 +39,16 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.orchardgrid.app.processing</string>
+		<string>com.orchardgrid.app.refresh</string>
+	</array>
 	<key>GIDClientID</key>
 	<string>$(GOOGLE_CLIENT_ID_IOS)</string>
 	<key>GIDServerClientID</key>

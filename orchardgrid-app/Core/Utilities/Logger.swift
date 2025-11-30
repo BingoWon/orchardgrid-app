@@ -16,6 +16,7 @@ enum Logger {
     case devices
     case app
     case observer
+    case background
 
     var logger: os.Logger {
       os.Logger(subsystem: Logger.subsystem, category: rawValue)
@@ -29,6 +30,7 @@ enum Logger {
       case .devices: "📱"
       case .app: "📦"
       case .observer: "👁️"
+      case .background: "🌙"
       }
     }
   }

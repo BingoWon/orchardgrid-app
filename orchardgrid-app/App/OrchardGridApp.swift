@@ -1,15 +1,21 @@
 import GoogleSignIn
 import SwiftUI
 
+#if os(macOS)
+  import AppKit
+#elseif os(iOS)
+  import UIKit
+#endif
+
 @main
 struct OrchardGridApp: App {
   @State private var authManager: AuthManager
   @State private var sharingManager: SharingManager
   @State private var observerClient: ObserverClient
+  @State private var backgroundManager = BackgroundManager()
   @State private var navigationState = NavigationState()
   @State private var devicesManager = DevicesManager()
   @State private var logsManager = LogsManager()
-  @State private var windowSize: CGSize = .zero
   @Environment(\.scenePhase) private var scenePhase
 
   init() {
@@ -57,14 +63,10 @@ struct OrchardGridApp: App {
             .environment(authManager)
             .environment(sharingManager)
             .environment(observerClient)
+            .environment(backgroundManager)
             .environment(navigationState)
             .environment(devicesManager)
             .environment(logsManager)
-            .onGeometryChange(for: CGSize.self) { geometry in
-              geometry.size
-            } action: {
-              windowSize = $0
-            }
         }
       }
       .frame(minWidth: 375.0, minHeight: 375.0)
@@ -78,18 +80,26 @@ struct OrchardGridApp: App {
           observerClient.disconnect()
         }
       }
+      .onChange(of: sharingManager.isAnySharingActive) { _, isActive in
+        if isActive {
+          backgroundManager.enableBackgroundExecution()
+        } else {
+          backgroundManager.disableBackgroundExecution()
+        }
+      }
       .task {
         if let token = authManager.authToken {
           Logger.log(.app, "Initial auth token found, connecting observer...")
           observerClient.connect(authToken: token)
           setupObserverCallbacks()
         }
+        setupTerminationHandler()
       }
     }
     #if os(macOS)
-    .commands {
-      SidebarCommands()
-    }
+      .commands {
+        SidebarCommands()
+      }
     #endif
     .onChange(of: scenePhase) { _, newPhase in
       handleScenePhaseChange(newPhase)
@@ -114,13 +124,36 @@ struct OrchardGridApp: App {
     }
   }
 
+  private func setupTerminationHandler() {
+    #if os(macOS)
+      NotificationCenter.default.addObserver(
+        forName: NSApplication.willTerminateNotification,
+        object: nil,
+        queue: .main
+      ) { _ in
+        Task { @MainActor in
+          backgroundManager.prepareForTermination()
+        }
+      }
+    #elseif os(iOS)
+      NotificationCenter.default.addObserver(
+        forName: UIApplication.willTerminateNotification,
+        object: nil,
+        queue: .main
+      ) { _ in
+        Task { @MainActor in
+          backgroundManager.prepareForTermination()
+        }
+      }
+    #endif
+  }
+
   private func handleScenePhaseChange(_ phase: ScenePhase) {
     switch phase {
     case .active:
       Logger.log(.app, "App became active")
-      // Refresh availability when app becomes active (user might have changed AI settings)
       sharingManager.refreshAvailability()
-      // Reconnect observer if disconnected
+      backgroundManager.handleEnterForeground()
       if let token = authManager.authToken, observerClient.status == .disconnected {
         observerClient.connect(authToken: token)
       }
@@ -128,6 +161,7 @@ struct OrchardGridApp: App {
       Logger.log(.app, "App became inactive")
     case .background:
       Logger.log(.app, "App entered background")
+      backgroundManager.handleEnterBackground()
     @unknown default:
       break
     }

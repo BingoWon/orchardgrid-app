@@ -57,6 +57,7 @@ final class SharingManager {
 
   var isCloudActive: Bool { cloudService.isConnected }
   var isLocalActive: Bool { localService.isRunning }
+  var isAnySharingActive: Bool { wantsCloudSharing || wantsLocalSharing }
   var cloudConnectionState: WebSocketClient.ConnectionState { cloudService.connectionState }
   var cloudTasksProcessed: Int { cloudService.tasksProcessed }
   var localRequestCount: Int { localService.requestCount }
