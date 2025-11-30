@@ -6,7 +6,6 @@
  */
 
 import Foundation
-import OSLog
 
 // MARK: - Observer Event Types
 
@@ -75,7 +74,7 @@ enum ObserverEvent: Decodable {
 @Observable
 @MainActor
 final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
-  enum ConnectionStatus {
+  enum ConnectionStatus: Equatable {
     case disconnected
     case connecting
     case connected
@@ -89,21 +88,62 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
 
   private var webSocketTask: URLSessionWebSocketTask?
   private var urlSession: URLSession?
+  private var connectionTask: Task<Void, Never>?
   private var pingTask: Task<Void, Never>?
-  private var reconnectTask: Task<Void, Never>?
   private var authToken: String?
 
   override init() {
     super.init()
   }
 
+  // MARK: - Public API
+
   func connect(authToken: String) {
-    guard status == .disconnected else { return }
-
     self.authToken = authToken
-    status = .connecting
+    startConnection()
+  }
 
-    // Build WebSocket URL
+  func disconnect() {
+    stopConnection()
+    authToken = nil
+  }
+
+  // MARK: - Connection Lifecycle
+
+  private func startConnection() {
+    connectionTask?.cancel()
+    connectionTask = Task { @MainActor in
+      var attempt = 0
+      var delay: TimeInterval = 1
+
+      while !Task.isCancelled, authToken != nil {
+        attempt += 1
+        let success = await attemptConnect()
+
+        if success {
+          Logger.success(.observer, attempt > 1 ? "Reconnected after \(attempt) attempts" : "Connected")
+          break
+        }
+
+        // Exponential backoff: 1, 2, 4, 8... max 30 seconds
+        Logger.log(.observer, "Reconnection attempt \(attempt) in \(Int(delay))s...")
+        try? await Task.sleep(for: .seconds(delay))
+        delay = min(delay * 2, 30)
+      }
+    }
+  }
+
+  private func stopConnection() {
+    connectionTask?.cancel()
+    connectionTask = nil
+    cleanupConnection()
+    status = .disconnected
+    Logger.log(.observer, "Disconnected")
+  }
+
+  private func attemptConnect() async -> Bool {
+    guard !Task.isCancelled, let authToken else { return false }
+
     let httpURL = Config.apiBaseURL
     let wsURL = httpURL.replacingOccurrences(of: "https://", with: "wss://")
       .replacingOccurrences(of: "http://", with: "ws://")
@@ -111,34 +151,46 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
 
     guard let url = URL(string: observeURL) else {
       Logger.error(.observer, "Invalid observer URL")
-      status = .disconnected
-      return
+      return false
     }
 
     Logger.log(.observer, "Connecting to observer...")
+    status = .connecting
+
+    cleanupConnection()
 
     let configuration = URLSessionConfiguration.default
     configuration.timeoutIntervalForRequest = 60
+    configuration.timeoutIntervalForResource = 0
+    configuration.waitsForConnectivity = true
     urlSession = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
 
     webSocketTask = urlSession?.webSocketTask(with: url)
     webSocketTask?.resume()
-
     receiveMessage()
-    startPing()
+
+    // Wait for connection with timeout
+    let deadline = Date().addingTimeInterval(30)
+    while !Task.isCancelled, Date() < deadline {
+      if status == .connected { return true }
+      try? await Task.sleep(for: .milliseconds(100))
+    }
+
+    if status != .connected {
+      Logger.error(.observer, "Connection timeout")
+      cleanupConnection()
+      status = .disconnected
+    }
+
+    return false
   }
 
-  func disconnect() {
-    Logger.log(.observer, "Disconnecting...")
-    pingTask?.cancel()
-    pingTask = nil
-    reconnectTask?.cancel()
-    reconnectTask = nil
+  private func cleanupConnection() {
+    stopPing()
     webSocketTask?.cancel(with: .goingAway, reason: nil)
     webSocketTask = nil
     urlSession?.invalidateAndCancel()
     urlSession = nil
-    status = .disconnected
   }
 
   // MARK: - URLSessionWebSocketDelegate
@@ -149,8 +201,8 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
     didOpenWithProtocol _: String?
   ) {
     Task { @MainActor in
-      Logger.success(.observer, "Connected")
       status = .connected
+      startPing()
     }
   }
 
@@ -161,13 +213,32 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
     reason _: Data?
   ) {
     Task { @MainActor in
-      Logger.log(.observer, "Disconnected (code: \(closeCode.rawValue))")
+      Logger.log(.observer, "Closed (code: \(closeCode.rawValue))")
       status = .disconnected
-      scheduleReconnect()
+      stopPing()
+      if authToken != nil {
+        startConnection()
+      }
     }
   }
 
-  // MARK: - Private
+  nonisolated func urlSession(
+    _: URLSession,
+    task: URLSessionTask,
+    didCompleteWithError error: Error?
+  ) {
+    Task { @MainActor in
+      guard let error, task is URLSessionWebSocketTask else { return }
+
+      let nsError = error as NSError
+      // Ignore cancelled errors - expected during cleanup
+      if nsError.domain == NSURLErrorDomain, nsError.code == -999 { return }
+
+      Logger.error(.observer, "Connection error: \(error.localizedDescription)")
+    }
+  }
+
+  // MARK: - Message Handling
 
   private func receiveMessage() {
     webSocketTask?.receive { [weak self] result in
@@ -177,12 +248,16 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
         switch result {
         case let .success(message):
           self.processMessage(message)
-          self.receiveMessage()
+          if self.status == .connected {
+            self.receiveMessage()
+          }
 
         case let .failure(error):
-          Logger.error(.observer, "Receive error: \(error.localizedDescription)")
-          self.status = .disconnected
-          self.scheduleReconnect()
+          let nsError = error as NSError
+          // Ignore cancelled errors - expected during cleanup
+          if !(nsError.domain == NSURLErrorDomain && nsError.code == -999) {
+            Logger.error(.observer, "Receive error: \(error.localizedDescription)")
+          }
         }
       }
     }
@@ -197,7 +272,7 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
       let event = try JSONDecoder().decode(ObserverEvent.self, from: data)
       handleEvent(event)
     } catch {
-      // Ignore unknown events
+      // Ignore unknown events (like INIT)
       Logger.log(.observer, "Unknown event received")
     }
   }
@@ -225,9 +300,12 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
     }
   }
 
+  // MARK: - Ping
+
   private func startPing() {
+    stopPing()
     pingTask = Task { @MainActor in
-      while !Task.isCancelled {
+      while !Task.isCancelled, status == .connected {
         try? await Task.sleep(for: .seconds(30))
         guard !Task.isCancelled, status == .connected else { break }
 
@@ -241,14 +319,8 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
     }
   }
 
-  private func scheduleReconnect() {
-    guard reconnectTask == nil, let authToken else { return }
-
-    reconnectTask = Task { @MainActor in
-      try? await Task.sleep(for: .seconds(3))
-      guard !Task.isCancelled else { return }
-      self.reconnectTask = nil
-      self.connect(authToken: authToken)
-    }
+  private func stopPing() {
+    pingTask?.cancel()
+    pingTask = nil
   }
 }
