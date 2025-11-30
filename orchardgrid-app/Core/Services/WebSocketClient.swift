@@ -72,10 +72,8 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   init(llmProcessor: LLMProcessor) {
     self.llmProcessor = llmProcessor
 
-    let httpURL = Config.apiBaseURL
-    let wsURL = httpURL.replacingOccurrences(of: "https://", with: "wss://")
     serverURL = ProcessInfo.processInfo.environment["ORCHARDGRID_SERVER_URL"]
-      ?? "\(wsURL)/device/connect"
+      ?? "\(Config.webSocketBaseURL)/device/connect"
 
     hardwareID = DeviceID.current
     userID = nil

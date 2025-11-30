@@ -92,10 +92,6 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
   private var pingTask: Task<Void, Never>?
   private var authToken: String?
 
-  override init() {
-    super.init()
-  }
-
   // MARK: - Public API
 
   func connect(authToken: String) {
@@ -144,10 +140,7 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
   private func attemptConnect() async -> Bool {
     guard !Task.isCancelled, let authToken else { return false }
 
-    let httpURL = Config.apiBaseURL
-    let wsURL = httpURL.replacingOccurrences(of: "https://", with: "wss://")
-      .replacingOccurrences(of: "http://", with: "ws://")
-    let observeURL = "\(wsURL)/observe?token=\(authToken)"
+    let observeURL = "\(Config.webSocketBaseURL)/observe?token=\(authToken)"
 
     guard let url = URL(string: observeURL) else {
       Logger.error(.observer, "Invalid observer URL")
@@ -283,19 +276,12 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
       Logger.log(.observer, "Device event received")
       onDevicesChanged?()
 
-    case .deviceHeartbeat:
-      // Heartbeat only updates timestamp, UI calculates relative time locally
-      break
-
     case .taskCompleted, .taskFailed:
       Logger.log(.observer, "Task event received")
       onTasksChanged?()
-      onDevicesChanged?() // Tasks affect device stats
+      onDevicesChanged?()
 
-    case .pong:
-      break
-
-    case .unknown:
+    case .deviceHeartbeat, .pong, .unknown:
       break
     }
   }

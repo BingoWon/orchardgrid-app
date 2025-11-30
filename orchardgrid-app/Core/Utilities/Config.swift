@@ -12,6 +12,12 @@ enum Config {
       ?? "https://api.orchardgrid.com"
   }
 
+  static var webSocketBaseURL: String {
+    apiBaseURL
+      .replacingOccurrences(of: "https://", with: "wss://")
+      .replacingOccurrences(of: "http://", with: "ws://")
+  }
+
   // Google Sign-In Client IDs
   // Note: Client ID is primarily loaded from Info.plist via GIDSignIn SDK
   // This property is kept for reference or legacy compatibility if needed
