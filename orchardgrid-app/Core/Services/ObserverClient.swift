@@ -173,6 +173,9 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
       try? await Task.sleep(for: .milliseconds(100))
     }
 
+    // Don't report timeout if cancelled - connection was intentionally interrupted
+    guard !Task.isCancelled else { return false }
+
     if status != .connected {
       Logger.error(.observer, "Connection timeout")
       cleanupConnection()
