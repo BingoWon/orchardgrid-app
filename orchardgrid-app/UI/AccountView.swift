@@ -9,6 +9,14 @@ struct AccountView: View {
   @State private var showFinalConfirmation = false
   @State private var isDeleting = false
 
+  // Password change state
+  @State private var showChangePassword = false
+  @State private var currentPassword = ""
+  @State private var newPassword = ""
+  @State private var confirmPassword = ""
+  @State private var isChangingPassword = false
+  @State private var passwordError: String?
+
   var body: some View {
     Group {
       if authManager.isAuthenticated {
@@ -35,6 +43,23 @@ struct AccountView: View {
       }
     } message: {
       Text("This action cannot be undone. All your devices, API keys, and tasks will be deleted.")
+    }
+    .sheet(isPresented: $showChangePassword) {
+      ChangePasswordSheet(
+        currentPassword: $currentPassword,
+        newPassword: $newPassword,
+        confirmPassword: $confirmPassword,
+        isChanging: $isChangingPassword,
+        error: $passwordError,
+        onSubmit: changePassword,
+        onDismiss: {
+          showChangePassword = false
+          currentPassword = ""
+          newPassword = ""
+          confirmPassword = ""
+          passwordError = nil
+        }
+      )
     }
   }
 
@@ -105,6 +130,14 @@ struct AccountView: View {
             }
           }
           LabeledContent("Email", value: user.email)
+        }
+      }
+
+      if authManager.currentUser?.canChangePassword == true {
+        Section("Security") {
+          Button("Change Password") {
+            showChangePassword = true
+          }
         }
       }
 
@@ -196,6 +229,148 @@ struct AccountView: View {
     } catch {
       Logger.error(.auth, "Failed to delete account: \(error.localizedDescription)")
     }
+  }
+
+  private func changePassword() async {
+    guard let token = authManager.authToken else { return }
+
+    guard newPassword == confirmPassword else {
+      passwordError = "New passwords do not match"
+      return
+    }
+
+    guard newPassword.count >= 8 else {
+      passwordError = "Password must be at least 8 characters"
+      return
+    }
+
+    isChangingPassword = true
+    passwordError = nil
+    defer { isChangingPassword = false }
+
+    do {
+      let url = URL(string: "\(Config.apiBaseURL)/auth/password")!
+      var request = URLRequest(url: url)
+      request.httpMethod = "PATCH"
+      request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+      let body = ["current_password": currentPassword, "new_password": newPassword]
+      request.httpBody = try JSONEncoder().encode(body)
+
+      let (data, response) = try await Config.urlSession.data(for: request)
+
+      guard let httpResponse = response as? HTTPURLResponse else {
+        throw NSError(domain: "Invalid response", code: -1)
+      }
+
+      guard httpResponse.statusCode == 200 else {
+        if let errorData = try? JSONDecoder().decode([String: [String: String]].self, from: data),
+           let message = errorData["error"]?["message"]
+        {
+          throw NSError(domain: message, code: httpResponse.statusCode)
+        }
+        throw NSError(domain: "Failed to change password", code: httpResponse.statusCode)
+      }
+
+      await MainActor.run {
+        showChangePassword = false
+        currentPassword = ""
+        newPassword = ""
+        confirmPassword = ""
+      }
+
+      Logger.success(.auth, "Password changed successfully")
+    } catch {
+      passwordError = error.localizedDescription
+      Logger.error(.auth, "Failed to change password: \(error.localizedDescription)")
+    }
+  }
+}
+
+// MARK: - Change Password Sheet
+
+struct ChangePasswordSheet: View {
+  @Binding var currentPassword: String
+  @Binding var newPassword: String
+  @Binding var confirmPassword: String
+  @Binding var isChanging: Bool
+  @Binding var error: String?
+  let onSubmit: () async -> Void
+  let onDismiss: () -> Void
+
+  @State private var showCurrentPassword = false
+  @State private var showNewPassword = false
+
+  private var isValid: Bool {
+    !currentPassword.isEmpty && !newPassword.isEmpty && !confirmPassword.isEmpty
+  }
+
+  var body: some View {
+    NavigationStack {
+      Form {
+        Section {
+          HStack {
+            if showCurrentPassword {
+              TextField("Current Password", text: $currentPassword)
+            } else {
+              SecureField("Current Password", text: $currentPassword)
+            }
+            Button {
+              showCurrentPassword.toggle()
+            } label: {
+              Image(systemName: showCurrentPassword ? "eye.slash.fill" : "eye.fill")
+                .foregroundStyle(.tertiary)
+            }
+            .buttonStyle(.plain)
+          }
+        }
+
+        Section {
+          HStack {
+            if showNewPassword {
+              TextField("New Password", text: $newPassword)
+            } else {
+              SecureField("New Password", text: $newPassword)
+            }
+            Button {
+              showNewPassword.toggle()
+            } label: {
+              Image(systemName: showNewPassword ? "eye.slash.fill" : "eye.fill")
+                .foregroundStyle(.tertiary)
+            }
+            .buttonStyle(.plain)
+          }
+          SecureField("Confirm New Password", text: $confirmPassword)
+        } footer: {
+          Text("Password must be at least 8 characters")
+        }
+
+        if let error {
+          Section {
+            Text(error)
+              .foregroundStyle(.red)
+          }
+        }
+      }
+      .formStyle(.grouped)
+      .navigationTitle("Change Password")
+      .toolbarRole(.editor)
+      .toolbarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Cancel") { onDismiss() }
+            .disabled(isChanging)
+        }
+        ToolbarItem(placement: .confirmationAction) {
+          Button("Save") {
+            Task { await onSubmit() }
+          }
+          .disabled(!isValid || isChanging)
+        }
+      }
+    }
+    .presentationDetents([.medium])
   }
 }
 

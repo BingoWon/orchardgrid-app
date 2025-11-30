@@ -303,10 +303,16 @@ struct User: Codable, Equatable {
   let email: String
   let name: String?
   let avatarUrl: String?
+  let authProvider: String
 
   enum CodingKeys: String, CodingKey {
     case id, email, name
     case avatarUrl = "avatar_url"
+    case authProvider = "auth_provider"
+  }
+
+  var canChangePassword: Bool {
+    authProvider == "email"
   }
 }
 
