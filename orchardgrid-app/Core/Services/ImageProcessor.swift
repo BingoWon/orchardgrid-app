@@ -76,7 +76,7 @@ enum ImageProcessor {
 
     let playgroundStyle = try mapStyle(style)
     let concept = ImagePlaygroundConcept.text(prompt)
-    let creator = ImageCreator()
+    let creator = try await ImageCreator()
 
     var results: [Data] = []
 
