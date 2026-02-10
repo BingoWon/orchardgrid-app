@@ -137,39 +137,53 @@ struct APIKeysView: View {
   private var usageInstructionsCard: some View {
     VStack(alignment: .leading, spacing: 12) {
       HStack {
-        Label("Quick Start", systemImage: "info.circle.fill")
+        Label("API Reference", systemImage: "info.circle.fill")
           .font(.headline)
           .foregroundStyle(.blue)
         Spacer()
       }
 
-      VStack(alignment: .leading, spacing: 8) {
-        HStack {
-          Text("Model")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .frame(width: 80, alignment: .leading)
-          Text("apple-intelligence")
-            .font(.system(.subheadline, design: .monospaced))
-          Spacer()
-          copyButton(text: "apple-intelligence")
-        }
+      // Endpoint
+      infoRow(label: "Endpoint", value: Config.apiBaseURL)
 
-        HStack {
-          Text("Endpoint")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .frame(width: 80, alignment: .leading)
-          Text(Config.apiBaseURL)
-            .font(.system(.caption, design: .monospaced))
-            .lineLimit(1)
-          Spacer()
-          copyButton(text: Config.apiBaseURL)
-        }
+      // Chat
+      VStack(alignment: .leading, spacing: 4) {
+        Text("Chat Completion")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        infoRow(label: "Model", value: "apple-intelligence")
+        Text("POST /v1/chat/completions · streaming supported")
+          .font(.caption2)
+          .foregroundStyle(.tertiary)
+      }
+
+      // Image
+      VStack(alignment: .leading, spacing: 4) {
+        Text("Image Generation")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        infoRow(label: "Model", value: "apple-intelligence-image")
+        Text("POST /v1/images/generations · style: illustration | sketch")
+          .font(.caption2)
+          .foregroundStyle(.tertiary)
       }
     }
     .padding(Constants.standardPadding)
     .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
+  }
+
+  private func infoRow(label: String, value: String) -> some View {
+    HStack {
+      Text(label)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .frame(width: 64, alignment: .leading)
+      Text(value)
+        .font(.system(.caption, design: .monospaced))
+        .lineLimit(1)
+      Spacer()
+      copyButton(text: value)
+    }
   }
 
   // MARK: - API Keys Section
