@@ -69,7 +69,7 @@ struct ChatsView: View {
 
   private var conversationList: some View {
     VStack(alignment: .leading, spacing: Constants.summaryCardSpacing) {
-      Text("Conversations")
+      Text("History")
         .font(.headline)
         .foregroundStyle(.secondary)
 
@@ -78,6 +78,7 @@ struct ChatsView: View {
           selectedConversationId = conversation.id
         } label: {
           ConversationCard(conversation: conversation)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .contextMenu {
