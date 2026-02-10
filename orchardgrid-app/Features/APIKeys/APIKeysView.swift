@@ -122,7 +122,7 @@ struct APIKeysView: View {
     }
     // Content
     else {
-      // API Reference (top, visible on entry)
+      // API Reference (top, immediately visible)
       apiReferenceCard
 
       // API Keys List
@@ -132,56 +132,49 @@ struct APIKeysView: View {
 
   // MARK: - API Reference Card
 
-  @State private var isReferenceExpanded = true
+  @State private var showAPIReference = true
 
   private var apiReferenceCard: some View {
     VStack(alignment: .leading, spacing: 0) {
-      // Header — tappable to collapse
+      // Header — tap to collapse
       Button {
-        withAnimation(.easeInOut(duration: 0.25)) {
-          isReferenceExpanded.toggle()
-        }
+        withAnimation(.easeInOut(duration: 0.2)) { showAPIReference.toggle() }
       } label: {
         HStack {
-          Label("API Reference", systemImage: "book.closed")
+          Label("API Reference", systemImage: "book")
             .font(.subheadline.weight(.semibold))
           Spacer()
           Image(systemName: "chevron.down")
             .font(.caption2.weight(.semibold))
-            .rotationEffect(.degrees(isReferenceExpanded ? 0 : -90))
             .foregroundStyle(.tertiary)
+            .rotationEffect(.degrees(showAPIReference ? 0 : -90))
         }
         .foregroundStyle(.primary)
         .padding(Constants.standardPadding)
       }
       .buttonStyle(.plain)
 
-      if isReferenceExpanded {
+      if showAPIReference {
         VStack(alignment: .leading, spacing: 16) {
           // Base URL
-          VStack(alignment: .leading, spacing: 4) {
-            Text("BASE URL")
-              .font(.caption2.weight(.medium))
-              .foregroundStyle(.secondary)
-            HStack {
-              Text(Config.apiBaseURL)
-                .font(.system(.callout, design: .monospaced))
-                .lineLimit(1)
-              Spacer()
-              copyButton(text: Config.apiBaseURL)
-            }
-            .padding(10)
-            .background(.fill.quinary, in: .rect(cornerRadius: 8))
+          HStack {
+            Text(Config.apiBaseURL)
+              .font(.system(.callout, design: .monospaced))
+              .lineLimit(1)
+            Spacer()
+            copyButton(text: Config.apiBaseURL)
           }
+          .padding(10)
+          .background(.ultraThinMaterial, in: .rect(cornerRadius: 8))
 
           // Chat Completion
           endpointSection(
-            title: "Chat Completion",
             method: "POST",
             path: "/v1/chat/completions",
+            model: "apple-intelligence",
             fields: [
               ("model", "string", "\"apple-intelligence\""),
-              ("messages", "[object]", "role, content"),
+              ("messages", "array", "[{role, content}]"),
               ("stream", "bool?", "false — set true for SSE"),
             ]
           )
@@ -190,9 +183,9 @@ struct APIKeysView: View {
 
           // Image Generation
           endpointSection(
-            title: "Image Generation",
             method: "POST",
             path: "/v1/images/generations",
+            model: "apple-intelligence-image",
             fields: [
               ("prompt", "string", "Text description"),
               ("n", "int?", "1 — number of images"),
@@ -201,54 +194,61 @@ struct APIKeysView: View {
           )
         }
         .padding([.horizontal, .bottom], Constants.standardPadding)
-        .transition(.opacity.combined(with: .move(edge: .top)))
       }
     }
     .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
   }
 
   private func endpointSection(
-    title: String,
     method: String,
     path: String,
+    model: String,
     fields: [(name: String, type: String, desc: String)]
   ) -> some View {
     VStack(alignment: .leading, spacing: 8) {
-      // Title + route
-      VStack(alignment: .leading, spacing: 2) {
-        Text(title)
-          .font(.caption.weight(.semibold))
-        HStack(spacing: 6) {
-          Text(method)
-            .font(.system(.caption2, design: .monospaced, weight: .bold))
-            .foregroundStyle(.green)
-          Text(path)
-            .font(.system(.caption, design: .monospaced))
-            .foregroundStyle(.secondary)
-        }
+      // Method + Path
+      HStack(spacing: 6) {
+        Text(method)
+          .font(.system(.caption2, design: .monospaced, weight: .bold))
+          .padding(.horizontal, 6)
+          .padding(.vertical, 2)
+          .background(.green.opacity(0.15), in: .rect(cornerRadius: 4))
+          .foregroundStyle(.green)
+        Text(path)
+          .font(.system(.subheadline, design: .monospaced))
+      }
+
+      // Model badge
+      HStack(spacing: 6) {
+        Text("Model")
+          .font(.caption2)
+          .foregroundStyle(.secondary)
+        Text(model)
+          .font(.system(.caption2, design: .monospaced))
+          .padding(.horizontal, 6)
+          .padding(.vertical, 2)
+          .background(.blue.opacity(0.12), in: .capsule)
+          .foregroundStyle(.blue)
       }
 
       // Fields table
-      VStack(spacing: 0) {
-        ForEach(Array(fields.enumerated()), id: \.offset) { _, field in
-          HStack(alignment: .firstTextBaseline, spacing: 0) {
+      VStack(spacing: 4) {
+        ForEach(fields, id: \.name) { field in
+          HStack(alignment: .top, spacing: 0) {
             Text(field.name)
               .font(.system(.caption, design: .monospaced))
               .frame(width: 72, alignment: .leading)
             Text(field.type)
-              .font(.system(.caption2, design: .monospaced))
-              .foregroundStyle(.blue)
-              .frame(width: 64, alignment: .leading)
+              .font(.caption2)
+              .foregroundStyle(.secondary)
+              .frame(width: 52, alignment: .leading)
             Text(field.desc)
               .font(.caption2)
               .foregroundStyle(.tertiary)
             Spacer()
           }
-          .padding(.vertical, 4)
-          .padding(.horizontal, 8)
         }
       }
-      .background(.fill.quinary, in: .rect(cornerRadius: 6))
     }
   }
 
