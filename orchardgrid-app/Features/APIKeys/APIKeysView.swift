@@ -173,7 +173,6 @@ struct APIKeysView: View {
             path: "/v1/chat/completions",
             model: "apple-intelligence",
             fields: [
-              ("model", "string", "\"apple-intelligence\""),
               ("messages", "array", "[{role, content}]"),
               ("stream", "bool?", "false — set true for SSE"),
             ]
@@ -218,7 +217,7 @@ struct APIKeysView: View {
           .font(.system(.subheadline, design: .monospaced))
       }
 
-      // Model badge
+      // Model badge + copy
       HStack(spacing: 6) {
         Text("Model")
           .font(.caption2)
@@ -229,6 +228,7 @@ struct APIKeysView: View {
           .padding(.vertical, 2)
           .background(.blue.opacity(0.12), in: .capsule)
           .foregroundStyle(.blue)
+        copyButton(text: model)
       }
 
       // Fields table
