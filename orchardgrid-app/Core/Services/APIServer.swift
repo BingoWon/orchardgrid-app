@@ -217,6 +217,8 @@ final class APIServer {
       await sendModels(to: connection)
     case ("POST", "/v1/chat/completions"):
       await handleChatCompletion(request: request, connection: connection)
+    case ("POST", "/v1/images/generations"):
+      await handleImageGeneration(request: request, connection: connection)
     default:
       await sendError(.notFound, to: connection)
     }
@@ -439,6 +441,57 @@ final class APIServer {
     }
 
     connection.cancel()
+  }
+
+  // MARK: - Image Generation
+
+  private nonisolated func handleImageGeneration(
+    request: HTTPRequest,
+    connection: NWConnection
+  ) async {
+    guard let body = request.body else {
+      await sendError(.badRequest, message: "Missing request body", to: connection)
+      return
+    }
+
+    do {
+      let imageRequest = try JSONDecoder().decode(ImageRequest.self, from: body)
+
+      guard !imageRequest.prompt.isEmpty else {
+        await sendError(.badRequest, message: "Prompt cannot be empty", to: connection)
+        return
+      }
+
+      let count = imageRequest.n ?? 1
+
+      let imageDataArray = try await ImageProcessor.generateImages(
+        prompt: imageRequest.prompt,
+        style: imageRequest.style,
+        count: count
+      )
+
+      let imageResponse = ImageResponse(
+        created: Int(Date().timeIntervalSince1970),
+        data: imageDataArray.map { ImageResponse.ImageData(b64_json: $0.base64EncodedString()) }
+      )
+
+      await send(imageResponse, to: connection)
+    } catch let error as ImageProcessorError {
+      switch error {
+      case .notSupported, .unavailable:
+        await sendError(.serviceUnavailable, message: error.localizedDescription, to: connection)
+      case .invalidStyle, .invalidCount:
+        await sendError(.badRequest, message: error.localizedDescription, to: connection)
+      case .conversionFailed, .generationFailed:
+        await sendError(.internalError, message: error.localizedDescription, to: connection)
+      }
+    } catch {
+      await sendError(
+        .badRequest,
+        message: "Invalid request format: \(error.localizedDescription)",
+        to: connection
+      )
+    }
   }
 
   // MARK: - Response Helpers

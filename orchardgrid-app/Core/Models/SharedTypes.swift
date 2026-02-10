@@ -236,6 +236,40 @@ struct HeartbeatMessage: Codable, Sendable {
   let type: String // "heartbeat"
 }
 
+// MARK: - Image Generation Types
+
+/// Image generation request (OpenAI-compatible)
+struct ImageRequest: Codable, Sendable {
+  let prompt: String
+  let n: Int? // number of images (1-4, default 1)
+  let style: String? // "illustration" | "sketch" (default: illustration)
+  let response_format: String? // "b64_json" only
+}
+
+/// Image generation response (OpenAI-compatible)
+struct ImageResponse: Codable, Sendable {
+  let created: Int
+  let data: [ImageData]
+
+  struct ImageData: Codable, Sendable {
+    let b64_json: String
+  }
+}
+
+/// Image task message from platform
+struct ImageTaskMessage: Codable, Sendable {
+  let id: String
+  let type: String // "image_task"
+  let payload: ImageRequest
+}
+
+/// Image response message to platform
+struct ImageResponseMessage: Codable, Sendable {
+  let id: String
+  let type: String // "image_response"
+  let payload: ImageResponse
+}
+
 // MARK: - AnyCodable Extensions
 
 extension AnyCodable {

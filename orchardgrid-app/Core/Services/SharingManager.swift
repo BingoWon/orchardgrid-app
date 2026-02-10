@@ -30,6 +30,10 @@ final class SharingManager {
     llmProcessor.isAvailable
   }
 
+  var isImageAvailable: Bool {
+    ImageProcessor.isAvailable
+  }
+
   // MARK: - User Intent (Persisted)
 
   private enum Keys {
@@ -74,7 +78,7 @@ final class SharingManager {
     wantsCloudSharing = wantsCloud
     wantsLocalSharing = wantsLocal
 
-    // Create services with shared LLM processor
+    // Create services with shared processor
     cloudService = WebSocketClient(llmProcessor: llmProcessor)
     localService = APIServer(llmProcessor: llmProcessor)
 

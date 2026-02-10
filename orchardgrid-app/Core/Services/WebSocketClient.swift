@@ -153,7 +153,10 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
         if attempt > 0 {
           connectionState = .reconnecting(attempt: attempt, nextRetryIn: delay)
-          Logger.log(.websocket, "Reconnection attempt \(attempt) in \(String(format: "%.1f", delay))s...")
+          Logger.log(
+            .websocket,
+            "Reconnection attempt \(attempt) in \(String(format: "%.1f", delay))s..."
+          )
           await countdown(delay)
           guard !Task.isCancelled else { break }
         }
@@ -162,7 +165,10 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
         let success = await attemptConnect()
 
         if success {
-          Logger.success(.websocket, attempt > 1 ? "Reconnected after \(attempt) attempts" : "Connected")
+          Logger.success(
+            .websocket,
+            attempt > 1 ? "Reconnected after \(attempt) attempts" : "Connected"
+          )
           break
         }
 
@@ -203,6 +209,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       URLQueryItem(name: "device_name", value: DeviceInfo.deviceName),
       URLQueryItem(name: "chip_model", value: DeviceInfo.chipModel),
       URLQueryItem(name: "memory_gb", value: String(format: "%.0f", DeviceInfo.totalMemoryGB)),
+      URLQueryItem(name: "supports_image", value: ImageProcessor.isAvailable ? "true" : "false"),
     ]
     if let userID {
       queryItems.append(URLQueryItem(name: "user_id", value: userID))
@@ -364,27 +371,36 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     do {
       let data = text.data(using: .utf8)!
 
-      if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-         let type = json["type"] as? String
-      {
-        if type == "heartbeat" || type == "pong" {
-          lastHeartbeatResponse = Date()
-          Logger.log(.websocket, "Heartbeat response received")
-          return
-        }
+      guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let type = json["type"] as? String
+      else {
+        Logger.error(.websocket, "Failed to parse message JSON")
+        return
+      }
+
+      if type == "heartbeat" || type == "pong" {
+        lastHeartbeatResponse = Date()
+        Logger.log(.websocket, "Heartbeat response received")
+        return
       }
 
       let decoder = JSONDecoder()
       decoder.keyDecodingStrategy = .convertFromSnakeCase
-      let taskMessage = try decoder.decode(TaskMessage.self, from: data)
 
-      guard taskMessage.type == "task" else {
-        Logger.log(.websocket, "Unknown message type: \(taskMessage.type)")
-        return
+      switch type {
+      case "task":
+        let taskMessage = try decoder.decode(TaskMessage.self, from: data)
+        Logger.log(.websocket, "Received task: \(taskMessage.id)")
+        await processTask(taskMessage)
+
+      case "image_task":
+        let imageTaskMessage = try decoder.decode(ImageTaskMessage.self, from: data)
+        Logger.log(.imageGen, "Received image task: \(imageTaskMessage.id)")
+        await processImageTask(imageTaskMessage)
+
+      default:
+        Logger.log(.websocket, "Unknown message type: \(type)")
       }
-
-      Logger.log(.websocket, "Received task: \(taskMessage.id)")
-      await processTask(taskMessage)
     } catch {
       Logger.error(.websocket, "Failed to decode message: \(error)")
     }
@@ -466,7 +482,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
       tasksProcessed += 1
       let duration = Date().timeIntervalSince(startTime)
-      Logger.success(.websocket, "Task completed in \(String(format: "%.2f", duration))s")
+      Logger.success(.websocket, "Chat task completed in \(String(format: "%.2f", duration))s")
     } catch {
       Logger.error(.websocket, "Task failed: \(error)")
       let errorMessage = ErrorMessage(
@@ -498,6 +514,45 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
     let endMessage = StreamEndMessage(id: taskId, type: "stream_end")
     await sendMessage(endMessage)
+  }
+
+  // MARK: - Image Task Processing
+
+  private func processImageTask(_ imageTask: ImageTaskMessage) async {
+    let startTime = Date()
+    let request = imageTask.payload
+
+    do {
+      let imageDataArray = try await ImageProcessor.generateImages(
+        prompt: request.prompt,
+        style: request.style,
+        count: request.n ?? 1
+      )
+
+      let imageResponse = ImageResponse(
+        created: Int(Date().timeIntervalSince1970),
+        data: imageDataArray.map { ImageResponse.ImageData(b64_json: $0.base64EncodedString()) }
+      )
+
+      let responseMessage = ImageResponseMessage(
+        id: imageTask.id,
+        type: "image_response",
+        payload: imageResponse
+      )
+      await sendMessage(responseMessage)
+
+      tasksProcessed += 1
+      let duration = Date().timeIntervalSince(startTime)
+      Logger.success(.imageGen, "Image task completed in \(String(format: "%.2f", duration))s")
+    } catch {
+      Logger.error(.imageGen, "Image task failed: \(error)")
+      let errorMessage = ErrorMessage(
+        id: imageTask.id,
+        type: "error",
+        error: error.localizedDescription
+      )
+      await sendMessage(errorMessage)
+    }
   }
 
   private func generateResponse(for request: ChatRequest) async throws -> ChatResponse {
