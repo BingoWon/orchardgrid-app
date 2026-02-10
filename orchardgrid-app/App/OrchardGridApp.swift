@@ -16,6 +16,7 @@ struct OrchardGridApp: App {
   @State private var navigationState = NavigationState()
   @State private var devicesManager = DevicesManager()
   @State private var logsManager = LogsManager()
+  @State private var chatManager = ChatManager()
   @Environment(\.scenePhase) private var scenePhase
 
   init() {
@@ -67,6 +68,7 @@ struct OrchardGridApp: App {
             .environment(navigationState)
             .environment(devicesManager)
             .environment(logsManager)
+            .environment(chatManager)
         }
       }
       .frame(minWidth: 375.0, minHeight: 375.0)

@@ -87,10 +87,13 @@ struct MainView: View {
       .navigationTitle("OrchardGrid")
       .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 300)
     } detail: {
-      detailView(for: navigationState.selectedItem)
-      #if !os(macOS)
-        .navigationBarTitleDisplayMode(.inline)
-      #endif
+      NavigationStack {
+        detailView(for: navigationState.selectedItem)
+        #if !os(macOS)
+          .navigationBarTitleDisplayMode(.inline)
+        #endif
+      }
+      .id(navigationState.selectedItem)
     }
   }
 
@@ -103,6 +106,8 @@ struct MainView: View {
       LocalDeviceView()
     case .allDevices:
       AllDevicesView()
+    case .chats:
+      ChatsView()
     case .apiKeys:
       APIKeysView()
     case .logs:

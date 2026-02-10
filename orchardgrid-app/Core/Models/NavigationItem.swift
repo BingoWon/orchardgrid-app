@@ -3,6 +3,7 @@ import SwiftUI
 enum NavigationItem: String, CaseIterable, Identifiable {
   case localDevice = "Local Device"
   case allDevices = "Devices"
+  case chats = "Chats"
   case apiKeys = "API Keys"
   case logs = "Logs"
   case account = "Account"
@@ -39,6 +40,8 @@ enum NavigationItem: String, CaseIterable, Identifiable {
       #endif
     case .allDevices:
       return "server.rack"
+    case .chats:
+      return "bubble.left.and.bubble.right.fill"
     case .apiKeys:
       return "key.fill"
     case .logs:
