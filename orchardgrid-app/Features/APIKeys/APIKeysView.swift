@@ -5,8 +5,6 @@ import SwiftUI
   import UIKit
 #endif
 
-
-
 struct APIKeysView: View {
   @Environment(AuthManager.self) private var authManager
   @Environment(ObserverClient.self) private var observerClient
@@ -17,6 +15,7 @@ struct APIKeysView: View {
   @State private var showDeleteConfirmation = false
   @State private var keyToDelete: APIKey?
   @State private var copiedText: String?
+  @State private var showAPIReference = true
 
   var body: some View {
     ScrollView {
@@ -131,8 +130,6 @@ struct APIKeysView: View {
   }
 
   // MARK: - API Reference Card
-
-  @State private var showAPIReference = true
 
   private var apiReferenceCard: some View {
     VStack(alignment: .leading, spacing: 0) {
@@ -268,7 +265,7 @@ struct APIKeysView: View {
           isCopied: copiedText == key.key,
           editingName: $editingName,
           onToggleVisibility: { toggleKeyVisibility(key.key) },
-          onCopy: { copyKey(key.key) },
+          onCopy: { copyToClipboard(key.key) },
           onEdit: {
             editingKey = key.key
             editingName = key.name ?? ""
@@ -383,10 +380,6 @@ struct APIKeysView: View {
     }
   }
 
-  private func copyKey(_ key: String) {
-    copyToClipboard(key)
-  }
-
   private func copyToClipboard(_ text: String) {
     #if os(macOS)
       NSPasteboard.general.clearContents()
@@ -412,8 +405,6 @@ struct APIKeysView: View {
       visibleKeys.insert(key)
     }
   }
-
-
 }
 
 // MARK: - API Key Card
