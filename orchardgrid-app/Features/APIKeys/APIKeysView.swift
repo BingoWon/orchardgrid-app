@@ -5,9 +5,7 @@ import SwiftUI
   import UIKit
 #endif
 
-private let maskPrefixLength = 20
-private let maskSuffixLength = 4
-private let maskMinLength = 24
+
 
 struct APIKeysView: View {
   @Environment(AuthManager.self) private var authManager
@@ -124,65 +122,78 @@ struct APIKeysView: View {
     }
     // Content
     else {
-      // Usage Instructions Card
-      usageInstructionsCard
-
-      // API Keys List
+      // API Keys List (primary content)
       apiKeysSection
+
+      // API Reference (secondary, below keys)
+      apiReferenceCard
     }
   }
 
-  // MARK: - Usage Instructions Card
+  // MARK: - API Reference Card
 
-  private var usageInstructionsCard: some View {
+  private var apiReferenceCard: some View {
     VStack(alignment: .leading, spacing: 12) {
-      HStack {
-        Label("API Reference", systemImage: "info.circle.fill")
-          .font(.headline)
-          .foregroundStyle(.blue)
-        Spacer()
-      }
+      Label("API Reference", systemImage: "book")
+        .font(.subheadline.weight(.semibold))
+        .foregroundStyle(.secondary)
 
       // Endpoint
-      infoRow(label: "Endpoint", value: Config.apiBaseURL)
-
-      // Chat
-      VStack(alignment: .leading, spacing: 4) {
-        Text("Chat Completion")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-        infoRow(label: "Model", value: "apple-intelligence")
-        Text("POST /v1/chat/completions · streaming supported")
-          .font(.caption2)
-          .foregroundStyle(.tertiary)
+      HStack {
+        Text(Config.apiBaseURL)
+          .font(.system(.callout, design: .monospaced))
+          .lineLimit(1)
+          .foregroundStyle(.primary)
+        Spacer()
+        copyButton(text: Config.apiBaseURL)
       }
+      .padding(10)
+      .background(.ultraThinMaterial, in: .rect(cornerRadius: 8))
 
-      // Image
-      VStack(alignment: .leading, spacing: 4) {
-        Text("Image Generation")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-        infoRow(label: "Model", value: "apple-intelligence-image")
-        Text("POST /v1/images/generations · style: illustration | sketch")
-          .font(.caption2)
-          .foregroundStyle(.tertiary)
+      Divider()
+
+      // Endpoints grid
+      VStack(spacing: 10) {
+        apiEndpointRow(
+          path: "/v1/chat/completions",
+          model: "apple-intelligence",
+          detail: "Streaming supported"
+        )
+        apiEndpointRow(
+          path: "/v1/images/generations",
+          model: "apple-intelligence-image",
+          detail: "Style: illustration · sketch"
+        )
       }
     }
     .padding(Constants.standardPadding)
     .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
   }
 
-  private func infoRow(label: String, value: String) -> some View {
-    HStack {
-      Text(label)
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .frame(width: 64, alignment: .leading)
-      Text(value)
-        .font(.system(.caption, design: .monospaced))
-        .lineLimit(1)
+  private func apiEndpointRow(path: String, model: String, detail: String) -> some View {
+    HStack(alignment: .top, spacing: 10) {
+      Text("POST")
+        .font(.system(.caption2, design: .monospaced, weight: .bold))
+        .foregroundStyle(.green)
+        .frame(width: 32)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(path)
+          .font(.system(.caption, design: .monospaced))
+        HStack(spacing: 6) {
+          Text(model)
+            .font(.caption2)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(.blue.opacity(0.12), in: .capsule)
+            .foregroundStyle(.blue)
+          Text("·")
+            .foregroundStyle(.quaternary)
+          Text(detail)
+            .font(.caption2)
+            .foregroundStyle(.tertiary)
+        }
+      }
       Spacer()
-      copyButton(text: value)
     }
   }
 
@@ -347,10 +358,7 @@ struct APIKeysView: View {
     }
   }
 
-  private func maskKey(_ key: String) -> String {
-    guard key.count > maskMinLength else { return key }
-    return "\(key.prefix(maskPrefixLength))...\(key.suffix(maskSuffixLength))"
-  }
+
 }
 
 // MARK: - API Key Card
