@@ -122,78 +122,133 @@ struct APIKeysView: View {
     }
     // Content
     else {
-      // API Keys List (primary content)
-      apiKeysSection
-
-      // API Reference (secondary, below keys)
+      // API Reference (top, visible on entry)
       apiReferenceCard
+
+      // API Keys List
+      apiKeysSection
     }
   }
 
   // MARK: - API Reference Card
 
+  @State private var isReferenceExpanded = true
+
   private var apiReferenceCard: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      Label("API Reference", systemImage: "book")
-        .font(.subheadline.weight(.semibold))
-        .foregroundStyle(.secondary)
-
-      // Endpoint
-      HStack {
-        Text(Config.apiBaseURL)
-          .font(.system(.callout, design: .monospaced))
-          .lineLimit(1)
-          .foregroundStyle(.primary)
-        Spacer()
-        copyButton(text: Config.apiBaseURL)
+    VStack(alignment: .leading, spacing: 0) {
+      // Header — tappable to collapse
+      Button {
+        withAnimation(.easeInOut(duration: 0.25)) {
+          isReferenceExpanded.toggle()
+        }
+      } label: {
+        HStack {
+          Label("API Reference", systemImage: "book.closed")
+            .font(.subheadline.weight(.semibold))
+          Spacer()
+          Image(systemName: "chevron.down")
+            .font(.caption2.weight(.semibold))
+            .rotationEffect(.degrees(isReferenceExpanded ? 0 : -90))
+            .foregroundStyle(.tertiary)
+        }
+        .foregroundStyle(.primary)
+        .padding(Constants.standardPadding)
       }
-      .padding(10)
-      .background(.ultraThinMaterial, in: .rect(cornerRadius: 8))
+      .buttonStyle(.plain)
 
-      Divider()
+      if isReferenceExpanded {
+        VStack(alignment: .leading, spacing: 16) {
+          // Base URL
+          VStack(alignment: .leading, spacing: 4) {
+            Text("BASE URL")
+              .font(.caption2.weight(.medium))
+              .foregroundStyle(.secondary)
+            HStack {
+              Text(Config.apiBaseURL)
+                .font(.system(.callout, design: .monospaced))
+                .lineLimit(1)
+              Spacer()
+              copyButton(text: Config.apiBaseURL)
+            }
+            .padding(10)
+            .background(.fill.quinary, in: .rect(cornerRadius: 8))
+          }
 
-      // Endpoints grid
-      VStack(spacing: 10) {
-        apiEndpointRow(
-          path: "/v1/chat/completions",
-          model: "apple-intelligence",
-          detail: "Streaming supported"
-        )
-        apiEndpointRow(
-          path: "/v1/images/generations",
-          model: "apple-intelligence-image",
-          detail: "Style: illustration · sketch"
-        )
+          // Chat Completion
+          endpointSection(
+            title: "Chat Completion",
+            method: "POST",
+            path: "/v1/chat/completions",
+            fields: [
+              ("model", "string", "\"apple-intelligence\""),
+              ("messages", "[object]", "role, content"),
+              ("stream", "bool?", "false — set true for SSE"),
+            ]
+          )
+
+          Divider()
+
+          // Image Generation
+          endpointSection(
+            title: "Image Generation",
+            method: "POST",
+            path: "/v1/images/generations",
+            fields: [
+              ("prompt", "string", "Text description"),
+              ("n", "int?", "1 — number of images"),
+              ("style", "string?", "illustration | sketch"),
+            ]
+          )
+        }
+        .padding([.horizontal, .bottom], Constants.standardPadding)
+        .transition(.opacity.combined(with: .move(edge: .top)))
       }
     }
-    .padding(Constants.standardPadding)
     .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
   }
 
-  private func apiEndpointRow(path: String, model: String, detail: String) -> some View {
-    HStack(alignment: .top, spacing: 10) {
-      Text("POST")
-        .font(.system(.caption2, design: .monospaced, weight: .bold))
-        .foregroundStyle(.green)
-        .frame(width: 32)
+  private func endpointSection(
+    title: String,
+    method: String,
+    path: String,
+    fields: [(name: String, type: String, desc: String)]
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+      // Title + route
       VStack(alignment: .leading, spacing: 2) {
-        Text(path)
-          .font(.system(.caption, design: .monospaced))
+        Text(title)
+          .font(.caption.weight(.semibold))
         HStack(spacing: 6) {
-          Text(model)
-            .font(.caption2)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(.blue.opacity(0.12), in: .capsule)
-            .foregroundStyle(.blue)
-          Text("·")
-            .foregroundStyle(.quaternary)
-          Text(detail)
-            .font(.caption2)
-            .foregroundStyle(.tertiary)
+          Text(method)
+            .font(.system(.caption2, design: .monospaced, weight: .bold))
+            .foregroundStyle(.green)
+          Text(path)
+            .font(.system(.caption, design: .monospaced))
+            .foregroundStyle(.secondary)
         }
       }
-      Spacer()
+
+      // Fields table
+      VStack(spacing: 0) {
+        ForEach(Array(fields.enumerated()), id: \.offset) { _, field in
+          HStack(alignment: .firstTextBaseline, spacing: 0) {
+            Text(field.name)
+              .font(.system(.caption, design: .monospaced))
+              .frame(width: 72, alignment: .leading)
+            Text(field.type)
+              .font(.system(.caption2, design: .monospaced))
+              .foregroundStyle(.blue)
+              .frame(width: 64, alignment: .leading)
+            Text(field.desc)
+              .font(.caption2)
+              .foregroundStyle(.tertiary)
+            Spacer()
+          }
+          .padding(.vertical, 4)
+          .padding(.horizontal, 8)
+        }
+      }
+      .background(.fill.quinary, in: .rect(cornerRadius: 6))
     }
   }
 
