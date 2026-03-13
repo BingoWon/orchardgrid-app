@@ -19,6 +19,5 @@ final class AuthManager {
 
   func signOut() async {
     try? await Clerk.shared.auth.signOut()
-    onLogout?()
   }
 }

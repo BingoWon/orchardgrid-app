@@ -4,7 +4,7 @@
 //
 
 // API Configuration
-API_BASE_URL = https://orchardgrid.com
+API_BASE_URL = https:$()/$()/orchardgrid.com
 
 // Clerk Authentication
 CLERK_PUBLISHABLE_KEY = pk_test_cmF0aW9uYWwtamFndWFyLTQ5LmNsZXJrLmFjY291bnRzLmRldiQ

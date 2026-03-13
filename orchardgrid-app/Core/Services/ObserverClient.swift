@@ -101,8 +101,8 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
   }
 
   func disconnect() {
-    stopConnection()
     authToken = nil
+    stopConnection()
   }
 
   // MARK: - Connection Lifecycle
@@ -146,8 +146,11 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
 
     let observeURL = "\(Config.webSocketBaseURL)/observe?token=\(authToken)"
 
-    guard let url = URL(string: observeURL) else {
-      Logger.error(.observer, "Invalid observer URL")
+    guard let url = URL(string: observeURL),
+          let scheme = url.scheme,
+          scheme == "ws" || scheme == "wss"
+    else {
+      Logger.error(.observer, "Invalid observer URL: \(observeURL)")
       return false
     }
 
