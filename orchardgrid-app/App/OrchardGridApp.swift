@@ -54,6 +54,7 @@ struct OrchardGridApp: App {
       Group {
         if clerk.isLoaded {
           MainView()
+            .environment(clerk)
             .environment(authManager)
             .environment(sharingManager)
             .environment(observerClient)
