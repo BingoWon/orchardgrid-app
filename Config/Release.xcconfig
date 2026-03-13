@@ -10,7 +10,7 @@ API_BASE_URL = https://orchardgrid.com
 CLERK_PUBLISHABLE_KEY = pk_live_Y2xlcmsub3JjaGFyZGdyaWQuY29tJA
 
 // App Configuration
-PRODUCT_BUNDLE_IDENTIFIER = com.orchardgrid.app.dev
+PRODUCT_BUNDLE_IDENTIFIER = com.orchardgrid.app
 PRODUCT_NAME = OrchardGrid
 
 // Info.plist Configuration

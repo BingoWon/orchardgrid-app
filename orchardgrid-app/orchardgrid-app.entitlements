@@ -5,6 +5,7 @@
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>webcredentials:rational-jaguar-49.clerk.accounts.dev</string>
+		<string>webcredentials:clerk.orchardgrid.com</string>
 	</array>
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
@@ -14,7 +15,7 @@
 	<true/>
 	<key>keychain-access-groups</key>
 	<array>
-		<string>$(AppIdentifierPrefix)com.orchardgrid.app.dev</string>
+		<string>$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	</array>
 </dict>
 </plist>
