@@ -1,4 +1,4 @@
-import Clerk
+import ClerkKit
 import Foundation
 
 @MainActor
@@ -14,11 +14,11 @@ final class AuthManager {
   var onLogout: (() -> Void)?
 
   func getToken() async -> String? {
-    try? await Clerk.shared.session?.getToken()?.jwt
+    try? await Clerk.shared.session?.getToken()
   }
 
   func signOut() async {
-    try? await Clerk.shared.signOut()
+    try? await Clerk.shared.auth.signOut()
     onLogout?()
   }
 }

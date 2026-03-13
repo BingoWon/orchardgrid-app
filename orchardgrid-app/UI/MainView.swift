@@ -1,4 +1,6 @@
-import Clerk
+#if os(iOS)
+  import ClerkKitUI
+#endif
 import SwiftUI
 
 struct MainView: View {
@@ -23,7 +25,12 @@ struct MainView: View {
       get: { authManager.showAuthSheet },
       set: { authManager.showAuthSheet = $0 }
     )) {
-      AuthView()
+      #if os(iOS)
+        AuthView()
+      #else
+        Text("Please sign in at orchardgrid.com")
+          .padding(40)
+      #endif
     }
   }
 

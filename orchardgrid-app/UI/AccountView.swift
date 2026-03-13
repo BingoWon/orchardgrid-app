@@ -1,4 +1,7 @@
-import Clerk
+import ClerkKit
+#if os(iOS)
+  import ClerkKitUI
+#endif
 import SwiftUI
 
 struct AccountView: View {
@@ -65,12 +68,17 @@ struct AccountView: View {
     Form {
       Section("Profile") {
         HStack {
-          UserButton()
-            .frame(width: 36, height: 36)
+          #if os(iOS)
+            UserButton()
+              .frame(width: 36, height: 36)
+          #endif
 
           if let user = Clerk.shared.user {
+            let displayName = [user.firstName, user.lastName]
+              .compactMap { $0 }.joined(separator: " ")
+
             VStack(alignment: .leading, spacing: 2) {
-              Text(user.fullName ?? "User")
+              Text(displayName.isEmpty ? "User" : displayName)
                 .font(.headline)
               if let email = user.primaryEmailAddress?.emailAddress {
                 Text(email)

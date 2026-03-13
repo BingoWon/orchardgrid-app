@@ -23,4 +23,4 @@ DEVELOPMENT_TEAM = 5C4299VVGU
 
 // Sandbox - MUST be YES if entitlements contain com.apple.security.app-sandbox
 ENABLE_APP_SANDBOX = YES
-CODE_SIGN_ENTITLEMENTS = orchardgrid-app/orchardgrid-app.entitlements
+CODE_SIGN_ENTITLEMENTS = orchardgrid-app/orchardgrid-app-debug.entitlements

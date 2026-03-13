@@ -1,4 +1,3 @@
-import Clerk
 import SwiftUI
 
 struct GuestFeaturePrompt: View {

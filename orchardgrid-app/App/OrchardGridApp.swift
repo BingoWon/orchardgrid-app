@@ -1,4 +1,4 @@
-import Clerk
+import ClerkKit
 import SwiftUI
 
 #if os(macOS)
@@ -9,7 +9,7 @@ import SwiftUI
 
 @main
 struct OrchardGridApp: App {
-  @State private var clerk = Clerk.shared
+  @State private var clerk: Clerk
   @State private var authManager: AuthManager
   @State private var sharingManager: SharingManager
   @State private var observerClient: ObserverClient
@@ -23,6 +23,8 @@ struct OrchardGridApp: App {
   init() {
     Logger.log(.app, "OrchardGrid starting...")
     Logger.log(.app, "API: \(Config.apiBaseURL)")
+
+    let clerk = Clerk.configure(publishableKey: Config.clerkPublishableKey)
 
     let sharingManager = SharingManager()
     let authManager = AuthManager()
@@ -39,6 +41,7 @@ struct OrchardGridApp: App {
       observerClient.disconnect()
     }
 
+    _clerk = State(initialValue: clerk)
     _sharingManager = State(initialValue: sharingManager)
     _authManager = State(initialValue: authManager)
     _observerClient = State(initialValue: observerClient)
@@ -49,7 +52,7 @@ struct OrchardGridApp: App {
   var body: some Scene {
     WindowGroup {
       Group {
-        if clerk.loaded {
+        if clerk.isLoaded {
           MainView()
             .environment(authManager)
             .environment(sharingManager)
@@ -70,12 +73,7 @@ struct OrchardGridApp: App {
           .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
       }
-      .environment(\.clerk, clerk)
       .frame(minWidth: 375.0, minHeight: 375.0)
-      .task {
-        clerk.configure(publishableKey: Config.clerkPublishableKey)
-        try? await clerk.load()
-      }
       .onChange(of: clerk.user?.id) { oldId, newId in
         if let newId {
           Logger.log(.app, "Clerk user changed: \(newId)")
