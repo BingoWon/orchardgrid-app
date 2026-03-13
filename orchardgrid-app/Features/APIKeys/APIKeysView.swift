@@ -9,13 +9,13 @@ struct APIKeysView: View {
   @Environment(AuthManager.self) private var authManager
   @Environment(ObserverClient.self) private var observerClient
   @State private var manager = APIKeysManager()
-  @State private var editingKey: String?
+  @State private var editingHint: String?
   @State private var editingName = ""
-  @State private var visibleKeys: Set<String> = []
   @State private var showDeleteConfirmation = false
   @State private var keyToDelete: APIKey?
   @State private var copiedText: String?
   @State private var showAPIReference = true
+  @State private var newlyCreatedKey: String?
 
   var body: some View {
     ScrollView {
@@ -41,7 +41,7 @@ struct APIKeysView: View {
       }
     }
     .refreshable {
-      guard let token = authManager.authToken else { return }
+      guard let token = await authManager.getToken() else { return }
       await manager.loadAPIKeys(authToken: token, isManualRefresh: true)
     }
     .navigationTitle("API Keys")
@@ -60,12 +60,11 @@ struct APIKeysView: View {
           } label: {
             Label("Create", systemImage: "plus")
           }
-          .disabled(authManager.authToken == nil)
         }
       }
     }
     .task {
-      guard let token = authManager.authToken else { return }
+      guard let token = await authManager.getToken() else { return }
       await manager.loadAPIKeys(authToken: token)
     }
     .alert("Delete API Key?", isPresented: $showDeleteConfirmation) {
@@ -73,8 +72,8 @@ struct APIKeysView: View {
       Button("Delete", role: .destructive) {
         if let key = keyToDelete {
           Task {
-            guard let token = authManager.authToken else { return }
-            await manager.deleteAPIKey(key: key.key, authToken: token)
+            guard let token = await authManager.getToken() else { return }
+            await manager.deleteAPIKey(hint: key.keyHint, authToken: token)
           }
         }
       }
@@ -83,13 +82,30 @@ struct APIKeysView: View {
         Text("Are you sure you want to delete \"\(key.name ?? "this API key")\"?")
       }
     }
+    .alert("API Key Created", isPresented: .init(
+      get: { newlyCreatedKey != nil },
+      set: { if !$0 { newlyCreatedKey = nil } }
+    )) {
+      Button("Copy Key") {
+        if let key = newlyCreatedKey {
+          copyToClipboard(key)
+        }
+        newlyCreatedKey = nil
+      }
+      Button("Done") {
+        newlyCreatedKey = nil
+      }
+    } message: {
+      if let key = newlyCreatedKey {
+        Text("Save this key now — it won't be shown again:\n\n\(key)")
+      }
+    }
   }
 
   // MARK: - Authenticated Content
 
   @ViewBuilder
   private var authenticatedContent: some View {
-    // Status Bar
     HStack {
       HStack(spacing: 4) {
         Circle()
@@ -107,24 +123,14 @@ struct APIKeysView: View {
       }
     }
 
-    // Loading State
     if manager.isInitialLoading {
       loadingState
-    }
-    // Error State
-    else if let error = manager.lastError {
+    } else if let error = manager.lastError {
       errorState(error: error)
-    }
-    // Empty State
-    else if manager.apiKeys.isEmpty {
+    } else if manager.apiKeys.isEmpty {
       emptyState
-    }
-    // Content
-    else {
-      // API Reference (top, immediately visible)
+    } else {
       apiReferenceCard
-
-      // API Keys List
       apiKeysSection
     }
   }
@@ -133,7 +139,6 @@ struct APIKeysView: View {
 
   private var apiReferenceCard: some View {
     VStack(alignment: .leading, spacing: 0) {
-      // Header — tap to collapse
       Button {
         withAnimation(.easeInOut(duration: 0.2)) { showAPIReference.toggle() }
       } label: {
@@ -153,7 +158,6 @@ struct APIKeysView: View {
 
       if showAPIReference {
         VStack(alignment: .leading, spacing: 16) {
-          // Base URL
           HStack {
             Text(Config.apiBaseURL)
               .font(.system(.callout, design: .monospaced))
@@ -164,7 +168,6 @@ struct APIKeysView: View {
           .padding(10)
           .background(.ultraThinMaterial, in: .rect(cornerRadius: 8))
 
-          // Chat Completion
           endpointSection(
             method: "POST",
             path: "/v1/chat/completions",
@@ -177,7 +180,6 @@ struct APIKeysView: View {
 
           Divider()
 
-          // Image Generation
           endpointSection(
             method: "POST",
             path: "/v1/images/generations",
@@ -202,7 +204,6 @@ struct APIKeysView: View {
     fields: [(name: String, type: String, desc: String)]
   ) -> some View {
     VStack(alignment: .leading, spacing: 8) {
-      // Method + Path
       HStack(spacing: 6) {
         Text(method)
           .font(.system(.caption2, design: .monospaced, weight: .bold))
@@ -214,7 +215,6 @@ struct APIKeysView: View {
           .font(.system(.subheadline, design: .monospaced))
       }
 
-      // Model badge + copy
       HStack(spacing: 6) {
         Text("Model")
           .font(.caption2)
@@ -228,7 +228,6 @@ struct APIKeysView: View {
         copyButton(text: model)
       }
 
-      // Fields table
       VStack(spacing: 4) {
         ForEach(fields, id: \.name) { field in
           HStack(alignment: .top, spacing: 0) {
@@ -260,19 +259,17 @@ struct APIKeysView: View {
       ForEach(manager.apiKeys) { key in
         APIKeyCard(
           key: key,
-          isVisible: visibleKeys.contains(key.key),
-          isEditing: editingKey == key.key,
-          isCopied: copiedText == key.key,
+          isEditing: editingHint == key.keyHint,
+          isCopied: copiedText == key.keyHint,
           editingName: $editingName,
-          onToggleVisibility: { toggleKeyVisibility(key.key) },
-          onCopy: { copyToClipboard(key.key) },
+          onCopy: { copyToClipboard(key.keyHint) },
           onEdit: {
-            editingKey = key.key
+            editingHint = key.keyHint
             editingName = key.name ?? ""
           },
           onSave: { updateKeyName(key) },
           onCancelEdit: {
-            editingKey = nil
+            editingHint = nil
             editingName = ""
           },
           onDelete: {
@@ -332,7 +329,7 @@ struct APIKeysView: View {
 
       Button("Retry") {
         Task {
-          guard let token = authManager.authToken else { return }
+          guard let token = await authManager.getToken() else { return }
           await manager.loadAPIKeys(authToken: token)
         }
       }
@@ -365,17 +362,21 @@ struct APIKeysView: View {
 
   private func createKey() {
     Task {
-      guard let token = authManager.authToken else { return }
+      guard let token = await authManager.getToken() else { return }
       let defaultName = ISO8601DateFormatter().string(from: Date())
-      await manager.createAPIKey(name: defaultName, authToken: token)
+      if let created = await manager.createAPIKey(name: defaultName, authToken: token),
+         let fullKey = created.key
+      {
+        newlyCreatedKey = fullKey
+      }
     }
   }
 
   private func updateKeyName(_ key: APIKey) {
     Task {
-      guard let token = authManager.authToken else { return }
-      await manager.updateAPIKey(key: key.key, name: editingName, authToken: token)
-      editingKey = nil
+      guard let token = await authManager.getToken() else { return }
+      await manager.updateAPIKey(hint: key.keyHint, name: editingName, authToken: token)
+      editingHint = nil
       editingName = ""
     }
   }
@@ -388,7 +389,6 @@ struct APIKeysView: View {
       UIPasteboard.general.string = text
     #endif
 
-    // Show feedback
     copiedText = text
     Task {
       try? await Task.sleep(for: .seconds(2))
@@ -397,25 +397,15 @@ struct APIKeysView: View {
       }
     }
   }
-
-  private func toggleKeyVisibility(_ key: String) {
-    if visibleKeys.contains(key) {
-      visibleKeys.remove(key)
-    } else {
-      visibleKeys.insert(key)
-    }
-  }
 }
 
 // MARK: - API Key Card
 
 private struct APIKeyCard: View {
   let key: APIKey
-  let isVisible: Bool
   let isEditing: Bool
   let isCopied: Bool
   @Binding var editingName: String
-  let onToggleVisibility: () -> Void
   let onCopy: () -> Void
   let onEdit: () -> Void
   let onSave: () -> Void
@@ -424,7 +414,6 @@ private struct APIKeyCard: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
-      // Header: Name + Actions
       HStack {
         if isEditing {
           TextField("Name", text: $editingName)
@@ -471,33 +460,20 @@ private struct APIKeyCard: View {
         }
       }
 
-      // Key Value
+      Text(key.keyHint)
+        .font(.system(.caption, design: .monospaced))
+        .foregroundStyle(.secondary)
+        .textSelection(.enabled)
+        .lineLimit(1)
+
       HStack {
-        Text(isVisible ? key.key : maskedKey)
-          .font(.system(.caption, design: .monospaced))
-          .foregroundStyle(.secondary)
-          .textSelection(.enabled)
-          .lineLimit(1)
-
-        Spacer()
-
-        Button { onToggleVisibility() } label: {
-          Image(systemName: isVisible ? "eye.slash" : "eye")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-        .buttonStyle(.plain)
-      }
-
-      // Timestamps
-      HStack {
-        Text("Created: \(formatDate(key.created_at))")
+        Text("Created: \(formatDate(key.createdAt))")
           .font(.caption)
           .foregroundStyle(.secondary)
 
         Spacer()
 
-        if let lastUsed = key.last_used_at {
+        if let lastUsed = key.lastUsedAt {
           Text("Last used: \(formatRelativeTime(lastUsed))")
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -510,11 +486,6 @@ private struct APIKeyCard: View {
     }
     .padding(12)
     .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
-  }
-
-  private var maskedKey: String {
-    guard key.key.count > 24 else { return key.key }
-    return "\(key.key.prefix(20))...\(key.key.suffix(4))"
   }
 
   private func formatDate(_ timestamp: Int) -> String {

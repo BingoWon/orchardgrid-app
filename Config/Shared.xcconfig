@@ -4,7 +4,4 @@
 //
 
 // API
-API_BASE_URL = https://api.orchardgrid.com
-
-// Google Sign-In (Server Client ID for backend verification)
-GID_SERVER_CLIENT_ID = 600208131492-i73ksjo8la9d3mbn5k895foiugej96np.apps.googleusercontent.com
+API_BASE_URL = https://orchardgrid.com

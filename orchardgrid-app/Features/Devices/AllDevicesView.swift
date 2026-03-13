@@ -87,7 +87,7 @@ struct AllDevicesView: View {
       }
     }
     .refreshable {
-      if let token = authManager.authToken {
+      if let token = await authManager.getToken() {
         await devicesManager.fetchDevices(authToken: token, isManualRefresh: true)
       }
     }
@@ -100,7 +100,7 @@ struct AllDevicesView: View {
       }
     }
     .task {
-      if let token = authManager.authToken {
+      if let token = await authManager.getToken() {
         await devicesManager.fetchDevices(authToken: token)
       }
     }
@@ -199,7 +199,7 @@ struct AllDevicesView: View {
 
       Button("Retry") {
         Task {
-          if let token = authManager.authToken {
+          if let token = await authManager.getToken() {
             await devicesManager.fetchDevices(authToken: token)
           }
         }
@@ -215,7 +215,7 @@ struct AllDevicesView: View {
   private var refreshButton: some View {
     Button {
       Task {
-        if let token = authManager.authToken {
+        if let token = await authManager.getToken() {
           await devicesManager.fetchDevices(authToken: token, isManualRefresh: true)
         }
       }

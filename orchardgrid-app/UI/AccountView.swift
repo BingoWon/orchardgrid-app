@@ -1,21 +1,11 @@
+import Clerk
 import SwiftUI
 
 struct AccountView: View {
   @Environment(AuthManager.self) private var authManager
-  @State private var isEditingName = false
-  @State private var editedName = ""
-  @State private var isSaving = false
   @State private var showDeleteConfirmation = false
   @State private var showFinalConfirmation = false
   @State private var isDeleting = false
-
-  // Password change state
-  @State private var showChangePassword = false
-  @State private var currentPassword = ""
-  @State private var newPassword = ""
-  @State private var confirmPassword = ""
-  @State private var isChangingPassword = false
-  @State private var passwordError: String?
 
   var body: some View {
     Group {
@@ -43,23 +33,6 @@ struct AccountView: View {
       }
     } message: {
       Text("This action cannot be undone. All your devices, API keys, and tasks will be deleted.")
-    }
-    .sheet(isPresented: $showChangePassword) {
-      ChangePasswordSheet(
-        currentPassword: $currentPassword,
-        newPassword: $newPassword,
-        confirmPassword: $confirmPassword,
-        isChanging: $isChangingPassword,
-        error: $passwordError,
-        onSubmit: changePassword,
-        onDismiss: {
-          showChangePassword = false
-          currentPassword = ""
-          newPassword = ""
-          confirmPassword = ""
-          passwordError = nil
-        }
-      )
     }
   }
 
@@ -91,54 +64,25 @@ struct AccountView: View {
   private var authenticatedContent: some View {
     Form {
       Section("Profile") {
-        if let user = authManager.currentUser {
-          if isEditingName {
-            HStack {
-              TextField("Name", text: $editedName)
-                .textFieldStyle(.plain)
-              Button {
-                Task { await saveName() }
-              } label: {
-                Image(systemName: "checkmark.circle.fill")
-                  .foregroundStyle(.green)
-              }
-              .disabled(isSaving)
-              .buttonStyle(.plain)
-              Button {
-                isEditingName = false
-                editedName = user.name ?? ""
-              } label: {
-                Image(systemName: "xmark.circle.fill")
-                  .foregroundStyle(.secondary)
-              }
-              .buttonStyle(.plain)
-            }
-          } else {
-            HStack {
-              Text("Name")
-              Spacer()
-              Text(user.name ?? "N/A")
-                .foregroundStyle(.secondary)
-              Button {
-                editedName = user.name ?? ""
-                isEditingName = true
-              } label: {
-                Image(systemName: "pencil")
-                  .foregroundStyle(.secondary)
-              }
-              .buttonStyle(.plain)
-            }
-          }
-          LabeledContent("Email", value: user.email)
-        }
-      }
+        HStack {
+          UserButton()
+            .frame(width: 36, height: 36)
 
-      if authManager.currentUser?.canChangePassword == true {
-        Section("Security") {
-          Button("Change Password") {
-            showChangePassword = true
+          if let user = Clerk.shared.user {
+            VStack(alignment: .leading, spacing: 2) {
+              Text(user.fullName ?? "User")
+                .font(.headline)
+              if let email = user.primaryEmailAddress?.emailAddress {
+                Text(email)
+                  .font(.caption)
+                  .foregroundStyle(.secondary)
+              }
+            }
           }
+
+          Spacer()
         }
+        .padding(.vertical, 4)
       }
 
       Section("Open Source") {
@@ -147,7 +91,7 @@ struct AccountView: View {
 
       Section("Session") {
         Button("Sign Out", role: .destructive) {
-          authManager.logout()
+          Task { await authManager.signOut() }
         }
       }
 
@@ -166,211 +110,30 @@ struct AccountView: View {
     .formStyle(.grouped)
   }
 
-  private func saveName() async {
-    guard let token = authManager.authToken else { return }
-
-    isSaving = true
-    defer { isSaving = false }
-
-    do {
-      let url = URL(string: "\(Config.apiBaseURL)/auth/profile")!
-      var request = URLRequest(url: url)
-      request.httpMethod = "PATCH"
-      request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-      request.httpBody = try JSONEncoder().encode(["name": editedName.isEmpty ? nil : editedName])
-
-      let (data, response) = try await Config.urlSession.data(for: request)
-
-      guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-        throw NSError(domain: "Failed to update name", code: -1)
-      }
-
-      let updatedUser = try JSONDecoder().decode(User.self, from: data)
-      await MainActor.run {
-        authManager.currentUser = updatedUser
-        isEditingName = false
-      }
-
-      Logger.success(.auth, "Name updated successfully")
-    } catch {
-      Logger.error(.auth, "Failed to update name: \(error.localizedDescription)")
-    }
-  }
-
   private func deleteAccount() async {
-    guard let token = authManager.authToken else { return }
+    guard let token = await authManager.getToken() else { return }
 
     isDeleting = true
     defer { isDeleting = false }
 
     do {
-      let url = URL(string: "\(Config.apiBaseURL)/auth/account")!
+      let url = URL(string: "\(Config.apiBaseURL)/account")!
       var request = URLRequest(url: url)
       request.httpMethod = "DELETE"
       request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
-      let (data, response) = try await URLSession.shared.data(for: request)
+      let (data, response) = try await Config.urlSession.data(for: request)
 
-      guard let httpResponse = response as? HTTPURLResponse else {
-        throw NSError(domain: "Invalid response", code: -1)
-      }
-
-      guard httpResponse.statusCode == 200 else {
+      guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
         let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
-        throw NSError(domain: errorText, code: httpResponse.statusCode)
+        throw NSError(domain: errorText, code: -1)
       }
 
-      await MainActor.run {
-        authManager.logout()
-      }
-
+      await authManager.signOut()
       Logger.log(.auth, "Account deleted successfully")
     } catch {
       Logger.error(.auth, "Failed to delete account: \(error.localizedDescription)")
     }
-  }
-
-  private func changePassword() async {
-    guard let token = authManager.authToken else { return }
-
-    guard newPassword == confirmPassword else {
-      passwordError = "New passwords do not match"
-      return
-    }
-
-    guard newPassword.count >= 8 else {
-      passwordError = "Password must be at least 8 characters"
-      return
-    }
-
-    isChangingPassword = true
-    passwordError = nil
-    defer { isChangingPassword = false }
-
-    do {
-      let url = URL(string: "\(Config.apiBaseURL)/auth/password")!
-      var request = URLRequest(url: url)
-      request.httpMethod = "PATCH"
-      request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-      let body = ["current_password": currentPassword, "new_password": newPassword]
-      request.httpBody = try JSONEncoder().encode(body)
-
-      let (data, response) = try await Config.urlSession.data(for: request)
-
-      guard let httpResponse = response as? HTTPURLResponse else {
-        throw NSError(domain: "Invalid response", code: -1)
-      }
-
-      guard httpResponse.statusCode == 200 else {
-        if let errorData = try? JSONDecoder().decode([String: [String: String]].self, from: data),
-           let message = errorData["error"]?["message"]
-        {
-          throw NSError(domain: message, code: httpResponse.statusCode)
-        }
-        throw NSError(domain: "Failed to change password", code: httpResponse.statusCode)
-      }
-
-      await MainActor.run {
-        showChangePassword = false
-        currentPassword = ""
-        newPassword = ""
-        confirmPassword = ""
-      }
-
-      Logger.success(.auth, "Password changed successfully")
-    } catch {
-      passwordError = error.localizedDescription
-      Logger.error(.auth, "Failed to change password: \(error.localizedDescription)")
-    }
-  }
-}
-
-// MARK: - Change Password Sheet
-
-struct ChangePasswordSheet: View {
-  @Binding var currentPassword: String
-  @Binding var newPassword: String
-  @Binding var confirmPassword: String
-  @Binding var isChanging: Bool
-  @Binding var error: String?
-  let onSubmit: () async -> Void
-  let onDismiss: () -> Void
-
-  @State private var showCurrentPassword = false
-  @State private var showNewPassword = false
-
-  private var isValid: Bool {
-    !currentPassword.isEmpty && !newPassword.isEmpty && !confirmPassword.isEmpty
-  }
-
-  var body: some View {
-    NavigationStack {
-      Form {
-        Section {
-          HStack {
-            if showCurrentPassword {
-              TextField("Current Password", text: $currentPassword)
-            } else {
-              SecureField("Current Password", text: $currentPassword)
-            }
-            Button {
-              showCurrentPassword.toggle()
-            } label: {
-              Image(systemName: showCurrentPassword ? "eye.slash.fill" : "eye.fill")
-                .foregroundStyle(.tertiary)
-            }
-            .buttonStyle(.plain)
-          }
-        }
-
-        Section {
-          HStack {
-            if showNewPassword {
-              TextField("New Password", text: $newPassword)
-            } else {
-              SecureField("New Password", text: $newPassword)
-            }
-            Button {
-              showNewPassword.toggle()
-            } label: {
-              Image(systemName: showNewPassword ? "eye.slash.fill" : "eye.fill")
-                .foregroundStyle(.tertiary)
-            }
-            .buttonStyle(.plain)
-          }
-          SecureField("Confirm New Password", text: $confirmPassword)
-        } footer: {
-          Text("Password must be at least 8 characters")
-        }
-
-        if let error {
-          Section {
-            Text(error)
-              .foregroundStyle(.red)
-          }
-        }
-      }
-      .formStyle(.grouped)
-      .navigationTitle("Change Password")
-      .toolbarRole(.editor)
-      .toolbarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") { onDismiss() }
-            .disabled(isChanging)
-        }
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Save") {
-            Task { await onSubmit() }
-          }
-          .disabled(!isValid || isChanging)
-        }
-      }
-    }
-    .presentationDetents([.medium])
   }
 }
 

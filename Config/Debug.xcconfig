@@ -4,9 +4,10 @@
 //
 
 // API Configuration
-API_BASE_URL = https://api.orchardgrid.com
-GOOGLE_CLIENT_ID_IOS = 600208131492-kn9b46tihg0l85nda6gfstle98du99c7.apps.googleusercontent.com
-GOOGLE_CLIENT_ID_MACOS = 600208131492-l39peh5l1stf540p968fp6dgnek4topm.apps.googleusercontent.com
+API_BASE_URL = https://orchardgrid.com
+
+// Clerk Authentication
+CLERK_PUBLISHABLE_KEY = pk_test_cmF0aW9uYWwtamFndWFyLTQ5LmNsZXJrLmFjY291bnRzLmRldiQ
 
 // App Configuration
 PRODUCT_BUNDLE_IDENTIFIER = com.orchardgrid.app.dev

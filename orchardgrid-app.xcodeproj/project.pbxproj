@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D7D35DAB2F63E4DE002A01B3 /* ClerkKit in Frameworks */ = {isa = PBXBuildFile; productRef = D7D35DAA2F63E4DE002A01B3 /* ClerkKit */; };
+		D7D35DAD2F63E4DE002A01B3 /* ClerkKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = D7D35DAC2F63E4DE002A01B3 /* ClerkKitUI */; };
 		D7D7177F2ED56620007E5111 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = D7D7177E2ED56620007E5111 /* GoogleSignIn */; };
 		D7D717812ED56620007E5111 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = D7D717802ED56620007E5111 /* GoogleSignInSwift */; };
 /* End PBXBuildFile section */
@@ -31,7 +33,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				D7D7177F2ED56620007E5111 /* GoogleSignIn in Frameworks */,
+				D7D35DAD2F63E4DE002A01B3 /* ClerkKitUI in Frameworks */,
 				D7D717812ED56620007E5111 /* GoogleSignInSwift in Frameworks */,
+				D7D35DAB2F63E4DE002A01B3 /* ClerkKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -86,6 +90,8 @@
 			packageProductDependencies = (
 				D7D7177E2ED56620007E5111 /* GoogleSignIn */,
 				D7D717802ED56620007E5111 /* GoogleSignInSwift */,
+				D7D35DAA2F63E4DE002A01B3 /* ClerkKit */,
+				D7D35DAC2F63E4DE002A01B3 /* ClerkKitUI */,
 			);
 			productName = "orchardgrid-app";
 			productReference = 1F5D97D72E8CFE2C006FE734 /* OrchardGrid Dev.app */;
@@ -117,6 +123,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				D7D7177D2ED56620007E5111 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				D7D35DA92F63E4DE002A01B3 /* XCRemoteSwiftPackageReference "clerk-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1F5D97D82E8CFE2C006FE734 /* Products */;
@@ -307,7 +314,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.2;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.orchardgrid.app.dev;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
@@ -331,7 +338,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 11;
 				DEVELOPMENT_TEAM = 5C4299VVGU;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -350,7 +357,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.2;
+				MARKETING_VERSION = 1.2.0;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -387,6 +394,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		D7D35DA92F63E4DE002A01B3 /* XCRemoteSwiftPackageReference "clerk-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/clerk/clerk-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.5;
+			};
+		};
 		D7D7177D2ED56620007E5111 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
@@ -398,6 +413,16 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		D7D35DAA2F63E4DE002A01B3 /* ClerkKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D7D35DA92F63E4DE002A01B3 /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			productName = ClerkKit;
+		};
+		D7D35DAC2F63E4DE002A01B3 /* ClerkKitUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D7D35DA92F63E4DE002A01B3 /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			productName = ClerkKitUI;
+		};
 		D7D7177E2ED56620007E5111 /* GoogleSignIn */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = D7D7177D2ED56620007E5111 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;

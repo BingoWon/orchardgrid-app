@@ -332,7 +332,7 @@ struct LogsView: View {
   }
 
   private func loadConsumingTasks(isManualRefresh: Bool = false) async {
-    guard let token = authManager.authToken else { return }
+    guard let token = await authManager.getToken() else { return }
     let offset = (consumingPage - 1) * consumingPageSize
     await manager.loadConsumingTasks(
       limit: consumingPageSize,
@@ -344,7 +344,7 @@ struct LogsView: View {
   }
 
   private func loadProvidingTasks(isManualRefresh: Bool = false) async {
-    guard let token = authManager.authToken else { return }
+    guard let token = await authManager.getToken() else { return }
     let offset = (providingPage - 1) * providingPageSize
     await manager.loadProvidingTasks(
       limit: providingPageSize,

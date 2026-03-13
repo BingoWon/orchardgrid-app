@@ -1,17 +1,21 @@
-/**
- * APIKeysManager.swift
- * OrchardGrid API Keys Manager
- */
-
 import Foundation
 
 struct APIKey: Identifiable, Codable, Sendable {
-  let key: String
+  let key: String?
+  let keyHint: String
   let name: String?
-  let created_at: Int
-  let last_used_at: Int?
+  let createdAt: Int
+  let lastUsedAt: Int?
 
-  var id: String { key }
+  var id: String { keyHint }
+
+  enum CodingKeys: String, CodingKey {
+    case key
+    case keyHint = "key_hint"
+    case name
+    case createdAt = "created_at"
+    case lastUsedAt = "last_used_at"
+  }
 }
 
 @MainActor
@@ -27,7 +31,6 @@ final class APIKeysManager: Refreshable {
   private let urlSession = Config.urlSession
 
   func loadAPIKeys(authToken: String, isManualRefresh: Bool = false) async {
-    // Only show loading indicator for initial load
     if apiKeys.isEmpty {
       isInitialLoading = true
     } else if isManualRefresh {
@@ -40,32 +43,20 @@ final class APIKeysManager: Refreshable {
       var request = URLRequest(url: url)
       request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
 
-      Logger.log(.api, "Fetching API keys from: \(url.absoluteString)")
-
       let (data, response) = try await urlSession.data(for: request)
 
-      guard let httpResponse = response as? HTTPURLResponse else {
-        throw NSError(domain: "Invalid response", code: -1)
-      }
-
-      Logger.log(.api, "Response status: \(httpResponse.statusCode)")
-
-      guard httpResponse.statusCode == 200 else {
+      guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
         let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
-        Logger.error(.api, "Failed to fetch API keys: \(errorText)")
-        throw NSError(domain: errorText, code: httpResponse.statusCode)
+        throw NSError(domain: errorText, code: -1)
       }
 
       struct Response: Codable {
         let keys: [APIKey]
       }
 
-      let decoder = JSONDecoder()
-      let result = try decoder.decode(Response.self, from: data)
+      let result = try JSONDecoder().decode(Response.self, from: data)
       apiKeys = result.keys
       lastUpdated = Date()
-
-      Logger.success(.api, "Loaded \(apiKeys.count) API keys")
     } catch {
       Logger.error(.api, "Failed to load API keys: \(error.localizedDescription)")
       lastError = error.localizedDescription
@@ -83,31 +74,17 @@ final class APIKeysManager: Refreshable {
       request.httpMethod = "POST"
       request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
       request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-      let body = ["name": name]
-      request.httpBody = try JSONEncoder().encode(body)
-
-      Logger.log(.api, "Creating API key: \(name)")
+      request.httpBody = try JSONEncoder().encode(["name": name])
 
       let (data, response) = try await urlSession.data(for: request)
 
-      guard let httpResponse = response as? HTTPURLResponse else {
-        throw NSError(domain: "Invalid response", code: -1)
-      }
-
-      guard httpResponse.statusCode == 200 else {
+      guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
         let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
-        Logger.error(.api, "Failed to create API key: \(errorText)")
-        throw NSError(domain: errorText, code: httpResponse.statusCode)
+        throw NSError(domain: errorText, code: -1)
       }
 
-      let decoder = JSONDecoder()
-      let key = try decoder.decode(APIKey.self, from: data)
-
-      Logger.success(.api, "Created API key: \(name)")
-
+      let key = try JSONDecoder().decode(APIKey.self, from: data)
       await loadAPIKeys(authToken: authToken)
-
       return key
     } catch {
       Logger.error(.api, "Failed to create API key: \(error.localizedDescription)")
@@ -116,32 +93,22 @@ final class APIKeysManager: Refreshable {
     }
   }
 
-  func updateAPIKey(key: String, name: String, authToken: String) async {
+  func updateAPIKey(hint: String, name: String, authToken: String) async {
     do {
-      let url = URL(string: "\(apiURL)/api-keys/\(key)")!
+      let encoded = hint.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? hint
+      let url = URL(string: "\(apiURL)/api-keys/\(encoded)")!
       var request = URLRequest(url: url)
       request.httpMethod = "PATCH"
       request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
       request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-      let body = ["name": name]
-      request.httpBody = try JSONEncoder().encode(body)
-
-      Logger.log(.api, "Updating API key name: \(name)")
+      request.httpBody = try JSONEncoder().encode(["name": name])
 
       let (data, response) = try await urlSession.data(for: request)
 
-      guard let httpResponse = response as? HTTPURLResponse else {
-        throw NSError(domain: "Invalid response", code: -1)
-      }
-
-      guard httpResponse.statusCode == 200 else {
+      guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
         let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
-        Logger.error(.api, "Failed to update API key: \(errorText)")
-        throw NSError(domain: errorText, code: httpResponse.statusCode)
+        throw NSError(domain: errorText, code: -1)
       }
-
-      Logger.success(.api, "Updated API key name")
 
       await loadAPIKeys(authToken: authToken)
     } catch {
@@ -150,28 +117,20 @@ final class APIKeysManager: Refreshable {
     }
   }
 
-  func deleteAPIKey(key: String, authToken: String) async {
+  func deleteAPIKey(hint: String, authToken: String) async {
     do {
-      let url = URL(string: "\(apiURL)/api-keys/\(key)")!
+      let encoded = hint.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? hint
+      let url = URL(string: "\(apiURL)/api-keys/\(encoded)")!
       var request = URLRequest(url: url)
       request.httpMethod = "DELETE"
       request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
 
-      Logger.log(.api, "Deleting API key: \(key)")
-
       let (data, response) = try await urlSession.data(for: request)
 
-      guard let httpResponse = response as? HTTPURLResponse else {
-        throw NSError(domain: "Invalid response", code: -1)
-      }
-
-      guard httpResponse.statusCode == 200 else {
+      guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
         let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
-        Logger.error(.api, "Failed to delete API key: \(errorText)")
-        throw NSError(domain: errorText, code: httpResponse.statusCode)
+        throw NSError(domain: errorText, code: -1)
       }
-
-      Logger.success(.api, "Deleted API key")
 
       await loadAPIKeys(authToken: authToken)
     } catch {

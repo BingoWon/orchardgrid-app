@@ -1,15 +1,10 @@
-/**
- * Config.swift
- * OrchardGrid Configuration
- */
-
 import Foundation
 
 enum Config {
   static var apiBaseURL: String {
     ProcessInfo.processInfo.environment["API_BASE_URL"]
       ?? Bundle.main.infoDictionary?["API_BASE_URL"] as? String
-      ?? "https://api.orchardgrid.com"
+      ?? "https://orchardgrid.com"
   }
 
   static var webSocketBaseURL: String {
@@ -18,11 +13,9 @@ enum Config {
       .replacingOccurrences(of: "http://", with: "ws://")
   }
 
-  // Google Sign-In Client IDs
-  // Note: Client ID is primarily loaded from Info.plist via GIDSignIn SDK
-  // This property is kept for reference or legacy compatibility if needed
-  static var googleClientID: String {
-    "600208131492-kn9b46tihg0l85nda6gfstle98du99c7.apps.googleusercontent.com"
+  static var clerkPublishableKey: String {
+    Bundle.main.infoDictionary?["CLERK_PUBLISHABLE_KEY"] as? String
+      ?? "pk_test_cmF0aW9uYWwtamFndWFyLTQ5LmNsZXJrLmFjY291bnRzLmRldiQ"
   }
 
   static let urlSession: URLSession = {

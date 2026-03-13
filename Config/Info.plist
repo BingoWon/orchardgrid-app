@@ -49,21 +49,9 @@
 		<string>com.orchardgrid.app.processing</string>
 		<string>com.orchardgrid.app.refresh</string>
 	</array>
-	<key>GIDClientID</key>
-	<string>$(GOOGLE_CLIENT_ID_IOS)</string>
-	<key>GIDServerClientID</key>
-	<string>600208131492-i73ksjo8la9d3mbn5k895foiugej96np.apps.googleusercontent.com</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.600208131492-kn9b46tihg0l85nda6gfstle98du99c7</string>
-				<string>com.googleusercontent.apps.600208131492-l39peh5l1stf540p968fp6dgnek4topm</string>
-			</array>
-		</dict>
-	</array>
+	<key>API_BASE_URL</key>
+	<string>$(API_BASE_URL)</string>
+	<key>CLERK_PUBLISHABLE_KEY</key>
+	<string>$(CLERK_PUBLISHABLE_KEY)</string>
 </dict>
 </plist>

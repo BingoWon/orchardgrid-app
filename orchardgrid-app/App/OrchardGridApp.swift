@@ -1,4 +1,4 @@
-import GoogleSignIn
+import Clerk
 import SwiftUI
 
 #if os(macOS)
@@ -9,6 +9,7 @@ import SwiftUI
 
 @main
 struct OrchardGridApp: App {
+  @State private var clerk = Clerk.shared
   @State private var authManager: AuthManager
   @State private var sharingManager: SharingManager
   @State private var observerClient: ObserverClient
@@ -48,18 +49,7 @@ struct OrchardGridApp: App {
   var body: some Scene {
     WindowGroup {
       Group {
-        switch authManager.authState {
-        case .loading:
-          VStack(spacing: 16) {
-            ProgressView()
-              .controlSize(.large)
-            Text("Loading...")
-              .font(.headline)
-              .foregroundStyle(.secondary)
-          }
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-        case .authenticated, .guest:
+        if clerk.loaded {
           MainView()
             .environment(authManager)
             .environment(sharingManager)
@@ -69,17 +59,31 @@ struct OrchardGridApp: App {
             .environment(devicesManager)
             .environment(logsManager)
             .environment(chatManager)
+        } else {
+          VStack(spacing: 16) {
+            ProgressView()
+              .controlSize(.large)
+            Text("Loading...")
+              .font(.headline)
+              .foregroundStyle(.secondary)
+          }
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
       }
+      .environment(\.clerk, clerk)
       .frame(minWidth: 375.0, minHeight: 375.0)
-      .onChange(of: authManager.authToken) { oldToken, newToken in
-        if let token = newToken {
-          Logger.log(.app, "Auth token available, connecting observer...")
-          observerClient.connect(authToken: token)
-          setupObserverCallbacks()
-        } else if oldToken != nil {
-          Logger.log(.app, "Auth token removed, disconnecting observer...")
-          observerClient.disconnect()
+      .task {
+        clerk.configure(publishableKey: Config.clerkPublishableKey)
+        try? await clerk.load()
+      }
+      .onChange(of: clerk.user?.id) { oldId, newId in
+        if let newId {
+          Logger.log(.app, "Clerk user changed: \(newId)")
+          authManager.onUserIDChanged?(newId)
+          Task { await connectObserver() }
+        } else if oldId != nil {
+          Logger.log(.app, "Clerk user signed out")
+          authManager.onLogout?()
         }
       }
       .onChange(of: sharingManager.isAnySharingActive) { _, isActive in
@@ -90,11 +94,6 @@ struct OrchardGridApp: App {
         }
       }
       .task {
-        if let token = authManager.authToken {
-          Logger.log(.app, "Initial auth token found, connecting observer...")
-          observerClient.connect(authToken: token)
-          setupObserverCallbacks()
-        }
         setupTerminationHandler()
       }
     }
@@ -108,20 +107,24 @@ struct OrchardGridApp: App {
     }
   }
 
+  private func connectObserver() async {
+    guard let token = await authManager.getToken() else { return }
+    observerClient.connect(authToken: token)
+    setupObserverCallbacks()
+  }
+
   private func setupObserverCallbacks() {
     observerClient.onDevicesChanged = { [devicesManager, authManager] in
       Task {
-        if let token = authManager.authToken {
-          await devicesManager.fetchDevices(authToken: token, isManualRefresh: false)
-        }
+        guard let token = await authManager.getToken() else { return }
+        await devicesManager.fetchDevices(authToken: token, isManualRefresh: false)
       }
     }
 
     observerClient.onTasksChanged = { [logsManager, authManager] in
       Task {
-        if let token = authManager.authToken {
-          await logsManager.reload(authToken: token, isManualRefresh: false)
-        }
+        guard let token = await authManager.getToken() else { return }
+        await logsManager.reload(authToken: token, isManualRefresh: false)
       }
     }
   }
@@ -156,8 +159,8 @@ struct OrchardGridApp: App {
       Logger.log(.app, "App became active")
       sharingManager.refreshAvailability()
       backgroundManager.handleEnterForeground()
-      if let token = authManager.authToken, observerClient.status == .disconnected {
-        observerClient.connect(authToken: token)
+      if authManager.isAuthenticated, observerClient.status == .disconnected {
+        Task { await connectObserver() }
       }
     case .inactive:
       Logger.log(.app, "App became inactive")

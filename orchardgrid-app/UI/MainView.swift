@@ -1,3 +1,4 @@
+import Clerk
 import SwiftUI
 
 struct MainView: View {
@@ -18,13 +19,11 @@ struct MainView: View {
         }
       #endif
     }
-    // Single SignInSheet for entire app - prevents multiple sheet conflicts
     .sheet(isPresented: Binding(
-      get: { authManager.showSignInSheet },
-      set: { authManager.showSignInSheet = $0 }
+      get: { authManager.showAuthSheet },
+      set: { authManager.showAuthSheet = $0 }
     )) {
-      SignInSheet()
-        .environment(authManager)
+      AuthView()
     }
   }
 
