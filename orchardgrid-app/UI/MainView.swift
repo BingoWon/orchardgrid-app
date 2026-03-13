@@ -1,7 +1,7 @@
+import SwiftUI
 #if os(iOS)
   import ClerkKitUI
 #endif
-import SwiftUI
 
 struct MainView: View {
   @Environment(NavigationState.self) private var navigationState
@@ -28,8 +28,7 @@ struct MainView: View {
       #if os(iOS)
         AuthView()
       #else
-        Text("Please sign in at orchardgrid.com")
-          .padding(40)
+        SignInView()
       #endif
     }
   }
