@@ -63,7 +63,7 @@ struct APIKeysView: View {
         }
       }
     }
-    .task {
+    .task(id: authManager.userId) {
       guard let token = await authManager.getToken() else { return }
       await manager.loadAPIKeys(authToken: token)
     }

@@ -31,6 +31,9 @@ struct MainView: View {
         SignInView()
       #endif
     }
+    .onChange(of: authManager.isAuthenticated) { _, isAuth in
+      if isAuth { authManager.showAuthSheet = false }
+    }
   }
 
   // MARK: - Tab View (iPhone only)

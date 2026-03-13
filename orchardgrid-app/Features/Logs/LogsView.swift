@@ -48,7 +48,7 @@ struct LogsView: View {
         refreshButton
       }
     }
-    .task {
+    .task(id: authManager.userId) {
       await loadData()
     }
   }

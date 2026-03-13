@@ -99,7 +99,7 @@ struct AllDevicesView: View {
         refreshButton
       }
     }
-    .task {
+    .task(id: authManager.userId) {
       if let token = await authManager.getToken() {
         await devicesManager.fetchDevices(authToken: token)
       }

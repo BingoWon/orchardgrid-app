@@ -1,3 +1,4 @@
+import AuthenticationServices
 import ClerkKit
 import SwiftUI
 
@@ -372,6 +373,18 @@ struct SignInView: View {
 
   // MARK: - Actions
 
+  private func isUserCancellation(_ error: Error) -> Bool {
+    let nsError = error as NSError
+    switch (nsError.domain, nsError.code) {
+    case (ASWebAuthenticationSessionError.errorDomain, ASWebAuthenticationSessionError.canceledLogin.rawValue),
+         (ASAuthorizationError.errorDomain, ASAuthorizationError.canceled.rawValue),
+         (ASAuthorizationError.errorDomain, ASAuthorizationError.unknown.rawValue):
+      return true
+    default:
+      return Task.isCancelled
+    }
+  }
+
   @MainActor
   private func oauthFlow(_ action: () async throws -> some Any) async {
     isLoading = true
@@ -381,7 +394,7 @@ struct SignInView: View {
       _ = try await action()
       dismiss()
     } catch {
-      if !Task.isCancelled { errorMessage = error.localizedDescription }
+      if !isUserCancellation(error) { errorMessage = error.localizedDescription }
     }
   }
 
