@@ -1,16 +1,21 @@
 import Foundation
 
 enum Config {
-  static var apiBaseURL: String {
+  static var hostURL: String {
     ProcessInfo.processInfo.environment["API_BASE_URL"]
       ?? Bundle.main.infoDictionary?["API_BASE_URL"] as? String
       ?? "https://orchardgrid.com"
   }
 
+  static var apiBaseURL: String {
+    "\(hostURL)/api"
+  }
+
   static var webSocketBaseURL: String {
-    apiBaseURL
+    hostURL
       .replacingOccurrences(of: "https://", with: "wss://")
       .replacingOccurrences(of: "http://", with: "ws://")
+      + "/ws"
   }
 
   static var clerkPublishableKey: String {

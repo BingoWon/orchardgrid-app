@@ -159,11 +159,11 @@ struct APIKeysView: View {
       if showAPIReference {
         VStack(alignment: .leading, spacing: 16) {
           HStack {
-            Text(Config.apiBaseURL)
+            Text(Config.hostURL)
               .font(.system(.callout, design: .monospaced))
               .lineLimit(1)
             Spacer()
-            copyButton(text: Config.apiBaseURL)
+            copyButton(text: Config.hostURL)
           }
           .padding(10)
           .background(.ultraThinMaterial, in: .rect(cornerRadius: 8))
