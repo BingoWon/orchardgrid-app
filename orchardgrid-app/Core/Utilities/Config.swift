@@ -1,15 +1,15 @@
 import Foundation
 
 enum Config {
-  static var hostURL: String {
-    ProcessInfo.processInfo.environment["API_BASE_URL"]
-      ?? Bundle.main.infoDictionary?["API_BASE_URL"] as? String
-      ?? "https://orchardgrid.com"
-  }
+  static let hostURL: String = {
+    if let env = ProcessInfo.processInfo.environment["API_BASE_URL"] { return env }
+    guard let plist = Bundle.main.infoDictionary?["API_BASE_URL"] as? String else {
+      fatalError("API_BASE_URL not set in Info.plist or environment")
+    }
+    return plist
+  }()
 
-  static var apiBaseURL: String {
-    "\(hostURL)/api"
-  }
+  static var apiBaseURL: String { "\(hostURL)/api" }
 
   static var webSocketBaseURL: String {
     hostURL
@@ -18,10 +18,12 @@ enum Config {
       + "/ws"
   }
 
-  static var clerkPublishableKey: String {
-    Bundle.main.infoDictionary?["CLERK_PUBLISHABLE_KEY"] as? String
-      ?? "pk_test_cmF0aW9uYWwtamFndWFyLTQ5LmNsZXJrLmFjY291bnRzLmRldiQ"
-  }
+  static let clerkPublishableKey: String = {
+    guard let key = Bundle.main.infoDictionary?["CLERK_PUBLISHABLE_KEY"] as? String else {
+      fatalError("CLERK_PUBLISHABLE_KEY not set in Info.plist")
+    }
+    return key
+  }()
 
   static let urlSession: URLSession = {
     let config = URLSessionConfiguration.default

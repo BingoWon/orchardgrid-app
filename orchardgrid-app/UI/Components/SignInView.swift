@@ -377,8 +377,7 @@ struct SignInView: View {
     let nsError = error as NSError
     switch (nsError.domain, nsError.code) {
     case (ASWebAuthenticationSessionError.errorDomain, ASWebAuthenticationSessionError.canceledLogin.rawValue),
-         (ASAuthorizationError.errorDomain, ASAuthorizationError.canceled.rawValue),
-         (ASAuthorizationError.errorDomain, ASAuthorizationError.unknown.rawValue):
+         (ASAuthorizationError.errorDomain, ASAuthorizationError.canceled.rawValue):
       return true
     default:
       return Task.isCancelled
@@ -392,7 +391,6 @@ struct SignInView: View {
     defer { isLoading = false }
     do {
       _ = try await action()
-      dismiss()
     } catch {
       if !isUserCancellation(error) { errorMessage = error.localizedDescription }
     }
@@ -405,10 +403,9 @@ struct SignInView: View {
     errorMessage = nil
     defer { isLoading = false }
     do {
-      let signIn = try await Clerk.shared.auth.signInWithPassword(
+      _ = try await Clerk.shared.auth.signInWithPassword(
         identifier: email, password: password
       )
-      if signIn.status == .complete { dismiss() }
     } catch {
       errorMessage = error.localizedDescription
     }
@@ -427,14 +424,9 @@ struct SignInView: View {
         firstName: firstName.isEmpty ? nil : firstName,
         lastName: lastName.isEmpty ? nil : lastName
       )
-      switch signUp.status {
-      case .complete:
-        dismiss()
-      case .missingRequirements:
+      if signUp.status == .missingRequirements {
         pendingSignUp = try await signUp.sendEmailCode()
         withAnimation(.easeInOut(duration: 0.2)) { mode = .verifyEmail }
-      default:
-        errorMessage = "Unexpected status. Please try again."
       }
     } catch {
       errorMessage = error.localizedDescription
@@ -448,8 +440,7 @@ struct SignInView: View {
     errorMessage = nil
     defer { isLoading = false }
     do {
-      let result = try await pending.verifyEmailCode(verificationCode)
-      if result.status == .complete { dismiss() }
+      _ = try await pending.verifyEmailCode(verificationCode)
     } catch {
       errorMessage = error.localizedDescription
     }

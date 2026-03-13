@@ -7,7 +7,6 @@ final class AuthManager {
   var showAuthSheet = false
 
   var isAuthenticated: Bool { Clerk.shared.user != nil }
-  var isGuest: Bool { Clerk.shared.user == nil }
   var userId: String? { Clerk.shared.user?.id }
 
   var onUserIDChanged: ((String) -> Void)?
