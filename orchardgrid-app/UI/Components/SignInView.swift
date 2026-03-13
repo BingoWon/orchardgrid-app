@@ -1,4 +1,3 @@
-import AuthenticationServices
 import ClerkKit
 import SwiftUI
 
@@ -9,33 +8,24 @@ struct SignInView: View {
   @State private var password = ""
   @State private var isLoading = false
   @State private var errorMessage: String?
-  @State private var showPassword = false
 
   var body: some View {
-    VStack(spacing: 0) {
-      VStack(spacing: 20) {
-        logo
-        titleSection
-        oauthButtons
-        divider
-        emailSection
-      }
-      .padding(.horizontal, 28)
-      .padding(.top, 32)
-      .padding(.bottom, 24)
-
-      footer
+    VStack(spacing: 20) {
+      logo
+      titleSection
+      oauthButtons
+      divider
+      emailSection
+      continueButton
+      errorText
     }
+    .padding(.horizontal, 28)
+    .padding(.top, 32)
+    .padding(.bottom, 8)
     .frame(width: 400)
     .fixedSize(horizontal: false, vertical: true)
-    .background(cardBackground)
-    .clipShape(RoundedRectangle(cornerRadius: 16))
-    .overlay(
-      RoundedRectangle(cornerRadius: 16)
-        .stroke(borderColor, lineWidth: 1)
-    )
-    .padding(24)
     .disabled(isLoading)
+    .safeAreaInset(edge: .bottom) { footer }
   }
 
   // MARK: - Logo
@@ -64,37 +54,28 @@ struct SignInView: View {
 
   private var oauthButtons: some View {
     VStack(spacing: 8) {
-      oauthButton(
-        label: "Continue with Google",
-        icon: { GoogleIcon() }
-      ) {
+      oauthButton(label: "Continue with Google", icon: "GoogleLogo") {
         await signInWithGoogle()
       }
-
-      oauthButton(
-        label: "Continue with Apple",
-        icon: {
-          Image(systemName: "apple.logo")
-            .font(.system(size: 16, weight: .medium))
-            .foregroundStyle(.primary)
-        }
-      ) {
+      oauthButton(label: "Continue with Apple", icon: "AppleLogo") {
         await signInWithApple()
       }
     }
   }
 
-  private func oauthButton<Icon: View>(
+  private func oauthButton(
     label: String,
-    @ViewBuilder icon: () -> Icon,
+    icon: String,
     action: @escaping () async -> Void
   ) -> some View {
     Button {
       Task { await action() }
     } label: {
       HStack(spacing: 10) {
-        icon()
-          .frame(width: 20, height: 20)
+        Image(icon)
+          .resizable()
+          .scaledToFit()
+          .frame(width: 16, height: 16)
         Text(label)
           .font(.subheadline.weight(.medium))
           .frame(maxWidth: .infinity)
@@ -105,7 +86,7 @@ struct SignInView: View {
       .clipShape(RoundedRectangle(cornerRadius: 8))
       .overlay(
         RoundedRectangle(cornerRadius: 8)
-          .stroke(oauthBorderColor, lineWidth: 1)
+          .stroke(borderColor, lineWidth: 1)
       )
     }
     .buttonStyle(.plain)
@@ -123,86 +104,83 @@ struct SignInView: View {
     }
   }
 
-  // MARK: - Email Section
+  // MARK: - Email + Password
 
   private var emailSection: some View {
-    VStack(alignment: .leading, spacing: 16) {
-      VStack(alignment: .leading, spacing: 6) {
-        Text("Email address")
-          .font(.subheadline.weight(.medium))
-
+    VStack(alignment: .leading, spacing: 14) {
+      fieldGroup(label: "Email address") {
         TextField("Enter your email address", text: $email)
-          .textFieldStyle(.plain)
-          .font(.subheadline)
-          .padding(.horizontal, 12)
-          .frame(height: 36)
-          .background(inputBackground)
-          .clipShape(RoundedRectangle(cornerRadius: 8))
-          .overlay(
-            RoundedRectangle(cornerRadius: 8)
-              .stroke(inputBorderColor, lineWidth: 1)
-          )
           .textContentType(.emailAddress)
-          .onSubmit {
-            if !showPassword { withAnimation { showPassword = true } }
-          }
       }
 
-      if showPassword {
-        VStack(alignment: .leading, spacing: 6) {
-          Text("Password")
-            .font(.subheadline.weight(.medium))
-
-          SecureField("Enter your password", text: $password)
-            .textFieldStyle(.plain)
-            .font(.subheadline)
-            .padding(.horizontal, 12)
-            .frame(height: 36)
-            .background(inputBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(
-              RoundedRectangle(cornerRadius: 8)
-                .stroke(inputBorderColor, lineWidth: 1)
-            )
-            .textContentType(.password)
-            .onSubmit { Task { await signInWithEmail() } }
-        }
-        .transition(.move(edge: .top).combined(with: .opacity))
+      fieldGroup(label: "Password") {
+        SecureField("Enter your password", text: $password)
+          .textContentType(.password)
+          .onSubmit { Task { await signInWithEmail() } }
       }
+    }
+  }
 
-      if let errorMessage {
-        Text(errorMessage)
-          .font(.caption)
-          .foregroundStyle(.red)
-          .multilineTextAlignment(.leading)
-      }
+  private func fieldGroup<Content: View>(
+    label: String,
+    @ViewBuilder content: () -> Content
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 6) {
+      Text(label)
+        .font(.subheadline.weight(.medium))
 
-      Button {
-        if showPassword {
-          Task { await signInWithEmail() }
-        } else {
-          withAnimation(.easeInOut(duration: 0.2)) { showPassword = true }
-        }
-      } label: {
-        HStack(spacing: 6) {
-          if isLoading {
-            ProgressView()
-              .controlSize(.small)
-              .tint(.white)
-          }
-          Text("Continue")
-            .font(.subheadline.weight(.semibold))
-          Image(systemName: "arrow.right")
-            .font(.caption.weight(.semibold))
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 38)
-        .foregroundStyle(.white)
-        .background(continueButtonColor)
+      content()
+        .textFieldStyle(.plain)
+        .font(.subheadline)
+        .padding(.horizontal, 12)
+        .frame(height: 36)
+        .background(inputBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+          RoundedRectangle(cornerRadius: 8)
+            .stroke(inputBorderColor, lineWidth: 1)
+        )
+    }
+  }
+
+  // MARK: - Continue Button
+
+  private var continueButton: some View {
+    Button {
+      Task { await signInWithEmail() }
+    } label: {
+      HStack(spacing: 6) {
+        if isLoading {
+          ProgressView()
+            .controlSize(.small)
+            .tint(.white)
+        }
+        Text("Continue")
+          .font(.subheadline.weight(.semibold))
+        Image(systemName: "arrowtriangle.right.fill")
+          .font(.system(size: 7))
       }
-      .buttonStyle(.plain)
-      .disabled(email.isEmpty || (showPassword && password.isEmpty))
+      .frame(maxWidth: .infinity)
+      .frame(height: 38)
+      .foregroundStyle(.white)
+      .background(continueColor)
+      .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+    .buttonStyle(.plain)
+    .disabled(email.isEmpty || password.isEmpty)
+    .opacity(email.isEmpty || password.isEmpty ? 0.6 : 1)
+  }
+
+  // MARK: - Error
+
+  @ViewBuilder
+  private var errorText: some View {
+    if let errorMessage {
+      Text(errorMessage)
+        .font(.caption)
+        .foregroundStyle(.red)
+        .multilineTextAlignment(.leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
   }
 
@@ -216,29 +194,17 @@ struct SignInView: View {
           .font(.caption)
           .foregroundStyle(.secondary)
         Button("Sign up") {
-          Task { await signUpFlow() }
+          Task { await signUpWithGoogle() }
         }
         .font(.caption.weight(.medium))
         .foregroundStyle(Color.accentColor)
         .buttonStyle(.plain)
       }
-      .padding(.vertical, 16)
+      .padding(.vertical, 14)
     }
   }
 
   // MARK: - Colors
-
-  private var cardBackground: Color {
-    colorScheme == .dark
-      ? Color(nsColor: .controlBackgroundColor)
-      : .white
-  }
-
-  private var borderColor: Color {
-    colorScheme == .dark
-      ? Color.white.opacity(0.1)
-      : Color.black.opacity(0.08)
-  }
 
   private var oauthButtonBackground: Color {
     colorScheme == .dark
@@ -246,7 +212,7 @@ struct SignInView: View {
       : Color.black.opacity(0.02)
   }
 
-  private var oauthBorderColor: Color {
+  private var borderColor: Color {
     colorScheme == .dark
       ? Color.white.opacity(0.15)
       : Color.black.opacity(0.12)
@@ -270,7 +236,7 @@ struct SignInView: View {
       : Color.black.opacity(0.15)
   }
 
-  private var continueButtonColor: Color {
+  private var continueColor: Color {
     colorScheme == .dark
       ? Color(red: 0.45, green: 0.35, blue: 0.9)
       : Color(red: 0.4, green: 0.3, blue: 0.85)
@@ -283,14 +249,11 @@ struct SignInView: View {
     isLoading = true
     errorMessage = nil
     defer { isLoading = false }
-
     do {
       _ = try await Clerk.shared.auth.signInWithOAuth(provider: .google)
       dismiss()
     } catch {
-      if !Task.isCancelled {
-        errorMessage = error.localizedDescription
-      }
+      if !Task.isCancelled { errorMessage = error.localizedDescription }
     }
   }
 
@@ -299,14 +262,11 @@ struct SignInView: View {
     isLoading = true
     errorMessage = nil
     defer { isLoading = false }
-
     do {
       _ = try await Clerk.shared.auth.signInWithApple()
       dismiss()
     } catch {
-      if !Task.isCancelled {
-        errorMessage = error.localizedDescription
-      }
+      if !Task.isCancelled { errorMessage = error.localizedDescription }
     }
   }
 
@@ -316,99 +276,27 @@ struct SignInView: View {
     isLoading = true
     errorMessage = nil
     defer { isLoading = false }
-
     do {
       let signIn = try await Clerk.shared.auth.signInWithPassword(
-        identifier: email,
-        password: password
+        identifier: email, password: password
       )
-      if signIn.status == .complete {
-        dismiss()
-      }
+      if signIn.status == .complete { dismiss() }
     } catch {
       errorMessage = error.localizedDescription
     }
   }
 
   @MainActor
-  private func signUpFlow() async {
+  private func signUpWithGoogle() async {
     isLoading = true
     errorMessage = nil
     defer { isLoading = false }
-
     do {
-      _ = try await Clerk.shared.auth.signInWithOAuth(provider: .google)
+      _ = try await Clerk.shared.auth.signUpWithOAuth(provider: .google)
       dismiss()
     } catch {
-      if !Task.isCancelled {
-        errorMessage = error.localizedDescription
-      }
+      if !Task.isCancelled { errorMessage = error.localizedDescription }
     }
-  }
-}
-
-// MARK: - Google Icon
-
-private struct GoogleIcon: View {
-  var body: some View {
-    Canvas { context, size in
-      let w = size.width
-      let h = size.height
-      let cx = w / 2
-      let cy = h / 2
-      let r = min(w, h) / 2 * 0.85
-
-      // Blue (top-right arc)
-      var bluePath = Path()
-      bluePath.addArc(center: CGPoint(x: cx, y: cy), radius: r,
-                      startAngle: .degrees(-30), endAngle: .degrees(-90),
-                      clockwise: true)
-      bluePath.addLine(to: CGPoint(x: cx, y: cy))
-      bluePath.closeSubpath()
-      context.fill(bluePath, with: .color(Color(red: 0.26, green: 0.52, blue: 0.96)))
-
-      // Green (bottom-right arc)
-      var greenPath = Path()
-      greenPath.addArc(center: CGPoint(x: cx, y: cy), radius: r,
-                       startAngle: .degrees(30), endAngle: .degrees(-30),
-                       clockwise: true)
-      greenPath.addLine(to: CGPoint(x: cx, y: cy))
-      greenPath.closeSubpath()
-      context.fill(greenPath, with: .color(Color(red: 0.2, green: 0.66, blue: 0.33)))
-
-      // Yellow (bottom-left arc)
-      var yellowPath = Path()
-      yellowPath.addArc(center: CGPoint(x: cx, y: cy), radius: r,
-                        startAngle: .degrees(150), endAngle: .degrees(30),
-                        clockwise: true)
-      yellowPath.addLine(to: CGPoint(x: cx, y: cy))
-      yellowPath.closeSubpath()
-      context.fill(yellowPath, with: .color(Color(red: 0.98, green: 0.74, blue: 0.02)))
-
-      // Red (top-left arc)
-      var redPath = Path()
-      redPath.addArc(center: CGPoint(x: cx, y: cy), radius: r,
-                     startAngle: .degrees(-90), endAngle: .degrees(150),
-                     clockwise: true)
-      redPath.addLine(to: CGPoint(x: cx, y: cy))
-      redPath.closeSubpath()
-      context.fill(redPath, with: .color(Color(red: 0.92, green: 0.26, blue: 0.21)))
-
-      // White center
-      let innerR = r * 0.55
-      let whitePath = Path(ellipseIn: CGRect(
-        x: cx - innerR, y: cy - innerR,
-        width: innerR * 2, height: innerR * 2
-      ))
-      context.fill(whitePath, with: .color(.white))
-
-      // Horizontal bar (the "G" opening)
-      let barH = r * 0.22
-      let barRect = CGRect(x: cx - r * 0.05, y: cy - barH / 2,
-                           width: r * 1.0, height: barH)
-      context.fill(Path(barRect), with: .color(Color(red: 0.26, green: 0.52, blue: 0.96)))
-    }
-    .frame(width: 18, height: 18)
   }
 }
 
