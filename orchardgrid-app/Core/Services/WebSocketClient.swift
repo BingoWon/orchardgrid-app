@@ -115,14 +115,9 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
   func clearUserID() {
     guard userID != nil else { return }
-    Logger.log(.websocket, "User ID cleared")
+    Logger.log(.websocket, "User ID cleared — disconnecting")
     userID = nil
-
-    guard isEnabled, isConnected else { return }
-
-    Logger.log(.websocket, "Reconnecting as anonymous...")
     stopConnection()
-    startConnection()
   }
 
   func retry() {
@@ -135,6 +130,11 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   // MARK: - Connection Lifecycle
 
   private func startConnection() {
+    guard userID != nil else {
+      Logger.log(.websocket, "No user ID — skipping connection")
+      return
+    }
+
     connectionTask?.cancel()
     connectionTask = Task { @MainActor in
       isConnectionLoopActive = true
