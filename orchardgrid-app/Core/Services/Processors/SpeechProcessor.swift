@@ -23,10 +23,26 @@ enum SpeechProcessor {
     SFSpeechRecognizer()?.isAvailable ?? false
   }
 
+  static func requestPermissionIfNeeded() async -> Bool {
+    let status = SFSpeechRecognizer.authorizationStatus()
+    if status == .authorized { return true }
+    if status == .denied || status == .restricted { return false }
+
+    return await withCheckedContinuation { cont in
+      SFSpeechRecognizer.requestAuthorization { newStatus in
+        cont.resume(returning: newStatus == .authorized)
+      }
+    }
+  }
+
   static func handle(_ data: Data) async throws -> Data {
     let req = try JSONDecoder().decode(Request.self, from: data)
     guard let audioData = Data(base64Encoded: req.audio) else {
       throw SpeechError.invalidAudio
+    }
+
+    guard await requestPermissionIfNeeded() else {
+      throw SpeechError.notAuthorized
     }
 
     let locale = Locale(identifier: req.language ?? "en-US")
@@ -72,11 +88,13 @@ enum SpeechProcessor {
 enum SpeechError: LocalizedError {
   case unavailable
   case invalidAudio
+  case notAuthorized
 
   var errorDescription: String? {
     switch self {
     case .unavailable: "Speech recognition is not available on this device"
     case .invalidAudio: "Failed to decode the provided audio data"
+    case .notAuthorized: "Speech recognition permission not granted. Please enable it in System Settings → Privacy & Security → Speech Recognition."
     }
   }
 }
