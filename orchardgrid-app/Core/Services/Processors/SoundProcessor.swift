@@ -35,7 +35,7 @@ enum SoundProcessor {
     let observer = SoundResultObserver()
 
     try analyzer.add(classifyRequest, withObserver: observer)
-    analyzer.analyze()
+    await analyzer.analyze()
     await observer.waitForCompletion()
 
     let asset = AVURLAsset(url: tempURL)
