@@ -98,6 +98,8 @@ final class APIServer {
   private(set) var lastResponse = ""
   private(set) var errorMessage = ""
   private(set) var localIPAddress: String?
+  private(set) var portConflict = false
+  private(set) var suggestedPort: UInt16?
 
   private(set) var port: UInt16 = Config.apiServerPort
 
@@ -164,72 +166,90 @@ final class APIServer {
 
   func start() async {
     guard !isRunning else { return }
+    portConflict = false
+    suggestedPort = nil
 
-    let maxAttempts: UInt16 = 10
-    for offset: UInt16 in 0..<maxAttempts {
-      let candidatePort = Config.apiServerPort &+ offset
-      if let boundListener = await Self.tryBind(port: candidatePort) {
-        boundListener.stateUpdateHandler = { [weak self] state in
-          Task { @MainActor [weak self] in
-            guard let self else { return }
-            if case .failed = state {
-              self.isRunning = false
-              self.errorMessage = "Server stopped unexpectedly"
-            } else if case .cancelled = state {
-              self.isRunning = false
+    do {
+      let parameters = NWParameters.tcp
+      parameters.allowLocalEndpointReuse = true
+      let listener = try NWListener(using: parameters, on: NWEndpoint.Port(integerLiteral: port))
+
+      listener.stateUpdateHandler = { [weak self] state in
+        Task { @MainActor [weak self] in
+          guard let self else { return }
+          switch state {
+          case .ready:
+            self.isRunning = true
+            self.errorMessage = ""
+            self.portConflict = false
+          case let .failed(error):
+            self.isRunning = false
+            if "\(error)".contains("48") || "\(error)".contains("Address already in use") {
+              self.portConflict = true
+              self.errorMessage = "Port \(self.port) is already in use"
+              self.suggestedPort = Self.findAvailablePort(from: self.port &+ 1)
+            } else {
+              self.errorMessage = "Server error: \(error.localizedDescription)"
             }
+          case .cancelled:
+            self.isRunning = false
+          default:
+            break
           }
         }
-
-        boundListener.newConnectionHandler = { [weak self] connection in
-          Task { @MainActor in
-            await self?.handleConnection(connection)
-          }
-        }
-
-        self.listener = boundListener
-        self.port = candidatePort
-        self.isRunning = true
-        self.errorMessage = ""
-
-        if offset > 0 {
-          Logger.warning(.api, "Port \(Config.apiServerPort) in use, bound to \(candidatePort)")
-        }
-        return
       }
-    }
 
-    let lastPort = Config.apiServerPort &+ maxAttempts &- 1
-    errorMessage = "Ports \(Config.apiServerPort)–\(lastPort) all in use"
-    Logger.error(.api, errorMessage)
+      listener.newConnectionHandler = { [weak self] connection in
+        Task { @MainActor in
+          await self?.handleConnection(connection)
+        }
+      }
+
+      self.listener = listener
+      listener.start(queue: .global())
+    } catch {
+      errorMessage = "Failed to create server: \(error.localizedDescription)"
+    }
   }
 
-  private static func tryBind(port: UInt16) async -> NWListener? {
-    let parameters = NWParameters.tcp
-    parameters.allowLocalEndpointReuse = true
-
-    guard let listener = try? NWListener(using: parameters, on: NWEndpoint.Port(integerLiteral: port)) else {
-      return nil
+  func setPort(_ newPort: UInt16) {
+    stop()
+    port = newPort
+    portConflict = false
+    suggestedPort = nil
+    errorMessage = ""
+    if isEnabled {
+      Task { await start() }
     }
+  }
 
-    return await withCheckedContinuation { cont in
-      var didResume = false
-      listener.stateUpdateHandler = { state in
-        guard !didResume else { return }
-        switch state {
-        case .ready:
-          didResume = true
-          cont.resume(returning: listener)
-        case .failed, .cancelled:
-          didResume = true
-          listener.cancel()
-          cont.resume(returning: nil)
-        default:
-          break
-        }
+  nonisolated static func findAvailablePort(from start: UInt16, range: UInt16 = 20) -> UInt16? {
+    for offset: UInt16 in 0..<range {
+      let candidate = start &+ offset
+      if isPortAvailable(candidate) { return candidate }
+    }
+    return nil
+  }
+
+  nonisolated static func isPortAvailable(_ port: UInt16) -> Bool {
+    let fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)
+    guard fd >= 0 else { return false }
+    defer { Darwin.close(fd) }
+
+    var opt: Int32 = 1
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, socklen_t(MemoryLayout<Int32>.size))
+
+    var addr = sockaddr_in6()
+    addr.sin6_len = UInt8(MemoryLayout<sockaddr_in6>.size)
+    addr.sin6_family = sa_family_t(AF_INET6)
+    addr.sin6_port = port.bigEndian
+    addr.sin6_addr = in6addr_any
+
+    return withUnsafePointer(to: &addr) {
+      $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+        Darwin.bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in6>.size))
       }
-      listener.start(queue: .global())
-    }
+    } == 0
   }
 
   func stop() {
@@ -237,6 +257,8 @@ final class APIServer {
     listener = nil
     isRunning = false
     errorMessage = ""
+    portConflict = false
+    suggestedPort = nil
   }
 
   // MARK: - Network Monitoring

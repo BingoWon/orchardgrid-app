@@ -315,12 +315,13 @@ struct ChatDetailView: View {
 
 private struct MessageBubble: View {
   let message: Message
+  @State private var showCopied = false
 
   var body: some View {
     HStack(alignment: .top) {
       if message.role == .user { Spacer(minLength: 48) }
 
-      VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 8) {
+      VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
         if message.role == .user, message.hasImages {
           ForEach(message.imageFilenames, id: \.self) { filename in
             ChatImageView(filename: filename, compact: true)
@@ -335,6 +336,10 @@ private struct MessageBubble: View {
           ForEach(message.imageFilenames, id: \.self) { filename in
             ChatImageView(filename: filename, compact: false)
           }
+        }
+
+        if !message.content.isEmpty {
+          copyButton
         }
       }
 
@@ -364,6 +369,34 @@ private struct MessageBubble: View {
             .fill(.blue.gradient)
         )
     }
+  }
+
+  private var copyButton: some View {
+    Button {
+      #if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(message.content, forType: .string)
+      #else
+        UIPasteboard.general.string = message.content
+      #endif
+      withAnimation(.easeInOut(duration: 0.2)) { showCopied = true }
+      DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+        withAnimation(.easeInOut(duration: 0.2)) { showCopied = false }
+      }
+    } label: {
+      HStack(spacing: 3) {
+        Image(systemName: showCopied ? "checkmark" : "doc.on.doc")
+        if showCopied {
+          Text("Copied")
+        }
+      }
+      .font(.caption2)
+      .foregroundStyle(.secondary)
+      .padding(.horizontal, 6)
+      .padding(.vertical, 3)
+      .background(.fill.quaternary, in: Capsule())
+    }
+    .buttonStyle(.plain)
   }
 }
 

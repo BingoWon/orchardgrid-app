@@ -117,13 +117,20 @@ final class ChatManager {
           appendAssistantMessage(partial, imageFilenames: images, to: conversationId)
         }
       } catch {
-        Logger.error(.app, "Chat error: \(error.localizedDescription)")
+        Logger.error(.app, "Chat error: \(error)")
         let images = await imageCollector.flush()
-        appendAssistantMessage(
-          "Sorry, an error occurred: \(error.localizedDescription)",
-          imageFilenames: images,
-          to: conversationId
-        )
+        let desc = "\(error)"
+        let userMessage: String
+        if desc.contains("GenerationError") {
+          userMessage =
+            "Apple Intelligence could not generate a response. "
+            + "Please ensure Apple Intelligence is fully set up in "
+            + "Settings → Apple Intelligence & Siri, and that the "
+            + "on-device model has finished downloading."
+        } else {
+          userMessage = "Sorry, an error occurred: \(error.localizedDescription)"
+        }
+        appendAssistantMessage(userMessage, imageFilenames: images, to: conversationId)
       }
     }
   }

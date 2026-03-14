@@ -18,7 +18,6 @@ struct LocalDeviceQuickControl: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
-      // Header
       HStack {
         Text(NavigationItem.localDeviceTitle)
           .font(.headline)
@@ -26,25 +25,15 @@ struct LocalDeviceQuickControl: View {
 
         Spacer()
 
-        Button {
-          if isWideLayout {
-            navigationState.selectedItem = .localDevice
-          } else {
-            showDeviceSheet = true
-          }
-        } label: {
-          HStack(spacing: 4) {
-            Text("Details")
-              .font(.subheadline)
-            Image(systemName: "chevron.right")
-              .font(.caption)
-          }
-          .foregroundStyle(.blue)
+        HStack(spacing: 4) {
+          Text("Details")
+            .font(.subheadline)
+          Image(systemName: "chevron.right")
+            .font(.caption)
         }
-        .buttonStyle(.plain)
+        .foregroundStyle(.blue)
       }
 
-      // AI Status or Toggles
       if !sharing.isModelAvailable {
         aiUnavailableStatus
       } else {
@@ -53,6 +42,8 @@ struct LocalDeviceQuickControl: View {
     }
     .padding(Constants.standardPadding)
     .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
+    .contentShape(Rectangle())
+    .onTapGesture { navigateToDetails() }
     #if !os(macOS)
       .sheet(isPresented: $showDeviceSheet) {
         NavigationStack {
@@ -126,7 +117,20 @@ struct LocalDeviceQuickControl: View {
     }
   }
 
+  private func navigateToDetails() {
+    if isWideLayout {
+      navigationState.selectedItem = .localDevice
+    } else {
+      showDeviceSheet = true
+    }
+  }
+
   // MARK: - Toggles
+
+  private var isLocalStarting: Bool {
+    sharing.wantsLocalSharing && !sharing.isLocalActive
+      && !sharing.localPortConflict && sharing.localErrorMessage == nil
+  }
 
   private var togglesRow: some View {
     VStack(spacing: 8) {
@@ -142,10 +146,11 @@ struct LocalDeviceQuickControl: View {
       ToggleRow(
         title: "Share Locally",
         isOn: Binding(
-          get: { sharing.wantsLocalSharing },
+          get: { sharing.isLocalActive },
           set: { sharing.setLocalSharing($0) }
         ),
-        statusText: localStatusText
+        statusText: localStatusText,
+        isLoading: isLocalStarting
       )
     }
   }
@@ -170,7 +175,9 @@ struct LocalDeviceQuickControl: View {
 
   private var localStatusText: String? {
     guard sharing.wantsLocalSharing else { return nil }
-    return sharing.isLocalActive ? "Running" : "Starting..."
+    if sharing.localPortConflict { return "Port conflict" }
+    if sharing.isLocalActive { return "Running" }
+    return "Starting..."
   }
 }
 
@@ -180,6 +187,7 @@ private struct ToggleRow: View {
   let title: String
   @Binding var isOn: Bool
   let statusText: String?
+  var isLoading = false
 
   var body: some View {
     HStack {
@@ -195,9 +203,14 @@ private struct ToggleRow: View {
           .foregroundStyle(.secondary)
       }
 
-      Toggle("", isOn: $isOn)
-        .toggleStyle(.switch)
-        .labelsHidden()
+      if isLoading {
+        ProgressView()
+          .controlSize(.small)
+      } else {
+        Toggle("", isOn: $isOn)
+          .toggleStyle(.switch)
+          .labelsHidden()
+      }
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 10)

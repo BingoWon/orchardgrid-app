@@ -154,6 +154,13 @@ struct LocalDeviceView: View {
 
   // MARK: - Share Locally Card
 
+  @State private var portInput = ""
+
+  private var isLocalStarting: Bool {
+    sharing.wantsLocalSharing && !sharing.isLocalActive
+      && !sharing.localPortConflict && sharing.localErrorMessage == nil
+  }
+
   private var localShareCard: some View {
     VStack(alignment: .leading, spacing: 16) {
       HStack {
@@ -167,35 +174,37 @@ struct LocalDeviceView: View {
 
         Spacer()
 
-        Toggle("", isOn: Binding(
-          get: { sharing.wantsLocalSharing },
-          set: { sharing.setLocalSharing($0) }
-        ))
-        .toggleStyle(.switch)
+        if isLocalStarting {
+          ProgressView()
+            .controlSize(.small)
+        } else {
+          Toggle("", isOn: Binding(
+            get: { sharing.isLocalActive },
+            set: { sharing.setLocalSharing($0) }
+          ))
+          .toggleStyle(.switch)
+        }
       }
 
       if sharing.wantsLocalSharing {
         Divider()
 
-        if let error = sharing.localErrorMessage {
+        if sharing.localPortConflict {
+          portConflictSection
+        } else if isLocalStarting {
           StatusRow(
-            icon: "exclamationmark.triangle.fill",
-            iconColor: .red,
-            title: "Failed to Start",
-            subtitle: error
+            isLoading: true,
+            title: "Starting...",
+            subtitle: "Port \(sharing.localPort)"
           )
-        } else {
+        } else if sharing.isLocalActive {
           StatusRow(
-            icon: sharing.isLocalActive ? "checkmark.circle.fill" : "hourglass.circle.fill",
-            iconColor: sharing.isLocalActive ? .green : .orange,
-            title: sharing.isLocalActive ? "Running" : "Starting...",
-            subtitle: sharing.isUsingFallbackPort
-              ? "Port \(sharing.localPort) (auto-selected, \(Config.apiServerPort) in use)"
-              : "Port \(sharing.localPort)"
+            icon: "checkmark.circle.fill",
+            iconColor: .green,
+            title: "Running",
+            subtitle: "Port \(sharing.localPort)"
           )
-        }
 
-        if sharing.isLocalActive {
           Divider()
 
           VStack(alignment: .leading, spacing: 12) {
@@ -217,12 +226,69 @@ struct LocalDeviceView: View {
           HStack(spacing: 40) {
             StatView(title: "Requests Served", value: "\(sharing.localRequestCount)")
           }
+        } else if let error = sharing.localErrorMessage {
+          StatusRow(
+            icon: "exclamationmark.triangle.fill",
+            iconColor: .red,
+            title: "Failed to Start",
+            subtitle: error
+          )
         }
       }
     }
     .padding()
     .frame(maxWidth: .infinity, alignment: .leading)
     .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
+  }
+
+  private var portConflictSection: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      HStack(spacing: 8) {
+        Image(systemName: "exclamationmark.triangle.fill")
+          .foregroundStyle(.orange)
+        Text("Port \(sharing.localPort) is already in use")
+          .font(.subheadline)
+          .fontWeight(.medium)
+      }
+
+      HStack(spacing: 12) {
+        HStack {
+          Text("Port")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+          TextField("Port", text: $portInput)
+            .textFieldStyle(.roundedBorder)
+            .frame(width: 80)
+            #if os(iOS)
+              .keyboardType(.numberPad)
+            #endif
+        }
+
+        if let p = UInt16(portInput), APIServer.isPortAvailable(p) {
+          Label("Available", systemImage: "checkmark.circle.fill")
+            .font(.caption)
+            .foregroundStyle(.green)
+        } else if !portInput.isEmpty {
+          Label("In use", systemImage: "xmark.circle.fill")
+            .font(.caption)
+            .foregroundStyle(.red)
+        }
+
+        Spacer()
+
+        Button("Start") {
+          if let p = UInt16(portInput) {
+            sharing.setLocalPort(p)
+          }
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.small)
+        .disabled(UInt16(portInput).map { !APIServer.isPortAvailable($0) } ?? true)
+      }
+    }
+    .onAppear {
+      portInput = sharing.localSuggestedPort.map(String.init) ?? String(sharing.localPort &+ 1)
+    }
   }
   // MARK: - Shared Capabilities Card
 
@@ -307,7 +373,7 @@ private struct CapabilityRow: View {
       }
 
       if !isAvailable, let reason = unavailabilityReason {
-        HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
           Text(reason)
             .font(.caption2)
             .foregroundStyle(.secondary)
@@ -325,24 +391,32 @@ private struct CapabilityRow: View {
   @ViewBuilder
   private var settingsButton: some View {
     #if os(iOS)
-      Button("Open Settings") {
-        if let url = URL(string: UIApplication.openSettingsURLString) {
-          UIApplication.shared.open(url)
+      Button {
+        if let url = URL(string: "App-Prefs:Privacy&path=SPEECH_RECOGNITION") {
+          UIApplication.shared.open(url) { success in
+            if !success, let fallback = URL(string: UIApplication.openSettingsURLString) {
+              UIApplication.shared.open(fallback)
+            }
+          }
         }
+      } label: {
+        Label("Open Settings", systemImage: "gear")
+          .font(.caption2)
       }
-      .font(.caption2)
       .buttonStyle(.bordered)
       .controlSize(.mini)
     #elseif os(macOS)
-      Button("Open Settings") {
+      Button {
         if let url = URL(
           string:
             "x-apple.systempreferences:com.apple.preference.security?Privacy_SpeechRecognition"
         ) {
           NSWorkspace.shared.open(url)
         }
+      } label: {
+        Label("Open System Settings", systemImage: "gear")
+          .font(.caption2)
       }
-      .font(.caption2)
       .buttonStyle(.bordered)
       .controlSize(.mini)
     #endif

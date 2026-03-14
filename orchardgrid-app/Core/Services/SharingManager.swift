@@ -98,8 +98,11 @@ final class SharingManager {
     let msg = localService.errorMessage
     return msg.isEmpty ? nil : msg
   }
-  var isUsingFallbackPort: Bool {
-    localService.port != Config.apiServerPort && localService.isRunning
+  var localPortConflict: Bool { localService.portConflict }
+  var localSuggestedPort: UInt16? { localService.suggestedPort }
+
+  func setLocalPort(_ port: UInt16) {
+    localService.setPort(port)
   }
 
   // MARK: - Initialization
