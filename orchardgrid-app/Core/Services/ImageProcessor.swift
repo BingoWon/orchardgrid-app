@@ -71,29 +71,34 @@ enum ImageProcessor {
 
   // MARK: - Public API
 
-  /// Generate images from a text prompt.
+  /// Generate images from a text prompt with optional reference image.
   /// - Parameters:
   ///   - prompt: Text description for image generation
   ///   - style: Style name ("illustration" or "sketch"), nil defaults to illustration
   ///   - count: Number of images to generate (1-4)
+  ///   - sourceImage: Optional URL to a reference image (e.g. a face for personalization)
   /// - Returns: Array of PNG image data
   static func generateImages(
     prompt: String,
     style: String?,
-    count: Int
+    count: Int,
+    sourceImage: URL? = nil
   ) async throws -> [Data] {
     guard (1 ... 4).contains(count) else {
       throw ImageProcessorError.invalidCount(count)
     }
 
     let playgroundStyle = try mapStyle(style)
-    let concept = ImagePlaygroundConcept.text(prompt)
+    var concepts: [ImagePlaygroundConcept] = [.text(prompt)]
+    if let sourceImage, let imageConcept = ImagePlaygroundConcept.image(sourceImage) {
+      concepts.append(imageConcept)
+    }
     let creator = try await ImageCreator()
 
     var results: [Data] = []
 
     do {
-      for try await image in creator.images(for: [concept], style: playgroundStyle, limit: count) {
+      for try await image in creator.images(for: concepts, style: playgroundStyle, limit: count) {
         guard let pngData = pngData(from: image.cgImage) else {
           Logger.error(.imageGen, "Failed to convert CGImage to PNG")
           throw ImageProcessorError.conversionFailed

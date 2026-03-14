@@ -3,12 +3,22 @@
  * Chat interface with streaming Apple Intelligence responses
  */
 
+import PhotosUI
 import SwiftUI
+
+#if os(macOS)
+  import AppKit
+#else
+  import UIKit
+#endif
 
 struct ChatDetailView: View {
   let conversationId: UUID
   @Environment(ChatManager.self) private var chatManager
   @State private var inputText = ""
+  @State private var selectedPhotoItem: PhotosPickerItem?
+  @State private var attachedImageFilename: String?
+  @State private var isLoadingPhoto = false
   @FocusState private var isInputFocused: Bool
 
   private var conversation: Conversation? {
@@ -46,7 +56,6 @@ struct ChatDetailView: View {
             welcomePrompt
           }
 
-          // Live streaming bubble
           if isStreaming, !chatManager.streamingText.isEmpty {
             MessageBubble(
               message: Message(role: .assistant, content: chatManager.streamingText)
@@ -54,7 +63,6 @@ struct ChatDetailView: View {
             .id("streaming")
           }
 
-          // Typing indicator
           if isStreaming, chatManager.streamingText.isEmpty {
             HStack {
               TypingIndicator()
@@ -89,7 +97,7 @@ struct ChatDetailView: View {
         .font(.title3)
         .fontWeight(.semibold)
 
-      Text("Ask me anything — powered entirely on-device.")
+      Text("Chat, create images, and more — entirely on-device.")
         .font(.subheadline)
         .foregroundStyle(.secondary)
         .multilineTextAlignment(.center)
@@ -101,47 +109,136 @@ struct ChatDetailView: View {
   // MARK: - Input Bar
 
   private var inputBar: some View {
-    HStack(alignment: .bottom, spacing: 12) {
-      TextField("Message", text: $inputText, axis: .vertical)
-        .textFieldStyle(.plain)
-        .lineLimit(1 ... 5)
-        .focused($isInputFocused)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .onKeyPress(.return, phases: .down) { press in
-          if press.modifiers.contains(.shift) {
-            return .ignored // insert newline
+    VStack(spacing: 0) {
+      if let filename = attachedImageFilename {
+        attachmentPreview(filename: filename)
+      }
+
+      HStack(alignment: .bottom, spacing: 8) {
+        if isLoadingPhoto {
+          ProgressView()
+            .controlSize(.small)
+            .frame(width: 36, height: 36)
+        } else {
+          PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+            Image(systemName: "photo.badge.plus")
+              .font(.system(size: 20))
+              .foregroundStyle(.secondary)
+              .frame(width: 36, height: 36)
+              .contentShape(Rectangle())
           }
-          sendMessage()
-          return .handled
+          .buttonStyle(.plain)
+          .onChange(of: selectedPhotoItem) { _, item in
+            Task { await loadSelectedPhoto(item) }
+          }
         }
 
-      if chatManager.isResponding {
-        Button {
-          chatManager.stopResponding()
-        } label: {
-          Image(systemName: "stop.circle.fill")
-            .font(.system(size: 32))
-            .symbolRenderingMode(.hierarchical)
-            .foregroundStyle(.red)
+        TextField("Message", text: $inputText, axis: .vertical)
+          .textFieldStyle(.plain)
+          .lineLimit(1 ... 5)
+          .focused($isInputFocused)
+          .padding(.horizontal, 14)
+          .padding(.vertical, 10)
+          .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+          .onKeyPress(.return, phases: .down) { press in
+            if press.modifiers.contains(.shift) {
+              return .ignored
+            }
+            sendMessage()
+            return .handled
+          }
+
+        if chatManager.isResponding {
+          Button {
+            chatManager.stopResponding()
+          } label: {
+            Image(systemName: "stop.circle.fill")
+              .font(.system(size: 32))
+              .symbolRenderingMode(.hierarchical)
+              .foregroundStyle(.red)
+          }
+          .buttonStyle(.plain)
+        } else {
+          Button {
+            sendMessage()
+          } label: {
+            Image(systemName: "arrow.up.circle.fill")
+              .font(.system(size: 32))
+              .symbolRenderingMode(.hierarchical)
+              .foregroundStyle(canSend ? Color.blue : Color.gray.opacity(0.3))
+          }
+          .disabled(!canSend)
+          .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
-      } else {
-        Button {
-          sendMessage()
-        } label: {
-          Image(systemName: "arrow.up.circle.fill")
-            .font(.system(size: 32))
-            .symbolRenderingMode(.hierarchical)
-            .foregroundStyle(canSend ? Color.blue : Color.gray.opacity(0.3))
-        }
-        .disabled(!canSend)
-        .buttonStyle(.plain)
       }
+      .padding(.horizontal, 16)
+      .padding(.vertical, 10)
+    }
+  }
+
+  private func attachmentPreview(filename: String) -> some View {
+    let url = ChatImages.directory.appendingPathComponent(filename)
+    return HStack(spacing: 8) {
+      thumbnailImage(url: url)
+        .frame(width: 56, height: 56)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+      VStack(alignment: .leading, spacing: 2) {
+        Text("Reference photo")
+          .font(.caption)
+          .fontWeight(.medium)
+        Text("Will be used for image generation")
+          .font(.caption2)
+          .foregroundStyle(.secondary)
+      }
+
+      Spacer()
+
+      Button {
+        withAnimation(.easeOut(duration: 0.2)) {
+          removeAttachment()
+        }
+      } label: {
+        Image(systemName: "xmark.circle.fill")
+          .font(.system(size: 20))
+          .foregroundStyle(.secondary)
+      }
+      .buttonStyle(.plain)
     }
     .padding(.horizontal, 16)
-    .padding(.vertical, 10)
+    .padding(.vertical, 8)
+    .background(.fill.quaternary)
+    .transition(.move(edge: .bottom).combined(with: .opacity))
+  }
+
+  @ViewBuilder
+  private func thumbnailImage(url: URL) -> some View {
+    #if os(macOS)
+      if let nsImage = NSImage(contentsOf: url) {
+        Image(nsImage: nsImage)
+          .resizable()
+          .aspectRatio(contentMode: .fill)
+      } else {
+        imagePlaceholder
+      }
+    #else
+      if let uiImage = UIImage(contentsOfFile: url.path) {
+        Image(uiImage: uiImage)
+          .resizable()
+          .aspectRatio(contentMode: .fill)
+      } else {
+        imagePlaceholder
+      }
+    #endif
+  }
+
+  private var imagePlaceholder: some View {
+    Rectangle()
+      .fill(.fill.quaternary)
+      .overlay {
+        Image(systemName: "photo")
+          .foregroundStyle(.tertiary)
+      }
   }
 
   // MARK: - Helpers
@@ -156,7 +253,42 @@ struct ChatDetailView: View {
     let content = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !content.isEmpty else { return }
     inputText = ""
-    chatManager.sendMessage(content, in: conversationId)
+    let images = attachedImageFilename.map { [$0] } ?? []
+    attachedImageFilename = nil
+    selectedPhotoItem = nil
+    chatManager.sendMessage(content, imageFilenames: images, in: conversationId)
+  }
+
+  private func loadSelectedPhoto(_ item: PhotosPickerItem?) async {
+    guard let item else { return }
+    isLoadingPhoto = true
+    defer { isLoadingPhoto = false }
+
+    guard let data = try? await item.loadTransferable(type: Data.self) else { return }
+
+    let ext = ChatImages.fileExtension(for: data)
+    let filename = "ref_\(UUID().uuidString).\(ext)"
+    let dir = ChatImages.directory
+    let url = dir.appendingPathComponent(filename)
+
+    do {
+      try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+      try data.write(to: url, options: .atomic)
+      withAnimation(.easeOut(duration: 0.2)) {
+        attachedImageFilename = filename
+      }
+    } catch {
+      Logger.error(.app, "Failed to save attachment: \(error.localizedDescription)")
+    }
+  }
+
+  private func removeAttachment() {
+    if let filename = attachedImageFilename {
+      let url = ChatImages.directory.appendingPathComponent(filename)
+      try? FileManager.default.removeItem(at: url)
+    }
+    attachedImageFilename = nil
+    selectedPhotoItem = nil
   }
 
   private func scrollToBottom(_ proxy: ScrollViewProxy) {
@@ -172,7 +304,6 @@ struct ChatDetailView: View {
     }
   }
 
-  /// Remove empty conversations when navigating away without sending
   private func cleanupIfEmpty() {
     if let conv = conversation, conv.messages.isEmpty {
       chatManager.deleteConversation(id: conv.id)
@@ -186,29 +317,175 @@ private struct MessageBubble: View {
   let message: Message
 
   var body: some View {
-    HStack {
+    HStack(alignment: .top) {
       if message.role == .user { Spacer(minLength: 48) }
 
-      Text(message.content)
-        .font(.body)
-        .textSelection(.enabled)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .foregroundStyle(message.role == .user ? .white : .primary)
-        .background(bubbleBackground)
+      VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 8) {
+        if message.role == .user, message.hasImages {
+          ForEach(message.imageFilenames, id: \.self) { filename in
+            ChatImageView(filename: filename, compact: true)
+          }
+        }
+
+        if !message.content.isEmpty {
+          messageContent
+        }
+
+        if message.role == .assistant {
+          ForEach(message.imageFilenames, id: \.self) { filename in
+            ChatImageView(filename: filename, compact: false)
+          }
+        }
+      }
 
       if message.role == .assistant { Spacer(minLength: 48) }
     }
   }
 
   @ViewBuilder
-  private var bubbleBackground: some View {
-    if message.role == .user {
-      RoundedRectangle(cornerRadius: 16, style: .continuous)
-        .fill(.blue.gradient)
+  private var messageContent: some View {
+    if message.role == .assistant {
+      ChatMarkdownView(content: message.content)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+          RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(.fill.tertiary)
+        )
     } else {
-      RoundedRectangle(cornerRadius: 16, style: .continuous)
-        .fill(.fill.tertiary)
+      Text(message.content)
+        .font(.body)
+        .textSelection(.enabled)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .foregroundStyle(.white)
+        .background(
+          RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(.blue.gradient)
+        )
+    }
+  }
+}
+
+// MARK: - Chat Image View
+
+private struct ChatImageView: View {
+  let filename: String
+  var compact: Bool = false
+  @State private var loadedImage: LoadedImage?
+  @State private var isFullscreen = false
+
+  var body: some View {
+    Group {
+      if let loadedImage {
+        imageContent(loadedImage)
+      } else {
+        placeholder
+      }
+    }
+    .onAppear { loadImage() }
+  }
+
+  private func imageContent(_ loaded: LoadedImage) -> some View {
+    #if os(macOS)
+      let img = Image(nsImage: loaded.image)
+    #else
+      let img = Image(uiImage: loaded.image)
+    #endif
+
+    let maxDim: CGFloat = compact ? 80 : 320
+    let radius: CGFloat = compact ? 10 : 12
+
+    return img
+      .resizable()
+      .aspectRatio(contentMode: compact ? .fill : .fit)
+      .frame(maxWidth: maxDim, maxHeight: maxDim)
+      .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+      .overlay(
+        RoundedRectangle(cornerRadius: radius, style: .continuous)
+          .strokeBorder(.primary.opacity(0.08), lineWidth: 0.5)
+      )
+      .shadow(color: .black.opacity(compact ? 0.05 : 0.1), radius: compact ? 4 : 8, y: compact ? 2 : 4)
+      .onTapGesture { isFullscreen = true }
+      .sheet(isPresented: $isFullscreen) {
+        ImagePreviewSheet(loaded: loaded)
+      }
+      .transition(.opacity.combined(with: .scale(scale: 0.95)))
+  }
+
+  private var placeholder: some View {
+    let size: CGFloat = compact ? 80 : 200
+    return RoundedRectangle(cornerRadius: compact ? 10 : 12, style: .continuous)
+      .fill(.fill.quaternary)
+      .frame(width: size, height: size)
+      .overlay {
+        if compact {
+          ProgressView().controlSize(.small)
+        } else {
+          VStack(spacing: 8) {
+            ProgressView()
+            Text("Loading…")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+        }
+      }
+  }
+
+  private func loadImage() {
+    let url = ChatImages.directory.appendingPathComponent(filename)
+    #if os(macOS)
+      guard let image = NSImage(contentsOf: url) else { return }
+      withAnimation(.easeOut(duration: 0.3)) {
+        loadedImage = LoadedImage(image: image)
+      }
+    #else
+      guard let image = UIImage(contentsOfFile: url.path) else { return }
+      withAnimation(.easeOut(duration: 0.3)) {
+        loadedImage = LoadedImage(image: image)
+      }
+    #endif
+  }
+}
+
+// MARK: - Platform Image Wrapper
+
+#if os(macOS)
+  private struct LoadedImage {
+    let image: NSImage
+  }
+#else
+  private struct LoadedImage {
+    let image: UIImage
+  }
+#endif
+
+// MARK: - Full-Screen Image Preview
+
+private struct ImagePreviewSheet: View {
+  let loaded: LoadedImage
+  @Environment(\.dismiss) private var dismiss
+
+  var body: some View {
+    NavigationStack {
+      #if os(macOS)
+        let img = Image(nsImage: loaded.image)
+      #else
+        let img = Image(uiImage: loaded.image)
+      #endif
+
+      img
+        .resizable()
+        .aspectRatio(contentMode: .fit)
+        .padding()
+        .frame(minWidth: 400, minHeight: 400)
+        .navigationTitle("Image Preview")
+        .toolbarTitleDisplayMode(.inline)
+        .toolbar {
+          ToolbarItem(placement: .confirmationAction) {
+            Button("Done") { dismiss() }
+          }
+        }
     }
   }
 }

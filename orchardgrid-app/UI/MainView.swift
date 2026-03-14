@@ -76,21 +76,13 @@ struct MainView: View {
 
   private var splitView: some View {
     @Bindable var navState = navigationState
+    let selection = Binding<NavigationItem?>(
+      get: { navState.selectedItem },
+      set: { if let item = $0 { navState.selectedItem = item } }
+    )
     return NavigationSplitView(columnVisibility: $columnVisibility) {
-      List {
-        ForEach(NavigationItem.allCases) { item in
-          Button {
-            navState.selectedItem = item
-          } label: {
-            Label(item.title, systemImage: item.icon)
-          }
-          .buttonStyle(.plain)
-          .listRowBackground(
-            navState.selectedItem == item
-              ? Color.accentColor.opacity(0.2)
-              : Color.clear
-          )
-        }
+      List(NavigationItem.allCases, id: \.self, selection: selection) { item in
+        Label(item.title, systemImage: item.icon)
       }
       .navigationTitle("OrchardGrid")
       .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 300)

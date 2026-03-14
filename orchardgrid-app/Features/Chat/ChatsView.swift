@@ -68,10 +68,12 @@ struct ChatsView: View {
   // MARK: - Conversation List
 
   private var conversationList: some View {
-    VStack(alignment: .leading, spacing: Constants.summaryCardSpacing) {
+    VStack(alignment: .leading, spacing: 8) {
       Text("History")
-        .font(.headline)
-        .foregroundStyle(.secondary)
+        .font(.subheadline)
+        .fontWeight(.medium)
+        .foregroundStyle(.tertiary)
+        .padding(.leading, 4)
 
       ForEach(chatManager.conversations) { conversation in
         Button {
@@ -95,14 +97,13 @@ struct ChatsView: View {
   // MARK: - Empty State
 
   private var emptyState: some View {
-    VStack(spacing: 16) {
-      Image(systemName: "bubble.left.and.bubble.right")
-        .font(.system(size: 48))
+    VStack(spacing: 12) {
+      Image(systemName: "apple.intelligence")
+        .font(.system(size: 36))
         .foregroundStyle(.secondary)
 
       Text("No Conversations")
-        .font(.title2)
-        .fontWeight(.semibold)
+        .font(.headline)
 
       Text("Start a new chat with Apple Intelligence")
         .font(.subheadline)
@@ -112,15 +113,16 @@ struct ChatsView: View {
         let conv = chatManager.createConversation()
         selectedConversationId = conv.id
       } label: {
-        Text("New Chat")
-          .font(.headline)
-          .padding(.horizontal, 24)
-          .padding(.vertical, 12)
+        Label("New Chat", systemImage: "plus")
+          .font(.subheadline.weight(.medium))
+          .padding(.horizontal, 20)
+          .padding(.vertical, 10)
       }
       .buttonStyle(.borderedProminent)
+      .padding(.top, 4)
     }
     .frame(maxWidth: .infinity)
-    .padding(.vertical, 60)
+    .padding(.vertical, 48)
   }
 }
 
@@ -130,37 +132,38 @@ private struct ConversationCard: View {
   let conversation: Conversation
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      HStack {
+    HStack(spacing: 12) {
+      VStack(alignment: .leading, spacing: 2) {
         Text(conversation.title)
-          .font(.headline)
+          .font(.subheadline)
+          .fontWeight(.medium)
           .lineLimit(1)
-
-        Spacer()
 
         Text(conversation.updatedAt, format: .relative(presentation: .named))
           .font(.caption)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(.tertiary)
       }
 
-      if !conversation.lastMessagePreview.isEmpty {
-        Text(conversation.lastMessagePreview)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-          .lineLimit(2)
-      }
+      Spacer()
 
       HStack(spacing: 4) {
         Image(systemName: "bubble.left.fill")
           .font(.caption2)
         Text("\(conversation.messages.count)")
           .font(.caption)
+          .monospacedDigit()
       }
-      .foregroundStyle(.tertiary)
+      .foregroundStyle(.secondary)
+
+      Image(systemName: "chevron.right")
+        .font(.caption2)
+        .fontWeight(.semibold)
+        .foregroundStyle(.quaternary)
     }
-    .padding(12)
+    .padding(.horizontal, 12)
+    .padding(.vertical, 10)
     .frame(maxWidth: .infinity, alignment: .leading)
-    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
+    .glassEffect(in: .rect(cornerRadius: 10, style: .continuous))
   }
 }
 

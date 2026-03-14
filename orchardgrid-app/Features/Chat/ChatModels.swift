@@ -5,6 +5,25 @@
 
 import Foundation
 
+// MARK: - Shared Image Storage
+
+enum ChatImages {
+  static var directory: URL {
+    FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+      .appendingPathComponent("chat-images")
+  }
+
+  static func fileExtension(for data: Data) -> String {
+    guard data.count >= 2 else { return "dat" }
+    switch (data[0], data[1]) {
+    case (0x89, 0x50): return "png"
+    case (0xFF, 0xD8): return "jpg"
+    case (0x47, 0x49): return "gif"
+    default: return "img"
+    }
+  }
+}
+
 // MARK: - Message
 
 enum MessageRole: String, Codable, Sendable {
@@ -16,14 +35,18 @@ struct Message: Identifiable, Codable, Sendable {
   let id: UUID
   let role: MessageRole
   let content: String
+  let imageFilenames: [String]
   let timestamp: Date
 
-  init(role: MessageRole, content: String) {
+  init(role: MessageRole, content: String, imageFilenames: [String] = []) {
     id = UUID()
     self.role = role
     self.content = content
+    self.imageFilenames = imageFilenames
     timestamp = Date()
   }
+
+  var hasImages: Bool { !imageFilenames.isEmpty }
 }
 
 // MARK: - Conversation
@@ -43,17 +66,15 @@ struct Conversation: Identifiable, Codable, Sendable {
     updatedAt = Date()
   }
 
-  var lastMessagePreview: String {
-    messages.last?.content ?? ""
+  var needsTitleGeneration: Bool {
+    title == "New Chat" && messages.contains(where: { $0.role == .assistant })
   }
 
-  /// Auto-generate title from first user message
-  mutating func updateTitleIfNeeded() {
-    guard title == "New Chat",
-          let first = messages.first(where: { $0.role == .user })
-    else { return }
-
-    let trimmed = first.content.trimmingCharacters(in: .whitespacesAndNewlines)
-    title = trimmed.count > 30 ? String(trimmed.prefix(30)) + "…" : trimmed
+  var titleSnippet: String {
+    messages
+      .filter { $0.role == .user || $0.role == .assistant }
+      .prefix(4)
+      .map { "\($0.role.rawValue): \(String($0.content.prefix(200)))" }
+      .joined(separator: "\n")
   }
 }

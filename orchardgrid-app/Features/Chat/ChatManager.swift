@@ -12,10 +12,17 @@ final class ChatManager {
   private var responseTask: Task<Void, Never>?
   private var sessions: [UUID: LanguageModelSession] = [:]
   private let model = SystemLanguageModel.default
+  private let imageCollector = ImageCollector()
 
   private static let systemPrompt = """
     You are a helpful, friendly AI assistant powered by Apple Intelligence. \
-    Be concise, clear, and informative in your responses.
+    Be concise, clear, and informative in your responses. \
+    You can generate images when asked using the generateImage tool.
+    """
+
+  private static let titlePrompt = """
+    Generate a concise title (max 6 words) for this conversation. \
+    Reply with ONLY the title, no quotes, no line breaks.
     """
 
   var modelAvailability: SystemLanguageModel.Availability {
@@ -42,12 +49,16 @@ final class ChatManager {
   }
 
   func deleteConversation(id: UUID) {
+    if let conv = conversations.first(where: { $0.id == id }) {
+      cleanupImages(in: conv)
+    }
     conversations.removeAll { $0.id == id }
     sessions.removeValue(forKey: id)
     save()
   }
 
   func clearAllConversations() {
+    try? FileManager.default.removeItem(at: ChatImages.directory)
     conversations.removeAll()
     sessions.removeAll()
     save()
@@ -59,14 +70,13 @@ final class ChatManager {
 
   // MARK: - Messaging
 
-  func sendMessage(_ content: String, in conversationId: UUID) {
+  func sendMessage(_ content: String, imageFilenames: [String] = [], in conversationId: UUID) {
     guard let index = conversations.firstIndex(where: { $0.id == conversationId }),
           !isResponding, isModelAvailable
     else { return }
 
-    let userMessage = Message(role: .user, content: content)
+    let userMessage = Message(role: .user, content: content, imageFilenames: imageFilenames)
     conversations[index].messages.append(userMessage)
-    conversations[index].updateTitleIfNeeded()
     conversations[index].updatedAt = Date()
     save()
 
@@ -82,6 +92,11 @@ final class ChatManager {
         responseTask = nil
       }
 
+      if let refFilename = imageFilenames.first {
+        let refURL = ChatImages.directory.appendingPathComponent(refFilename)
+        await imageCollector.setReferenceImage(refURL)
+      }
+
       do {
         let session = getOrCreateSession(for: conversationId)
         let stream = session.streamResponse(to: content)
@@ -93,16 +108,20 @@ final class ChatManager {
           streamingText = fullContent
         }
 
-        appendAssistantMessage(fullContent, to: conversationId)
+        let images = await imageCollector.flush()
+        appendAssistantMessage(fullContent, imageFilenames: images, to: conversationId)
       } catch is CancellationError {
         let partial = streamingText
-        if !partial.isEmpty {
-          appendAssistantMessage(partial, to: conversationId)
+        let images = await imageCollector.flush()
+        if !partial.isEmpty || !images.isEmpty {
+          appendAssistantMessage(partial, imageFilenames: images, to: conversationId)
         }
       } catch {
         Logger.error(.app, "Chat error: \(error.localizedDescription)")
+        let images = await imageCollector.flush()
         appendAssistantMessage(
           "Sorry, an error occurred: \(error.localizedDescription)",
+          imageFilenames: images,
           to: conversationId
         )
       }
@@ -113,12 +132,61 @@ final class ChatManager {
     responseTask?.cancel()
   }
 
-  private func appendAssistantMessage(_ content: String, to conversationId: UUID) {
+  private func appendAssistantMessage(
+    _ content: String,
+    imageFilenames: [String] = [],
+    to conversationId: UUID
+  ) {
     guard let idx = conversations.firstIndex(where: { $0.id == conversationId }) else { return }
-    let message = Message(role: .assistant, content: content)
+    let message = Message(role: .assistant, content: content, imageFilenames: imageFilenames)
     conversations[idx].messages.append(message)
     conversations[idx].updatedAt = Date()
     moveToTop(conversationId)
+    save()
+
+    if conversations[idx].needsTitleGeneration {
+      Task { await generateTitle(for: conversationId) }
+    }
+  }
+
+  // MARK: - Title Generation
+
+  private func generateTitle(for conversationId: UUID) async {
+    guard let idx = conversations.firstIndex(where: { $0.id == conversationId }),
+          conversations[idx].needsTitleGeneration
+    else { return }
+
+    let snippet = conversations[idx].titleSnippet
+    guard !snippet.isEmpty else { return }
+
+    do {
+      let session = LanguageModelSession(instructions: Self.titlePrompt)
+      let response = try await session.respond(to: snippet)
+      let title = response.content
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+        .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+
+      guard !title.isEmpty,
+            let current = conversations.firstIndex(where: { $0.id == conversationId }),
+            conversations[current].needsTitleGeneration
+      else { return }
+
+      conversations[current].title = title
+      save()
+    } catch {
+      Logger.error(.app, "Title generation failed: \(error.localizedDescription)")
+      fallbackTitle(for: conversationId)
+    }
+  }
+
+  private func fallbackTitle(for conversationId: UUID) {
+    guard let idx = conversations.firstIndex(where: { $0.id == conversationId }),
+          conversations[idx].title == "New Chat",
+          let first = conversations[idx].messages.first(where: { $0.role == .user })
+    else { return }
+
+    let trimmed = first.content.trimmingCharacters(in: .whitespacesAndNewlines)
+    conversations[idx].title = trimmed.count > 30 ? String(trimmed.prefix(30)) + "…" : trimmed
     save()
   }
 
@@ -129,24 +197,29 @@ final class ChatManager {
       return session
     }
 
+    let tool = ImageGenerationTool(collector: imageCollector)
     let session: LanguageModelSession
 
     if let conversation = conversation(for: conversationId), !conversation.messages.isEmpty {
-      let chatMessages = conversation.messages.map {
-        ChatMessage(role: $0.role.rawValue, content: $0.content)
-      }
-      let transcript = LLMProcessor.buildTranscript(
-        messages: chatMessages,
-        systemPrompt: Self.systemPrompt
-      )
-      session = LanguageModelSession(transcript: transcript)
+      let history = conversation.messages.prefix(20)
+        .map { "\($0.role == .user ? "User" : "Assistant"): \(String($0.content.prefix(500)))" }
+        .joined(separator: "\n")
+      let instructions = """
+        \(Self.systemPrompt)
+
+        Previous conversation:
+        \(history)
+        """
+      session = LanguageModelSession(tools: [tool], instructions: instructions)
     } else {
-      session = LanguageModelSession(instructions: Self.systemPrompt)
+      session = LanguageModelSession(tools: [tool], instructions: Self.systemPrompt)
     }
 
     sessions[conversationId] = session
     return session
   }
+
+  // MARK: - Private Helpers
 
   private func moveToTop(_ conversationId: UUID) {
     guard let index = conversations.firstIndex(where: { $0.id == conversationId }),
@@ -154,6 +227,13 @@ final class ChatManager {
     else { return }
     let conversation = conversations.remove(at: index)
     conversations.insert(conversation, at: 0)
+  }
+
+  private func cleanupImages(in conversation: Conversation) {
+    let dir = ChatImages.directory
+    for filename in conversation.messages.flatMap(\.imageFilenames) {
+      try? FileManager.default.removeItem(at: dir.appendingPathComponent(filename))
+    }
   }
 
   // MARK: - Persistence
