@@ -38,6 +38,26 @@ enum TranslationProcessor {
       detectedLanguage = detected.rawValue
     }
 
+    let availability = LanguageAvailability()
+    let status = try await availability.status(from: source, to: target)
+
+    switch status {
+    case .installed:
+      break
+    case .supported:
+      throw TranslationProcessorError.languageNotInstalled(
+        from: source.languageCode?.identifier ?? "?",
+        to: target.languageCode?.identifier ?? "?"
+      )
+    case .unsupported:
+      throw TranslationProcessorError.unsupportedPair(
+        from: source.languageCode?.identifier ?? "?",
+        to: target.languageCode?.identifier ?? "?"
+      )
+    @unknown default:
+      break
+    }
+
     let session = TranslationSession(installedSource: source, target: target)
 
     let requests = req.text.enumerated().map { idx, text in
@@ -59,10 +79,17 @@ enum TranslationProcessor {
 
 enum TranslationProcessorError: LocalizedError {
   case languageNotDetected
+  case languageNotInstalled(from: String, to: String)
+  case unsupportedPair(from: String, to: String)
 
   var errorDescription: String? {
     switch self {
-    case .languageNotDetected: "Could not detect the source language"
+    case .languageNotDetected:
+      "Could not detect the source language"
+    case let .languageNotInstalled(from, to):
+      "Translation \(from) → \(to) requires language download. Install via System Settings → General → Language & Region → Translation Languages."
+    case let .unsupportedPair(from, to):
+      "Translation \(from) → \(to) is not supported by this device"
     }
   }
 }
