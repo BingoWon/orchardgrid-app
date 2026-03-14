@@ -65,7 +65,7 @@ private final class SoundResultObserver: NSObject, SNResultsObserving, Sendable 
   func request(_: SNRequest, didProduce result: SNResult) {
     guard let classification = result as? SNClassificationResult else { return }
     _results.withLock { dict in
-      for item in classification.classifications where item.confidence > 0.05 {
+      for item in classification.classifications where item.confidence > 0.01 {
         dict[item.identifier] = max(dict[item.identifier] ?? 0, item.confidence)
       }
     }
