@@ -74,13 +74,13 @@ struct OrchardGridApp: App {
         }
       }
       .frame(minWidth: 375.0, minHeight: 375.0)
-      .onChange(of: clerk.user?.id) { oldId, newId in
-        if let newId {
-          Logger.log(.app, "Clerk user changed: \(newId)")
-          authManager.onUserIDChanged?(newId)
-          Task { await connectObserver() }
-        } else if oldId != nil {
-          Logger.log(.app, "Clerk user signed out")
+      .task(id: clerk.user?.id) {
+        guard clerk.isLoaded else { return }
+        if let userId = clerk.user?.id {
+          Logger.log(.app, "Auth sync: \(userId)")
+          authManager.onUserIDChanged?(userId)
+          connectObserver()
+        } else {
           authManager.onLogout?()
         }
       }
@@ -106,20 +106,14 @@ struct OrchardGridApp: App {
     }
   }
 
-  private func connectObserver() async {
-    guard let token = await authManager.getToken() else { return }
-    observerClient.connect(authToken: token)
-    setupObserverCallbacks()
-  }
-
-  private func setupObserverCallbacks() {
+  private func connectObserver() {
+    observerClient.connect(tokenProvider: { await authManager.getToken() })
     observerClient.onDevicesChanged = { [devicesManager, authManager] in
       Task {
         guard let token = await authManager.getToken() else { return }
         await devicesManager.fetchDevices(authToken: token, isManualRefresh: false)
       }
     }
-
     observerClient.onTasksChanged = { [logsManager, authManager] in
       Task {
         guard let token = await authManager.getToken() else { return }
@@ -163,9 +157,10 @@ struct OrchardGridApp: App {
     case .active:
       Logger.log(.app, "App became active")
       sharingManager.refreshAvailability()
+      sharingManager.reconnectCloudIfNeeded()
       backgroundManager.handleEnterForeground()
       if authManager.isAuthenticated, observerClient.status == .disconnected {
-        Task { await connectObserver() }
+        connectObserver()
       }
     case .inactive:
       Logger.log(.app, "App became inactive")

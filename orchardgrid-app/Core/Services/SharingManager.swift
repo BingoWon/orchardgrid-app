@@ -165,6 +165,13 @@ final class SharingManager {
     syncAllStates()
   }
 
+  func reconnectCloudIfNeeded() {
+    guard wantsCloudSharing, isModelAvailable,
+          !cloudService.isConnected, cloudService.connectionState == .disconnected
+    else { return }
+    cloudService.retry()
+  }
+
   // MARK: - State Sync
 
   private func syncAllStates() {

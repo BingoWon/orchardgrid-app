@@ -21,142 +21,71 @@
   <a href="https://orchardgrid.com/docs">
     <img src="https://img.shields.io/badge/API_Docs-Reference-4A90D9?style=for-the-badge" alt="API Docs" />
   </a>
-  <a href="LICENSE">
-    <img src="https://img.shields.io/badge/License-MIT-E4DFB8?style=for-the-badge" alt="MIT License" />
-  </a>
 </p>
 
 <p align="center">
-  <a href="README.zh-CN.md">中文文档</a>
+  <a href="README.md">English</a> · <a href="README.zh-CN.md">中文</a>
 </p>
 
 ---
 
-## Why OrchardGrid?
-
-Apple Intelligence runs exclusively on Apple's Neural Engine — it can't be deployed on traditional cloud servers. OrchardGrid bridges this gap by organizing Apple devices worldwide into a **unified, programmable AI compute pool**, exposing their capabilities through a standard API that any OpenAI-compatible client can call directly.
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         API Consumers                                   │
-│              (Any OpenAI SDK / curl / HTTP client)                       │
-└──────────────────────────────┬──────────────────────────────────────────┘
-                               │ HTTP (OpenAI-compatible)
-                               ▼
-               ┌───────────────────────────────┐
-               │     Cloudflare Workers         │
-               │  ┌──────────────────────────┐  │
-               │  │   Durable Object         │  │
-               │  │   (DevicePoolManager)    │  │
-               │  │                          │  │
-               │  │  • Task scheduling       │  │
-               │  │  • Round-robin + failover│  │
-               │  │  • Heartbeat monitoring  │  │
-               │  │  • Stream relay          │  │
-               │  └──────────────────────────┘  │
-               │         ▲          ▲           │
-               │   D1 (SQLite)   WebSocket      │
-               │         │     Hibernation      │
-               └─────────┼──────────┼───────────┘
-                         │          │
-              ┌──────────┘          └──────────────────┐
-              ▼                                        ▼
-   ┌─────────────────────┐                ┌─────────────────────┐
-   │   Apple Device A     │                │   Apple Device B     │
-   │   ┌───────────────┐  │                │   ┌───────────────┐  │
-   │   │ Local API      │  │                │   │ Local API      │  │
-   │   │ Server (:8888) │  │                │   │ Server (:8888) │  │
-   │   └───────┬───────┘  │                │   └───────┬───────┘  │
-   │           │           │                │           │           │
-   │   ┌───────▼───────┐  │                │   ┌───────▼───────┐  │
-   │   │  Capability    │  │                │   │  Capability    │  │
-   │   │  Processors    │  │                │   │  Processors    │  │
-   │   │               │  │                │   │               │  │
-   │   │ • Chat (LLM)  │  │                │   │ • Chat (LLM)  │  │
-   │   │ • Image Gen   │  │                │   │ • Image Gen   │  │
-   │   │ • NLP         │  │                │   │ • NLP         │  │
-   │   │ • Vision      │  │                │   │ • Vision      │  │
-   │   │ • Speech      │  │                │   │ • Speech      │  │
-   │   │ • Sound       │  │                │   │ • Sound       │  │
-   │   └───────────────┘  │                │   └───────────────┘  │
-   └─────────────────────┘                └─────────────────────┘
-```
-
-## Capabilities
-
-OrchardGrid exposes **six** Apple on-device AI capabilities through a unified API:
-
-| Capability | Framework | API Endpoint | Description |
-|------------|-----------|-------------|-------------|
-| **Chat** | FoundationModels | `POST /v1/chat/completions` | LLM text generation with streaming & structured output |
-| **Image** | ImagePlayground | `POST /v1/images/generations` | Text-to-image generation (illustration, sketch) |
-| **NLP** | NaturalLanguage | `POST /v1/nlp/analyze` | Language detection, NER, tokenization, embeddings |
-| **Vision** | Vision | `POST /v1/vision/analyze` | OCR, image classification, face & barcode detection |
-| **Speech** | Speech | `POST /v1/audio/transcriptions` | Speech-to-text in 50+ languages |
-| **Sound** | SoundAnalysis | `POST /v1/audio/classify` | Environmental sound classification (~300 categories) |
-
-Every capability is available both through the **local direct API** (on your LAN) and the **cloud relay** (from anywhere).
-
-## Key Features
-
-- **OpenAI-compatible** — Drop-in replacement for OpenAI SDK. No client-side changes needed.
-- **Dual access modes** — Direct local API on port 8888, or cloud relay via Cloudflare Workers.
-- **Streaming** — Server-Sent Events for real-time chat responses.
-- **Structured output** — Full JSON Schema support for deterministic response formatting.
-- **Per-capability toggles** — Enable or disable each capability individually from the app UI.
-- **Fault-tolerant device pool** — Round-robin scheduling with time-decayed failure avoidance across the device pool.
-- **Privacy-first** — All AI inference happens on-device. The cloud relay is a pure task router with zero data storage.
+Apple Intelligence runs exclusively on Apple's Neural Engine — it cannot be deployed on traditional cloud servers. OrchardGrid bridges this gap by organizing Apple devices worldwide into a **unified, programmable AI compute pool**, exposing their capabilities through a standard API that any OpenAI-compatible client can call directly.
 
 ## Architecture
 
-### Reverse Inference
+```mermaid
+flowchart LR
+    Client([Any OpenAI Client])
 
-Unlike traditional AI services where the server owns the GPU, OrchardGrid's server (Cloudflare Worker) has **zero compute**. It acts purely as a coordinator. The actual inference happens on user-owned Apple devices behind NATs and firewalls.
+    subgraph Cloud ["OrchardGrid Cloud (Cloudflare Workers)"]
+        direction TB
+        Auth[Auth & API Keys]
+        Pool[DevicePoolManager\nDurable Object]
+        DB[(D1 Database)]
+        Auth --> Pool
+        Pool <--> DB
+    end
 
-This "reverse inference" pattern requires **WebSocket** for the internal device-facing protocol — the server must push tasks to devices, and devices must stream results back, all through a single persistent connection. The external API-facing protocol remains standard **HTTP**, fully OpenAI-compatible.
+    subgraph Device ["Apple Devices (macOS / iOS)"]
+        direction TB
+        WS[WebSocket Client]
+        API["Local API Server\n:8888"]
+        Cap["Chat · Image · NLP\nVision · Speech · Sound"]
+        WS --> Cap
+        API --> Cap
+    end
 
-### Two-Layer Protocol Design
-
-| Layer | Protocol | Purpose |
-|-------|----------|---------|
-| External (API consumers) | HTTP REST + SSE | OpenAI-compatible API, transparent to clients |
-| Internal (Apple devices) | WebSocket | Persistent bidirectional connection for task dispatch, result relay, and heartbeat |
-
-### Native App Architecture
-
-```
-orchardgrid-app/
-├── App/                    # Entry point, lifecycle management
-├── Core/
-│   ├── Models/             # Shared types: Capability, Device, Task
-│   ├── Services/
-│   │   ├── APIServer        # Local HTTP server (NWListener, port 8888)
-│   │   ├── WebSocketClient  # Cloud connection, capability-based task dispatch
-│   │   ├── SharingManager   # Orchestrates local + cloud sharing, capability toggles
-│   │   ├── LLMProcessor     # FoundationModels integration
-│   │   ├── ImageProcessor   # ImagePlayground integration
-│   │   └── Processors/      # NLP, Vision, Speech, Sound processors
-│   └── Utilities/           # Config, logging, device info, network info
-├── Features/               # Feature modules (MVVM)
-│   ├── Auth/                # Clerk-based authentication
-│   ├── Chat/                # Built-in chat UI with markdown rendering
-│   ├── Devices/             # Device management, capability cards
-│   ├── APIKeys/             # API key management
-│   └── Logs/                # Task history viewer
-└── UI/                     # Shared components, navigation
+    Client -->|"HTTP / SSE"| Auth
+    Pool <-->|"WebSocket"| WS
+    Client -.->|"Direct LAN"| API
 ```
 
-### Cloud Worker Architecture
+**Reverse inference:** Unlike traditional AI services where the server owns the GPU, OrchardGrid's server has zero compute — it acts purely as a task coordinator. The actual inference runs on user-owned Apple devices behind NATs and firewalls. The server pushes tasks to devices via **WebSocket**, while the external API remains standard **HTTP**, fully OpenAI-compatible.
 
-The backend runs on Cloudflare Workers with a **Durable Object** (DevicePoolManager) as the stateful coordination hub:
+## 🧠 Capabilities
 
-- **Task scheduling** — Capability-aware round-robin device selection
-- **Failure recovery** — Time-decayed failure counts with fallback selection
-- **Stream relay** — Real-time SSE relay between WebSocket and HTTP
-- **WebSocket Hibernation** — Near-zero cost for idle device connections
-- **D1 database** — Device registry, task history, API key management
+| Capability | Apple Framework | API Endpoint | Description |
+|:----------:|-----------------|--------------|-------------|
+| **Chat** | FoundationModels | `/v1/chat/completions` | LLM text generation with streaming & structured output |
+| **Image** | ImagePlayground | `/v1/images/generations` | Text-to-image (illustration, sketch) |
+| **NLP** | NaturalLanguage | `/v1/nlp/analyze` | Language detection, NER, tokenization, embeddings |
+| **Vision** | Vision | `/v1/vision/analyze` | OCR, image classification, face & barcode detection |
+| **Speech** | Speech | `/v1/audio/transcriptions` | Speech-to-text in 50+ languages |
+| **Sound** | SoundAnalysis | `/v1/audio/classify` | Environmental sound classification (~300 categories) |
 
-## Requirements
+Every capability is accessible both through the **local direct API** (on your LAN) and the **cloud relay** (from anywhere).
+
+## ✨ Features
+
+- **OpenAI-compatible** — drop-in replacement for any OpenAI SDK, zero client-side changes
+- **Dual access** — local API on your LAN, or cloud relay via Cloudflare Workers from anywhere
+- **Streaming** — real-time Server-Sent Events for chat responses
+- **Structured output** — full JSON Schema support for deterministic formatting
+- **Per-capability toggles** — enable or disable each capability individually
+- **Fault-tolerant device pool** — round-robin scheduling with time-decayed failure avoidance
+- **Privacy-first** — all inference on-device; the cloud relay is a pure router with zero data storage
+
+## 📋 Requirements
 
 | | Minimum |
 |---|---------|
@@ -164,9 +93,9 @@ The backend runs on Cloudflare Workers with a **Durable Object** (DevicePoolMana
 | **iOS / iPadOS** | 26.0+ |
 | **Chip** | Apple Silicon (M1+ / A17 Pro+) |
 | **Apple Intelligence** | Enabled with model downloaded |
-| **Xcode** | 26.0+ (for building from source) |
+| **Xcode** | 26.0+ (building from source) |
 
-## Getting Started
+## 🚀 Getting Started
 
 ### Install from App Store
 
@@ -176,94 +105,36 @@ The backend runs on Cloudflare Workers with a **Durable Object** (DevicePoolMana
 
 ### Build from Source
 
-```bash
-git clone https://github.com/BingoWon/orchardgrid-app.git
-cd orchardgrid-app
-open orchardgrid-app.xcodeproj
-# Build & Run (Cmd+R)
-```
-
-### Quick Test
-
-Once the app is running, the local API server starts automatically on port 8888:
-
-```bash
-# Chat completion
-curl http://localhost:8888/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"model":"apple-intelligence","messages":[{"role":"user","content":"Hello!"}]}'
-
-# List available models
-curl http://localhost:8888/v1/models
-```
+Clone the repo, open `orchardgrid-app.xcodeproj` in Xcode, and build. Requires Xcode 26.0+ with an Apple Silicon Mac.
 
 ### Cloud Sharing
 
 1. Sign in with your Apple account in the app
-2. Enable "Share to Cloud" — the device connects to OrchardGrid's relay via WebSocket
+2. Enable **Share to Cloud** — the device connects to OrchardGrid's relay via WebSocket
 3. Generate an API key from the [dashboard](https://orchardgrid.com/dashboard/api-keys)
-4. Use the cloud endpoint from anywhere:
+4. Use the cloud endpoint with any OpenAI-compatible client from anywhere
 
-```bash
-curl https://orchardgrid.com/v1/chat/completions \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"model":"apple-intelligence","messages":[{"role":"user","content":"Hello!"}]}'
-```
-
-## API Endpoints
-
-| Method | Endpoint | Capability |
-|--------|----------|------------|
-| `GET` | `/v1/models` | List available models |
-| `POST` | `/v1/chat/completions` | Chat (supports streaming) |
-| `POST` | `/v1/images/generations` | Image generation |
-| `POST` | `/v1/nlp/analyze` | NLP analysis |
-| `POST` | `/v1/vision/analyze` | Vision analysis |
-| `POST` | `/v1/audio/transcriptions` | Speech-to-text |
-| `POST` | `/v1/audio/classify` | Sound classification |
-
-Full interactive API reference: [orchardgrid.com/docs](https://orchardgrid.com/docs)
-
-## Tech Stack
+## 🛠 Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Language | Swift 6 with strict concurrency |
+| Language | Swift 6 · strict concurrency |
 | UI | SwiftUI |
-| Networking | Apple Network framework (NWListener / NWConnection) |
-| AI Frameworks | FoundationModels, ImagePlayground, NaturalLanguage, Vision, Speech, SoundAnalysis |
-| Cloud Backend | Cloudflare Workers + Durable Objects + D1 |
-| Auth | Clerk (Apple Sign-In, JWT) |
-| Frontend | React 19 + Vite + TailwindCSS |
+| Networking | Apple Network framework (NWListener) |
+| AI | FoundationModels · ImagePlayground · NaturalLanguage · Vision · Speech · SoundAnalysis |
+| Cloud Backend | Cloudflare Workers · Durable Objects · D1 |
+| Auth | Clerk (Apple Sign-In · JWT) |
 
-## Privacy
+## 🔒 Privacy
 
-- **On-device inference** — All AI processing runs locally on the Apple Neural Engine
-- **Zero data storage** — The cloud relay routes tasks without storing any content
-- **No telemetry** — No personal data or AI queries are collected
-- **Open source** — Full transparency, audit the code yourself
-
-## Related Repositories
-
-| Repository | Description |
-|------------|-------------|
-| [orchardgrid](https://github.com/BingoWon/orchardgrid) | Cloud worker, web dashboard, and landing page |
-| orchardgrid-app (this repo) | Native Apple app (macOS / iOS / iPadOS) |
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+- **On-device inference** — all AI processing runs locally on the Apple Neural Engine
+- **Zero data storage** — the cloud relay routes tasks without storing any content
+- **No telemetry** — no personal data or AI queries are collected
+- **Open source** — full transparency, audit the code yourself
 
 ## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+[BSL 1.1](LICENSE) — free to self-host and use. Commercial hosting as a competing service requires a separate license. Converts to Apache 2.0 after four years.
 
 ---
 

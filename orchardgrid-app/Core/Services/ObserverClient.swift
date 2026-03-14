@@ -91,17 +91,17 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
   private var connectionTask: Task<Void, Never>?
   private var pingTask: Task<Void, Never>?
   private var isConnectionLoopActive = false
-  private var authToken: String?
+  private var tokenProvider: (@Sendable () async -> String?)?
 
   // MARK: - Public API
 
-  func connect(authToken: String) {
-    self.authToken = authToken
+  func connect(tokenProvider: @escaping @Sendable () async -> String?) {
+    self.tokenProvider = tokenProvider
     startConnection()
   }
 
   func disconnect() {
-    authToken = nil
+    tokenProvider = nil
     stopConnection()
   }
 
@@ -116,7 +116,7 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
       var attempt = 0
       var delay: TimeInterval = 1
 
-      while !Task.isCancelled, authToken != nil {
+      while !Task.isCancelled, tokenProvider != nil {
         attempt += 1
         let success = await attemptConnect()
 
@@ -142,15 +142,24 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
   }
 
   private func attemptConnect() async -> Bool {
-    guard !Task.isCancelled, let authToken else { return false }
+    guard !Task.isCancelled, let tokenProvider else { return false }
 
-    let observeURL = "\(Config.webSocketBaseURL)/observe?token=\(authToken)"
+    guard let token = await tokenProvider() else {
+      Logger.error(.observer, "Token provider returned nil")
+      return false
+    }
 
-    guard let url = URL(string: observeURL),
-          let scheme = url.scheme,
-          scheme == "ws" || scheme == "wss"
+    guard var urlComponents = URLComponents(string: "\(Config.webSocketBaseURL)/observe"),
+          urlComponents.scheme == "ws" || urlComponents.scheme == "wss"
     else {
-      Logger.error(.observer, "Invalid observer URL: \(observeURL)")
+      Logger.error(.observer, "Invalid observer URL")
+      return false
+    }
+
+    urlComponents.queryItems = [URLQueryItem(name: "token", value: token)]
+
+    guard let url = urlComponents.url else {
+      Logger.error(.observer, "Failed to construct observer URL")
       return false
     }
 
@@ -219,7 +228,7 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
       Logger.log(.observer, "Closed (code: \(closeCode.rawValue))")
       status = .disconnected
       stopPing()
-      if authToken != nil {
+      if tokenProvider != nil {
         startConnection()
       }
     }
@@ -234,14 +243,12 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
       guard let error, task is URLSessionWebSocketTask else { return }
 
       let nsError = error as NSError
-      // Ignore cancelled errors - expected during cleanup
       if nsError.domain == NSURLErrorDomain, nsError.code == -999 { return }
 
       Logger.error(.observer, "Connection error: \(error.localizedDescription)")
       status = .disconnected
 
-      // Reconnect if connection loop is not already running
-      if authToken != nil, !isConnectionLoopActive {
+      if tokenProvider != nil, !isConnectionLoopActive {
         startConnection()
       }
     }
@@ -270,7 +277,7 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
           self.status = .disconnected
 
           // Reconnect if connection loop is not already running
-          if self.authToken != nil, !self.isConnectionLoopActive {
+          if self.tokenProvider != nil, !self.isConnectionLoopActive {
             self.startConnection()
           }
         }

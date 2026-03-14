@@ -1,5 +1,4 @@
 import Foundation
-@preconcurrency import FoundationModels
 import Network
 
 @Observable
@@ -98,7 +97,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     let newCaps = Set(handlers.keys)
 
     if oldCaps != newCaps, isConnected {
-      Logger.log(.websocket, "Capabilities changed, reconnecting...")
+      Logger.log(.websocket, "Capabilities changed, reconnecting")
       stopConnection()
       if isEnabled { startConnection() }
     }
@@ -136,6 +135,8 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
   // MARK: - Auth API
 
+  var hasAuth: Bool { tokenProvider != nil }
+
   func setAuth(tokenProvider: @escaping @Sendable () async -> String?) {
     self.tokenProvider = tokenProvider
     Logger.log(.websocket, "Auth configured")
@@ -143,7 +144,6 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     guard isEnabled else { return }
 
     if isConnected {
-      Logger.log(.websocket, "Reconnecting with new auth...")
       stopConnection()
     }
     startConnection()
@@ -153,9 +153,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     guard tokenProvider != nil else { return }
     Logger.log(.websocket, "Auth cleared")
     tokenProvider = nil
-
     guard isEnabled else { return }
-    Logger.log(.websocket, "Reconnecting anonymously...")
     stopConnection()
     startConnection()
   }
@@ -229,6 +227,8 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       return false
     }
 
+    let token = await tokenProvider?()
+
     var queryItems = [
       URLQueryItem(name: "hardware_id", value: hardwareID),
       URLQueryItem(name: "platform", value: platform),
@@ -238,8 +238,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       URLQueryItem(name: "memory_gb", value: String(format: "%.0f", DeviceInfo.totalMemoryGB)),
       URLQueryItem(name: "capabilities", value: activeCapabilityNames.joined(separator: ",")),
     ]
-
-    if let token = await tokenProvider?() {
+    if let token {
       queryItems.insert(URLQueryItem(name: "token", value: token), at: 0)
     }
 
