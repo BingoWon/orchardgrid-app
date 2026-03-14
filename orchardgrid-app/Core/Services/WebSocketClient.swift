@@ -100,9 +100,13 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
   func clearAuth() {
     guard tokenProvider != nil else { return }
-    Logger.log(.websocket, "Auth cleared — disconnecting")
+    Logger.log(.websocket, "Auth cleared")
     tokenProvider = nil
+
+    guard isEnabled else { return }
+    Logger.log(.websocket, "Reconnecting anonymously...")
     stopConnection()
+    startConnection()
   }
 
   func retry() {
@@ -115,11 +119,6 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   // MARK: - Connection Lifecycle
 
   private func startConnection() {
-    guard tokenProvider != nil else {
-      Logger.log(.websocket, "No auth — skipping connection")
-      return
-    }
-
     connectionTask?.cancel()
     connectionTask = Task { @MainActor in
       isConnectionLoopActive = true
@@ -180,14 +179,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       return false
     }
 
-    guard let token = await tokenProvider?() else {
-      connectionState = .failed("Authentication required")
-      Logger.error(.websocket, "Failed to obtain auth token")
-      return false
-    }
-
-    urlComponents.queryItems = [
-      URLQueryItem(name: "token", value: token),
+    var queryItems = [
       URLQueryItem(name: "hardware_id", value: hardwareID),
       URLQueryItem(name: "platform", value: platform),
       URLQueryItem(name: "os_version", value: osVersion),
@@ -196,6 +188,12 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       URLQueryItem(name: "memory_gb", value: String(format: "%.0f", DeviceInfo.totalMemoryGB)),
       URLQueryItem(name: "supports_image", value: ImageProcessor.isAvailable ? "true" : "false"),
     ]
+
+    if let token = await tokenProvider?() {
+      queryItems.insert(URLQueryItem(name: "token", value: token), at: 0)
+    }
+
+    urlComponents.queryItems = queryItems
 
     guard let url = urlComponents.url else {
       connectionState = .failed("Failed to construct URL")

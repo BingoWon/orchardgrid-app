@@ -84,7 +84,7 @@ struct LocalDeviceView: View {
         icon: "circle",
         iconColor: .secondary,
         title: "Disconnected",
-        subtitle: "Enable to start connecting"
+        subtitle: "Waiting for network..."
       )
 
     case .connecting:
