@@ -54,6 +54,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
   private let llmProcessor: LLMProcessor
   private var handlers: [String: @MainActor (Data) async throws -> Data] = [:]
+  private var enabledCapabilities: Set<Capability> = Set(Capability.allCases)
 
   var availableCapabilities: [String] {
     handlers.keys.sorted()
@@ -88,10 +89,27 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     networkMonitor.cancel()
   }
 
+  // MARK: - Capability Management
+
+  func updateEnabledCapabilities(_ caps: Set<Capability>) {
+    let oldKeys = Set(handlers.keys)
+    enabledCapabilities = caps
+    registerCapabilities()
+    let newKeys = Set(handlers.keys)
+
+    if oldKeys != newKeys, isConnected {
+      Logger.log(.websocket, "Capabilities changed, reconnecting...")
+      stopConnection()
+      if isEnabled { startConnection() }
+    }
+  }
+
   // MARK: - Capability Registration
 
   private func registerCapabilities() {
-    if llmProcessor.isAvailable {
+    handlers.removeAll()
+
+    if enabledCapabilities.contains(.chat), llmProcessor.isAvailable {
       handlers["chat"] = { [weak self] data in
         guard let self else { throw CapabilityError.unavailable }
         let req = try JSONDecoder().decode(ChatRequest.self, from: data)
@@ -101,7 +119,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       }
     }
 
-    if ImageProcessor.isAvailable {
+    if enabledCapabilities.contains(.image), ImageProcessor.isAvailable {
       handlers["image"] = { data in
         let req = try JSONDecoder().decode(ImageRequest.self, from: data)
         let images = try await ImageProcessor.generateImages(
@@ -115,23 +133,23 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       }
     }
 
-    if TranslationProcessor.isAvailable {
+    if enabledCapabilities.contains(.translate), TranslationProcessor.isAvailable {
       handlers["translate"] = { data in try await TranslationProcessor.handle(data) }
     }
 
-    if NLPProcessor.isAvailable {
+    if enabledCapabilities.contains(.nlp), NLPProcessor.isAvailable {
       handlers["nlp"] = { data in try await NLPProcessor.handle(data) }
     }
 
-    if VisionProcessor.isAvailable {
+    if enabledCapabilities.contains(.vision), VisionProcessor.isAvailable {
       handlers["vision"] = { data in try await VisionProcessor.handle(data) }
     }
 
-    if SpeechProcessor.isAvailable {
+    if enabledCapabilities.contains(.speech), SpeechProcessor.isAvailable {
       handlers["speech"] = { data in try await SpeechProcessor.handle(data) }
     }
 
-    if SoundProcessor.isAvailable {
+    if enabledCapabilities.contains(.sound), SoundProcessor.isAvailable {
       handlers["sound"] = { data in try await SoundProcessor.handle(data) }
     }
   }

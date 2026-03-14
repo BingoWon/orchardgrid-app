@@ -36,6 +36,8 @@ struct LocalDeviceView: View {
                 localShareCard
               }
             }
+
+            capabilitiesCard
           }
         }
         .padding()
@@ -210,6 +212,84 @@ struct LocalDeviceView: View {
     .padding()
     .frame(maxWidth: .infinity, alignment: .leading)
     .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
+  }
+  // MARK: - Shared Capabilities Card
+
+  private var capabilitiesCard: some View {
+    VStack(alignment: .leading, spacing: 16) {
+      HStack {
+        VStack(alignment: .leading, spacing: 4) {
+          Text("Shared Capabilities")
+            .font(.headline)
+          Text("Choose which AI features this device shares")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        Spacer()
+      }
+
+      Divider()
+
+      VStack(spacing: 0) {
+        ForEach(Capability.allCases, id: \.self) { capability in
+          CapabilityRow(
+            capability: capability,
+            isEnabled: sharing.isCapabilityEnabled(capability),
+            isAvailable: capability.isAvailableOnDevice
+          ) { enabled in
+            sharing.setCapabilityEnabled(capability, enabled: enabled)
+          }
+
+          if capability != Capability.allCases.last {
+            Divider()
+              .padding(.leading, 40)
+          }
+        }
+      }
+    }
+    .padding()
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
+  }
+}
+
+// MARK: - Capability Row
+
+private struct CapabilityRow: View {
+  let capability: Capability
+  let isEnabled: Bool
+  let isAvailable: Bool
+  let onToggle: (Bool) -> Void
+
+  var body: some View {
+    HStack(spacing: 12) {
+      Image(systemName: capability.icon)
+        .font(.body)
+        .foregroundStyle(isAvailable ? .primary : .tertiary)
+        .frame(width: 24)
+
+      Text(capability.displayName)
+        .font(.subheadline)
+        .fontWeight(.medium)
+        .foregroundStyle(isAvailable ? .primary : .tertiary)
+
+      Spacer()
+
+      if !isAvailable {
+        Text("Unavailable")
+          .font(.caption)
+          .foregroundStyle(.tertiary)
+      }
+
+      Toggle("", isOn: Binding(
+        get: { isEnabled && isAvailable },
+        set: { onToggle($0) }
+      ))
+      .toggleStyle(.switch)
+      .labelsHidden()
+      .disabled(!isAvailable)
+    }
+    .padding(.vertical, 8)
   }
 }
 

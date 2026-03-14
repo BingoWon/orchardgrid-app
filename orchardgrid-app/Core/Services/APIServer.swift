@@ -122,6 +122,17 @@ final class APIServer {
   private typealias Handler = @MainActor (Data) async throws -> Data
 
   private let capabilityRoutes: [String: Handler]
+  private var enabledCapabilities: Set<Capability> = Set(Capability.allCases)
+
+  private static let routeToCapability: [String: Capability] = [
+    "/v1/chat/completions": .chat,
+    "/v1/images/generations": .image,
+    "/v1/translations": .translate,
+    "/v1/nlp/analyze": .nlp,
+    "/v1/vision/analyze": .vision,
+    "/v1/audio/transcriptions": .speech,
+    "/v1/audio/classify": .sound,
+  ]
 
   // MARK: - Initialization
 
@@ -166,6 +177,12 @@ final class APIServer {
 
     capabilityRoutes = routes
     startNetworkMonitoring()
+  }
+
+  // MARK: - Capability Management
+
+  func updateEnabledCapabilities(_ caps: Set<Capability>) {
+    enabledCapabilities = caps
   }
 
   // MARK: - Server Lifecycle
@@ -282,6 +299,13 @@ final class APIServer {
   }
 
   private func processRequest(_ request: HTTPRequest, connection: NWConnection) async {
+    if let capability = Self.routeToCapability[request.path],
+       !enabledCapabilities.contains(capability)
+    {
+      await sendError(.serviceUnavailable, message: "\(capability.displayName) is disabled", to: connection)
+      return
+    }
+
     switch (request.method, request.path) {
     case ("GET", "/v1/models"):
       await sendModels(to: connection)
@@ -439,22 +463,20 @@ final class APIServer {
     var models: [ModelsResponse.Model] = []
     let now = Int(Date().timeIntervalSince1970)
 
-    if llmProcessor.isAvailable {
+    if enabledCapabilities.contains(.chat), llmProcessor.isAvailable {
       models.append(.init(id: "apple-intelligence", object: "model", created: now, ownedBy: "apple"))
     }
-    if ImageProcessor.isAvailable {
-      models.append(.init(id: "apple-intelligence-image", object: "model", created: now, ownedBy: "apple"))
-    }
 
-    let capabilities: [(String, Bool)] = [
-      ("translate", TranslationProcessor.isAvailable),
-      ("nlp", NLPProcessor.isAvailable),
-      ("vision", VisionProcessor.isAvailable),
-      ("speech", SpeechProcessor.isAvailable),
-      ("sound", SoundProcessor.isAvailable),
+    let capabilityModels: [(Capability, String, Bool)] = [
+      (.image, "image", ImageProcessor.isAvailable),
+      (.translate, "translate", TranslationProcessor.isAvailable),
+      (.nlp, "nlp", NLPProcessor.isAvailable),
+      (.vision, "vision", VisionProcessor.isAvailable),
+      (.speech, "speech", SpeechProcessor.isAvailable),
+      (.sound, "sound", SoundProcessor.isAvailable),
     ]
 
-    for (id, available) in capabilities where available {
+    for (cap, id, available) in capabilityModels where available && enabledCapabilities.contains(cap) {
       models.append(.init(id: "apple-intelligence-\(id)", object: "model", created: now, ownedBy: "apple"))
     }
 

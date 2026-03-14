@@ -4,6 +4,42 @@ import Foundation
 
 enum Capability: String, Codable, Sendable, CaseIterable {
   case chat, image, translate, nlp, vision, speech, sound
+
+  var displayName: String {
+    switch self {
+    case .chat: "Chat"
+    case .image: "Image Generation"
+    case .translate: "Translation"
+    case .nlp: "Text Analysis"
+    case .vision: "Vision"
+    case .speech: "Speech Recognition"
+    case .sound: "Sound Classification"
+    }
+  }
+
+  var icon: String {
+    switch self {
+    case .chat: "bubble.left.and.text.bubble.right"
+    case .image: "photo.artframe"
+    case .translate: "character.book.closed"
+    case .nlp: "text.magnifyingglass"
+    case .vision: "eye"
+    case .speech: "waveform"
+    case .sound: "speaker.wave.3"
+    }
+  }
+
+  var isAvailableOnDevice: Bool {
+    switch self {
+    case .chat: LLMProcessor.checkAvailability()
+    case .image: ImageProcessor.isAvailable
+    case .translate: TranslationProcessor.isAvailable
+    case .nlp: NLPProcessor.isAvailable
+    case .vision: VisionProcessor.isAvailable
+    case .speech: SpeechProcessor.isAvailable
+    case .sound: SoundProcessor.isAvailable
+    }
+  }
 }
 
 // MARK: - JSON Schema Types

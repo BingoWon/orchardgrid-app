@@ -1,4 +1,5 @@
 import ClerkKit
+import Speech
 import SwiftUI
 
 #if os(macOS)
@@ -92,6 +93,7 @@ struct OrchardGridApp: App {
       }
       .task {
         setupTerminationHandler()
+        await requestPermissions()
       }
     }
     #if os(macOS)
@@ -124,6 +126,11 @@ struct OrchardGridApp: App {
         await logsManager.reload(authToken: token, isManualRefresh: false)
       }
     }
+  }
+
+  private func requestPermissions() async {
+    let speechGranted = await SpeechProcessor.requestPermissionIfNeeded()
+    Logger.log(.app, "Speech recognition permission: \(speechGranted ? "granted" : "denied")")
   }
 
   private func setupTerminationHandler() {

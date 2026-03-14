@@ -33,6 +33,7 @@ final class SharingManager {
   private enum Keys {
     static let cloud = "SharingManager.cloudEnabled"
     static let local = "SharingManager.localEnabled"
+    static let enabledCapabilities = "SharingManager.enabledCapabilities"
   }
 
   private(set) var wantsCloudSharing: Bool {
@@ -48,6 +49,14 @@ final class SharingManager {
       guard oldValue != wantsLocalSharing else { return }
       UserDefaults.standard.set(wantsLocalSharing, forKey: Keys.local)
       syncLocalState()
+    }
+  }
+
+  private(set) var enabledCapabilities: Set<Capability> {
+    didSet {
+      guard oldValue != enabledCapabilities else { return }
+      UserDefaults.standard.set(enabledCapabilities.map(\.rawValue), forKey: Keys.enabledCapabilities)
+      syncCapabilities()
     }
   }
 
@@ -68,6 +77,12 @@ final class SharingManager {
     let wantsCloud = UserDefaults.standard.bool(forKey: Keys.cloud)
     let wantsLocal = UserDefaults.standard.bool(forKey: Keys.local)
 
+    if let saved = UserDefaults.standard.stringArray(forKey: Keys.enabledCapabilities) {
+      enabledCapabilities = Set(saved.compactMap { Capability(rawValue: $0) })
+    } else {
+      enabledCapabilities = Set(Capability.allCases)
+    }
+
     wantsCloudSharing = wantsCloud
     wantsLocalSharing = wantsLocal
 
@@ -85,6 +100,18 @@ final class SharingManager {
 
   func setLocalSharing(_ enabled: Bool) {
     wantsLocalSharing = enabled
+  }
+
+  func setCapabilityEnabled(_ capability: Capability, enabled: Bool) {
+    if enabled {
+      enabledCapabilities.insert(capability)
+    } else {
+      enabledCapabilities.remove(capability)
+    }
+  }
+
+  func isCapabilityEnabled(_ capability: Capability) -> Bool {
+    enabledCapabilities.contains(capability)
   }
 
   func retryCloudConnection() {
@@ -106,8 +133,14 @@ final class SharingManager {
   // MARK: - State Sync
 
   private func syncAllStates() {
+    syncCapabilities()
     syncCloudState()
     syncLocalState()
+  }
+
+  private func syncCapabilities() {
+    cloudService.updateEnabledCapabilities(enabledCapabilities)
+    localService.updateEnabledCapabilities(enabledCapabilities)
   }
 
   private func syncCloudState() {
