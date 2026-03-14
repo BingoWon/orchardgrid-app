@@ -49,5 +49,5 @@ enum Config {
   // MARK: - Local API Server
 
   static let apiServerPort: UInt16 = 8888
-  static let maxRequestSize = 65536
+  static let maxRequestSize = 10_485_760
 }

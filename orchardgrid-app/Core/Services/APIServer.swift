@@ -248,16 +248,35 @@ final class APIServer {
   }
 
   private func receiveRequest(from connection: NWConnection) async -> String? {
-    await withCheckedContinuation { continuation in
-      connection.receive(
-        minimumIncompleteLength: 1,
-        maximumLength: Config.maxRequestSize
-      ) { data, _, _, _ in
-        if let data, let request = String(data: data, encoding: .utf8) {
-          continuation.resume(returning: request)
+    var buffer = Data()
+
+    while buffer.count < Config.maxRequestSize {
+      let (chunk, isComplete) = await receiveChunk(from: connection)
+      if let chunk { buffer.append(chunk) }
+      if isComplete || chunk == nil { break }
+
+      if let headerEnd = buffer.range(of: Data("\r\n\r\n".utf8)) {
+        let headers = String(data: buffer[..<headerEnd.lowerBound], encoding: .utf8) ?? ""
+        let bodyStart = buffer.distance(from: buffer.startIndex, to: headerEnd.upperBound)
+
+        if let line = headers.lowercased().split(separator: "\r\n")
+          .first(where: { $0.hasPrefix("content-length:") }),
+          let cl = Int(line.split(separator: ":").last?.trimmingCharacters(in: .whitespaces) ?? "")
+        {
+          if buffer.count - bodyStart >= cl { break }
         } else {
-          continuation.resume(returning: nil)
+          break
         }
+      }
+    }
+
+    return buffer.isEmpty ? nil : String(data: buffer, encoding: .utf8)
+  }
+
+  private func receiveChunk(from connection: NWConnection) async -> (Data?, Bool) {
+    await withCheckedContinuation { continuation in
+      connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, isComplete, _ in
+        continuation.resume(returning: (data, isComplete))
       }
     }
   }
