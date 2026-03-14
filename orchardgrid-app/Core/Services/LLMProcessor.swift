@@ -14,11 +14,6 @@ final class LLMProcessor {
     return false
   }
 
-  static func checkAvailability() -> Bool {
-    if case .available = SystemLanguageModel.default.availability { return true }
-    return false
-  }
-
   /// Unified request handler — pass `onChunk` for streaming, omit for single response.
   func processRequest(
     messages: [ChatMessage],

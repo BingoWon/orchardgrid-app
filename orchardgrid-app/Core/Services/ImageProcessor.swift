@@ -57,6 +57,18 @@ enum ImageProcessor {
     ImagePlaygroundViewController.isAvailable
   }
 
+  // MARK: - Unified Handler
+
+  static func handle(_ data: Data) async throws -> Data {
+    let req = try JSONDecoder().decode(ImageRequest.self, from: data)
+    let images = try await generateImages(prompt: req.prompt, style: req.style, count: req.n ?? 1)
+    let resp = ImageResponse(
+      created: Int(Date().timeIntervalSince1970),
+      data: images.map { .init(b64_json: $0.base64EncodedString()) }
+    )
+    return try JSONEncoder().encode(resp)
+  }
+
   // MARK: - Public API
 
   /// Generate images from a text prompt.

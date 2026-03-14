@@ -1,5 +1,6 @@
-@preconcurrency import FoundationModels
 import Foundation
+import NaturalLanguage
+import Translation
 
 enum TranslationProcessor {
   struct Request: Codable, Sendable {
@@ -9,36 +10,59 @@ enum TranslationProcessor {
   }
 
   struct Response: Codable, Sendable {
-    let translations: [Translation]
+    let translations: [TranslatedText]
+    let detected_language: String?
 
-    struct Translation: Codable, Sendable {
+    struct TranslatedText: Codable, Sendable {
       let text: String
     }
   }
 
-  static var isAvailable: Bool {
-    if case .available = SystemLanguageModel.default.availability { return true }
-    return false
-  }
+  static var isAvailable: Bool { true }
 
-  @MainActor
   static func handle(_ data: Data) async throws -> Data {
     let req = try JSONDecoder().decode(Request.self, from: data)
+    let target = Locale.Language(identifier: req.target_language)
 
-    let sourceLang = req.source_language.map { " from \($0)" } ?? ""
-    let instructions = """
-    You are a professional translator. Translate\(sourceLang) to \(req.target_language). \
-    Output ONLY the translated text, preserving the original formatting. No explanations.
-    """
+    let source: Locale.Language
+    var detectedLanguage: String?
 
-    let session = LanguageModelSession(instructions: instructions)
-
-    var translations: [Response.Translation] = []
-    for text in req.text {
-      let result = try await session.respond(to: text)
-      translations.append(.init(text: result.content))
+    if let sourceId = req.source_language {
+      source = Locale.Language(identifier: sourceId)
+    } else {
+      let combined = req.text.joined(separator: " ")
+      guard let detected = NLLanguageRecognizer.dominantLanguage(for: combined) else {
+        throw TranslationProcessorError.languageNotDetected
+      }
+      source = Locale.Language(identifier: detected.rawValue)
+      detectedLanguage = detected.rawValue
     }
 
-    return try JSONEncoder().encode(Response(translations: translations))
+    let session = TranslationSession(installedSource: source, target: target)
+
+    let requests = req.text.enumerated().map { idx, text in
+      TranslationSession.Request(sourceText: text, clientIdentifier: "\(idx)")
+    }
+
+    let responses = try await session.translations(from: requests)
+
+    let translations = responses.map { resp in
+      Response.TranslatedText(text: resp.targetText)
+    }
+
+    return try JSONEncoder().encode(Response(
+      translations: translations,
+      detected_language: detectedLanguage
+    ))
+  }
+}
+
+enum TranslationProcessorError: LocalizedError {
+  case languageNotDetected
+
+  var errorDescription: String? {
+    switch self {
+    case .languageNotDetected: "Could not detect the source language"
+    }
   }
 }

@@ -235,7 +235,7 @@ struct LocalDeviceView: View {
           CapabilityRow(
             capability: capability,
             isEnabled: sharing.isCapabilityEnabled(capability),
-            isAvailable: capability.isAvailableOnDevice
+            isAvailable: sharing.isCapabilityAvailable(capability)
           ) { enabled in
             sharing.setCapabilityEnabled(capability, enabled: enabled)
           }

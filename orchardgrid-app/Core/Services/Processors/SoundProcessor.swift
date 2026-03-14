@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 import SoundAnalysis
+import Synchronization
 
 enum SoundProcessor {
   struct Request: Codable, Sendable {
@@ -36,7 +37,6 @@ enum SoundProcessor {
 
     try analyzer.add(classifyRequest, withObserver: observer)
     await analyzer.analyze()
-    await observer.waitForCompletion()
 
     let asset = AVURLAsset(url: tempURL)
     let duration = try await asset.load(.duration).seconds
@@ -49,61 +49,27 @@ enum SoundProcessor {
   }
 }
 
-private final class SoundResultObserver: NSObject, SNResultsObserving, Sendable {
-  private let continuation: AsyncStream<[SoundProcessor.Classification]>.Continuation
-  private let stream: AsyncStream<[SoundProcessor.Classification]>
-  private let _results = LockedValue<[String: Double]>([:])
-  private let _finished = LockedValue<Bool>(false)
-
-  override init() {
-    var cont: AsyncStream<[SoundProcessor.Classification]>.Continuation!
-    stream = AsyncStream { cont = $0 }
-    continuation = cont
-    super.init()
-  }
+private final class SoundResultObserver: NSObject, SNResultsObserving, @unchecked Sendable {
+  private let results = Mutex<[String: Double]>([:])
 
   func request(_: SNRequest, didProduce result: SNResult) {
     guard let classification = result as? SNClassificationResult else { return }
-    _results.withLock { dict in
+    results.withLock { dict in
       for item in classification.classifications where item.confidence > 0.01 {
         dict[item.identifier] = max(dict[item.identifier] ?? 0, item.confidence)
       }
     }
   }
 
-  func request(_: SNRequest, didFailWithError _: Error) {
-    _finished.withLock { $0 = true }
-    continuation.finish()
-  }
-
-  func requestDidComplete(_: SNRequest) {
-    _finished.withLock { $0 = true }
-    continuation.finish()
-  }
-
-  func waitForCompletion() async {
-    for await _ in stream {}
-  }
+  func request(_: SNRequest, didFailWithError _: Error) {}
+  func requestDidComplete(_: SNRequest) {}
 
   func topResults(limit: Int) -> [SoundProcessor.Classification] {
-    _results.withLock { dict in
+    results.withLock { dict in
       dict.sorted { $0.value > $1.value }
         .prefix(limit)
         .map { SoundProcessor.Classification(label: $0.key, confidence: $0.value) }
     }
-  }
-}
-
-private final class LockedValue<T>: @unchecked Sendable {
-  private var value: T
-  private let lock = NSLock()
-
-  init(_ value: T) { self.value = value }
-
-  func withLock<R>(_ body: (inout T) -> R) -> R {
-    lock.lock()
-    defer { lock.unlock() }
-    return body(&value)
   }
 }
 

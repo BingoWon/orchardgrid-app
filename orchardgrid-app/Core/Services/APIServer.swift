@@ -134,47 +134,24 @@ final class APIServer {
     "/v1/audio/classify": .sound,
   ]
 
+  private static let routeHandlers: [(path: String, available: Bool, handler: Handler)] = [
+    ("/v1/images/generations", ImageProcessor.isAvailable, { data in try await ImageProcessor.handle(data) }),
+    ("/v1/translations", TranslationProcessor.isAvailable, { data in try await TranslationProcessor.handle(data) }),
+    ("/v1/nlp/analyze", NLPProcessor.isAvailable, { data in try await NLPProcessor.handle(data) }),
+    ("/v1/vision/analyze", VisionProcessor.isAvailable, { data in try await VisionProcessor.handle(data) }),
+    ("/v1/audio/transcriptions", SpeechProcessor.isAvailable, { data in try await SpeechProcessor.handle(data) }),
+    ("/v1/audio/classify", SoundProcessor.isAvailable, { data in try await SoundProcessor.handle(data) }),
+  ]
+
   // MARK: - Initialization
 
   init(llmProcessor: LLMProcessor) {
     self.llmProcessor = llmProcessor
 
     var routes: [String: Handler] = [:]
-
-    if ImageProcessor.isAvailable {
-      routes["/v1/images/generations"] = { data in
-        let req = try JSONDecoder().decode(ImageRequest.self, from: data)
-        let images = try await ImageProcessor.generateImages(
-          prompt: req.prompt, style: req.style, count: req.n ?? 1
-        )
-        let resp = ImageResponse(
-          created: Int(Date().timeIntervalSince1970),
-          data: images.map { .init(b64_json: $0.base64EncodedString()) }
-        )
-        return try JSONEncoder().encode(resp)
-      }
+    for (path, available, handler) in Self.routeHandlers where available {
+      routes[path] = handler
     }
-
-    if TranslationProcessor.isAvailable {
-      routes["/v1/translations"] = { data in try await TranslationProcessor.handle(data) }
-    }
-
-    if NLPProcessor.isAvailable {
-      routes["/v1/nlp/analyze"] = { data in try await NLPProcessor.handle(data) }
-    }
-
-    if VisionProcessor.isAvailable {
-      routes["/v1/vision/analyze"] = { data in try await VisionProcessor.handle(data) }
-    }
-
-    if SpeechProcessor.isAvailable {
-      routes["/v1/audio/transcriptions"] = { data in try await SpeechProcessor.handle(data) }
-    }
-
-    if SoundProcessor.isAvailable {
-      routes["/v1/audio/classify"] = { data in try await SoundProcessor.handle(data) }
-    }
-
     capabilityRoutes = routes
     startNetworkMonitoring()
   }
@@ -460,24 +437,16 @@ final class APIServer {
   // MARK: - Response Helpers
 
   private func sendModels(to connection: NWConnection) async {
-    var models: [ModelsResponse.Model] = []
     let now = Int(Date().timeIntervalSince1970)
+    var models: [ModelsResponse.Model] = []
 
     if enabledCapabilities.contains(.chat), llmProcessor.isAvailable {
       models.append(.init(id: "apple-intelligence", object: "model", created: now, ownedBy: "apple"))
     }
 
-    let capabilityModels: [(Capability, String, Bool)] = [
-      (.image, "image", ImageProcessor.isAvailable),
-      (.translate, "translate", TranslationProcessor.isAvailable),
-      (.nlp, "nlp", NLPProcessor.isAvailable),
-      (.vision, "vision", VisionProcessor.isAvailable),
-      (.speech, "speech", SpeechProcessor.isAvailable),
-      (.sound, "sound", SoundProcessor.isAvailable),
-    ]
-
-    for (cap, id, available) in capabilityModels where available && enabledCapabilities.contains(cap) {
-      models.append(.init(id: "apple-intelligence-\(id)", object: "model", created: now, ownedBy: "apple"))
+    for (path, capability) in Self.routeToCapability {
+      guard enabledCapabilities.contains(capability), capabilityRoutes[path] != nil else { continue }
+      models.append(.init(id: "apple-intelligence-\(capability.rawValue)", object: "model", created: now, ownedBy: "apple"))
     }
 
     await sendJSON(ModelsResponse(object: "list", data: models), to: connection)

@@ -7,8 +7,8 @@ final class SharingManager {
   // MARK: - Core Services
 
   let llmProcessor = LLMProcessor()
-  let cloudService: WebSocketClient
-  let localService: APIServer
+  private let cloudService: WebSocketClient
+  private let localService: APIServer
 
   // MARK: - Availability
 
@@ -20,12 +20,16 @@ final class SharingManager {
     llmProcessor.isAvailable
   }
 
-  var isImageAvailable: Bool {
-    ImageProcessor.isAvailable
-  }
-
-  var availableCapabilities: [String] {
-    cloudService.availableCapabilities
+  func isCapabilityAvailable(_ capability: Capability) -> Bool {
+    switch capability {
+    case .chat: llmProcessor.isAvailable
+    case .image: ImageProcessor.isAvailable
+    case .translate: TranslationProcessor.isAvailable
+    case .nlp: NLPProcessor.isAvailable
+    case .vision: VisionProcessor.isAvailable
+    case .speech: SpeechProcessor.isAvailable
+    case .sound: SoundProcessor.isAvailable
+    }
   }
 
   // MARK: - User Intent (Persisted)

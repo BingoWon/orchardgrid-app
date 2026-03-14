@@ -29,17 +29,6 @@ enum Capability: String, Codable, Sendable, CaseIterable {
     }
   }
 
-  var isAvailableOnDevice: Bool {
-    switch self {
-    case .chat: LLMProcessor.checkAvailability()
-    case .image: ImageProcessor.isAvailable
-    case .translate: TranslationProcessor.isAvailable
-    case .nlp: NLPProcessor.isAvailable
-    case .vision: VisionProcessor.isAvailable
-    case .speech: SpeechProcessor.isAvailable
-    case .sound: SoundProcessor.isAvailable
-    }
-  }
 }
 
 // MARK: - JSON Schema Types

@@ -53,11 +53,11 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   // MARK: - Capability Handlers
 
   private let llmProcessor: LLMProcessor
-  private var handlers: [String: @MainActor (Data) async throws -> Data] = [:]
+  private var handlers: [Capability: @MainActor (Data) async throws -> Data] = [:]
   private var enabledCapabilities: Set<Capability> = Set(Capability.allCases)
 
-  var availableCapabilities: [String] {
-    handlers.keys.sorted()
+  private var activeCapabilityNames: [String] {
+    handlers.keys.map(\.rawValue).sorted()
   }
 
   // MARK: - Initialization
@@ -92,12 +92,12 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   // MARK: - Capability Management
 
   func updateEnabledCapabilities(_ caps: Set<Capability>) {
-    let oldKeys = Set(handlers.keys)
+    let oldCaps = Set(handlers.keys)
     enabledCapabilities = caps
     registerCapabilities()
-    let newKeys = Set(handlers.keys)
+    let newCaps = Set(handlers.keys)
 
-    if oldKeys != newKeys, isConnected {
+    if oldCaps != newCaps, isConnected {
       Logger.log(.websocket, "Capabilities changed, reconnecting...")
       stopConnection()
       if isEnabled { startConnection() }
@@ -110,7 +110,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     handlers.removeAll()
 
     if enabledCapabilities.contains(.chat), llmProcessor.isAvailable {
-      handlers["chat"] = { [weak self] data in
+      handlers[.chat] = { [weak self] data in
         guard let self else { throw CapabilityError.unavailable }
         let req = try JSONDecoder().decode(ChatRequest.self, from: data)
         let content = try await self.processChat(req)
@@ -119,38 +119,19 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       }
     }
 
-    if enabledCapabilities.contains(.image), ImageProcessor.isAvailable {
-      handlers["image"] = { data in
-        let req = try JSONDecoder().decode(ImageRequest.self, from: data)
-        let images = try await ImageProcessor.generateImages(
-          prompt: req.prompt, style: req.style, count: req.n ?? 1
-        )
-        let resp = ImageResponse(
-          created: Int(Date().timeIntervalSince1970),
-          data: images.map { .init(b64_json: $0.base64EncodedString()) }
-        )
-        return try JSONEncoder().encode(resp)
-      }
-    }
+    let staticHandlers: [(Capability, Bool, @MainActor @Sendable (Data) async throws -> Data)] = [
+      (.image, ImageProcessor.isAvailable, { data in try await ImageProcessor.handle(data) }),
+      (.translate, TranslationProcessor.isAvailable, { data in try await TranslationProcessor.handle(data) }),
+      (.nlp, NLPProcessor.isAvailable, { data in try await NLPProcessor.handle(data) }),
+      (.vision, VisionProcessor.isAvailable, { data in try await VisionProcessor.handle(data) }),
+      (.speech, SpeechProcessor.isAvailable, { data in try await SpeechProcessor.handle(data) }),
+      (.sound, SoundProcessor.isAvailable, { data in try await SoundProcessor.handle(data) }),
+    ]
 
-    if enabledCapabilities.contains(.translate), TranslationProcessor.isAvailable {
-      handlers["translate"] = { data in try await TranslationProcessor.handle(data) }
-    }
-
-    if enabledCapabilities.contains(.nlp), NLPProcessor.isAvailable {
-      handlers["nlp"] = { data in try await NLPProcessor.handle(data) }
-    }
-
-    if enabledCapabilities.contains(.vision), VisionProcessor.isAvailable {
-      handlers["vision"] = { data in try await VisionProcessor.handle(data) }
-    }
-
-    if enabledCapabilities.contains(.speech), SpeechProcessor.isAvailable {
-      handlers["speech"] = { data in try await SpeechProcessor.handle(data) }
-    }
-
-    if enabledCapabilities.contains(.sound), SoundProcessor.isAvailable {
-      handlers["sound"] = { data in try await SoundProcessor.handle(data) }
+    for (capability, available, handler) in staticHandlers
+      where enabledCapabilities.contains(capability) && available
+    {
+      handlers[capability] = handler
     }
   }
 
@@ -256,7 +237,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       URLQueryItem(name: "device_name", value: DeviceInfo.deviceName),
       URLQueryItem(name: "chip_model", value: DeviceInfo.chipModel),
       URLQueryItem(name: "memory_gb", value: String(format: "%.0f", DeviceInfo.totalMemoryGB)),
-      URLQueryItem(name: "capabilities", value: availableCapabilities.joined(separator: ",")),
+      URLQueryItem(name: "capabilities", value: activeCapabilityNames.joined(separator: ",")),
     ]
 
     if let token = await tokenProvider?() {
@@ -424,7 +405,8 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     }
 
     guard let id = json["id"] as? String,
-          let capability = json["capability"] as? String,
+          let capabilityStr = json["capability"] as? String,
+          let capability = Capability(rawValue: capabilityStr),
           let payloadObj = json["payload"]
     else { return }
 
@@ -437,9 +419,9 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       return
     }
 
-    Logger.log(.websocket, "Task \(id.prefix(8)): \(capability)\(stream ? " [stream]" : "")")
+    Logger.log(.websocket, "Task \(id.prefix(8)): \(capability.rawValue)\(stream ? " [stream]" : "")")
 
-    if capability == "chat", stream {
+    if capability == .chat, stream {
       await handleStreamingChat(id: id, payload: payloadData)
     } else {
       await handleCapabilityTask(id: id, capability: capability, payload: payloadData)
@@ -448,9 +430,9 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
   // MARK: - Unified Task Dispatch
 
-  private func handleCapabilityTask(id: String, capability: String, payload: Data) async {
+  private func handleCapabilityTask(id: String, capability: Capability, payload: Data) async {
     guard let handler = handlers[capability] else {
-      await sendError(id: id, error: "Unsupported capability: \(capability)")
+      await sendError(id: id, error: "Unsupported capability: \(capability.rawValue)")
       return
     }
 
@@ -460,9 +442,9 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       await sendResponse(id: id, payload: result)
       tasksProcessed += 1
       let duration = Date().timeIntervalSince(start)
-      Logger.success(.websocket, "\(capability) task \(id.prefix(8)) completed in \(String(format: "%.2f", duration))s")
+      Logger.success(.websocket, "\(capability.rawValue) task \(id.prefix(8)) completed in \(String(format: "%.2f", duration))s")
     } catch {
-      Logger.error(.websocket, "\(capability) task \(id.prefix(8)) failed: \(error)")
+      Logger.error(.websocket, "\(capability.rawValue) task \(id.prefix(8)) failed: \(error)")
       await sendError(id: id, error: error.localizedDescription)
     }
   }
@@ -590,12 +572,8 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
 enum CapabilityError: LocalizedError {
   case unavailable
-  case unsupported(String)
 
   var errorDescription: String? {
-    switch self {
-    case .unavailable: "Capability is not available"
-    case let .unsupported(cap): "Unsupported capability: \(cap)"
-    }
+    "Capability is not available"
   }
 }
