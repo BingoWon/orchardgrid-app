@@ -1,155 +1,110 @@
-/**
- * LLMProcessor.swift
- * OrchardGrid LLM Processing Service
- *
- * Shared logic for processing LLM requests across APIServer and WebSocketClient
- */
-
 import Foundation
 @preconcurrency import FoundationModels
 
-/// Shared LLM processing service
 @MainActor
 final class LLMProcessor {
   private let model = SystemLanguageModel.default
 
-  /// Model availability
   var availability: SystemLanguageModel.Availability {
     model.availability
   }
 
-  /// Check if model is available
   var isAvailable: Bool {
-    if case .available = model.availability {
-      return true
-    }
+    if case .available = model.availability { return true }
     return false
   }
 
-  /// Process a chat request with streaming support
+  /// Unified request handler — pass `onChunk` for streaming, omit for single response.
   func processRequest(
     messages: [ChatMessage],
     systemPrompt: String,
-    responseFormat: ResponseFormat?,
-    onChunk: @escaping (String) -> Void
+    responseFormat: ResponseFormat? = nil,
+    onChunk: ((String) -> Void)? = nil
   ) async throws -> String {
     guard case .available = model.availability else {
       throw LLMError.modelUnavailable
     }
-
     guard let lastMessage = messages.last, lastMessage.role == "user" else {
       throw LLMError.invalidRequest("Last message must be from user")
     }
 
-    let transcript = buildTranscript(from: messages, systemPrompt: systemPrompt)
+    let transcript = Self.buildTranscript(messages: messages, systemPrompt: systemPrompt)
     let session = LanguageModelSession(transcript: transcript)
+    let prompt = lastMessage.content
 
-    // Handle JSON schema if specified
-    if let responseFormat,
-       responseFormat.type == "json_schema",
+    if let responseFormat, responseFormat.type == "json_schema",
        let jsonSchema = responseFormat.json_schema
     {
-      let validatedSchema = try await MainActor.run {
-        let converter = SchemaConverter()
-        return try converter.convert(jsonSchema)
+      let schema = try SchemaConverter().convert(jsonSchema)
+      if let onChunk {
+        return try await streamJSON(session: session, prompt: prompt, schema: schema, onChunk: onChunk)
       }
-
-      let stream = session.streamResponse(to: lastMessage.content, schema: validatedSchema)
-      var fullContent = ""
-      var previousContent = ""
-
-      for try await snapshot in stream {
-        fullContent = snapshot.content.jsonString
-        let delta = String(fullContent.dropFirst(previousContent.count))
-
-        if !delta.isEmpty {
-          onChunk(delta)
-        }
-
-        previousContent = fullContent
-      }
-      return fullContent
-    } else {
-      let stream = session.streamResponse(to: lastMessage.content)
-      var fullContent = ""
-      var previousContent = ""
-
-      for try await snapshot in stream {
-        fullContent = snapshot.content
-        let delta = String(fullContent.dropFirst(previousContent.count))
-
-        if !delta.isEmpty {
-          onChunk(delta)
-        }
-
-        previousContent = fullContent
-      }
-      return fullContent
+      return try await session.respond(to: prompt, schema: schema).content.jsonString
     }
+
+    if let onChunk {
+      return try await streamText(session: session, prompt: prompt, onChunk: onChunk)
+    }
+    return try await session.respond(to: prompt).content
   }
 
-  /// Process a chat request without streaming
-  func processRequest(
-    messages: [ChatMessage],
-    systemPrompt: String,
-    responseFormat: ResponseFormat?
+  // MARK: - Stream Helpers
+
+  private func streamText(
+    session: LanguageModelSession,
+    prompt: String,
+    onChunk: (String) -> Void
   ) async throws -> String {
-    guard case .available = model.availability else {
-      throw LLMError.modelUnavailable
+    var full = "", prev = ""
+    for try await snapshot in session.streamResponse(to: prompt) {
+      full = snapshot.content
+      let delta = String(full.dropFirst(prev.count))
+      if !delta.isEmpty { onChunk(delta) }
+      prev = full
     }
-
-    guard let lastMessage = messages.last, lastMessage.role == "user" else {
-      throw LLMError.invalidRequest("Last message must be from user")
-    }
-
-    let transcript = buildTranscript(from: messages, systemPrompt: systemPrompt)
-    let session = LanguageModelSession(transcript: transcript)
-
-    // Handle JSON schema if specified
-    if let responseFormat,
-       responseFormat.type == "json_schema",
-       let jsonSchema = responseFormat.json_schema
-    {
-      let validatedSchema = try await MainActor.run {
-        let converter = SchemaConverter()
-        return try converter.convert(jsonSchema)
-      }
-      let response = try await session.respond(to: lastMessage.content, schema: validatedSchema)
-      return response.content.jsonString
-    } else {
-      let response = try await session.respond(to: lastMessage.content)
-      return response.content
-    }
+    return full
   }
 
-  /// Build transcript from messages
-  private func buildTranscript(
-    from messages: [ChatMessage],
+  private func streamJSON(
+    session: LanguageModelSession,
+    prompt: String,
+    schema: GenerationSchema,
+    onChunk: (String) -> Void
+  ) async throws -> String {
+    var full = "", prev = ""
+    for try await snapshot in session.streamResponse(to: prompt, schema: schema) {
+      full = snapshot.content.jsonString
+      let delta = String(full.dropFirst(prev.count))
+      if !delta.isEmpty { onChunk(delta) }
+      prev = full
+    }
+    return full
+  }
+
+  // MARK: - Transcript
+
+  static func buildTranscript(
+    messages: [ChatMessage],
     systemPrompt: String
   ) -> Transcript {
     var entries: [Transcript.Entry] = []
 
-    let instructions = Transcript.Instructions(
+    entries.append(.instructions(Transcript.Instructions(
       segments: [.text(.init(content: systemPrompt))],
       toolDefinitions: []
-    )
-    entries.append(.instructions(instructions))
+    )))
 
     for message in messages {
       switch message.role {
       case "user":
-        let prompt = Transcript.Prompt(
+        entries.append(.prompt(Transcript.Prompt(
           segments: [.text(.init(content: message.content))]
-        )
-        entries.append(.prompt(prompt))
-
+        )))
       case "assistant":
-        let response = Transcript.Response(
+        entries.append(.response(Transcript.Response(
           assetIDs: [],
           segments: [.text(.init(content: message.content))]
-        )
-        entries.append(.response(response))
-
+        )))
       default:
         break
       }
@@ -159,7 +114,8 @@ final class LLMProcessor {
   }
 }
 
-/// LLM processing errors
+// MARK: - Errors
+
 enum LLMError: Error, LocalizedError {
   case modelUnavailable
   case invalidRequest(String)

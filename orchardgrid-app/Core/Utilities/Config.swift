@@ -1,6 +1,8 @@
 import Foundation
 
 enum Config {
+  // MARK: - API
+
   static let hostURL: String = {
     if let env = ProcessInfo.processInfo.environment["API_BASE_URL"] { return env }
     guard let plist = Bundle.main.infoDictionary?["API_BASE_URL"] as? String else {
@@ -31,4 +33,21 @@ enum Config {
     config.timeoutIntervalForResource = 30
     return URLSession(configuration: config)
   }()
+
+  // MARK: - WebSocket / Device
+
+  static let heartbeatInterval: TimeInterval = 15
+  static let heartbeatTimeout: TimeInterval = 45
+  static let connectionRequestTimeout: TimeInterval = 60
+  static let connectionTimeout: TimeInterval = 30
+
+  // MARK: - LLM
+
+  static let defaultSystemPrompt =
+    "You are a helpful AI assistant. Provide clear, concise, and accurate responses."
+
+  // MARK: - Local API Server
+
+  static let apiServerPort: UInt16 = 8888
+  static let maxRequestSize = 65536
 }

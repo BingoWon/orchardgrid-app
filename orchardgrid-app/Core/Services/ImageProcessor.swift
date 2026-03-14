@@ -89,13 +89,17 @@ enum ImageProcessor {
         results.append(pngData)
       }
     } catch let error as ImageCreator.Error {
-      switch error {
+      throw switch error {
       case .notSupported:
-        throw ImageProcessorError.notSupported
+        ImageProcessorError.notSupported
       case .unavailable:
-        throw ImageProcessorError.unavailable
-      @unknown default:
-        throw ImageProcessorError.generationFailed(error.localizedDescription)
+        ImageProcessorError.unavailable
+      case .creationCancelled:
+        ImageProcessorError.generationFailed("Creation was cancelled")
+      case .creationFailed:
+        ImageProcessorError.generationFailed("Creation failed")
+      default:
+        ImageProcessorError.generationFailed(error.localizedDescription)
       }
     } catch let error as ImageProcessorError {
       throw error

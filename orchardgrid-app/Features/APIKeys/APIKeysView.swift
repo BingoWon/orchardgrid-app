@@ -47,7 +47,7 @@ struct APIKeysView: View {
     .navigationTitle("API Keys")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
-    .withPlatformToolbar {
+    .contentToolbar {
       if authManager.isAuthenticated {
         HStack(spacing: 12) {
           if manager.isRefreshing {

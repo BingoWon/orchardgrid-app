@@ -94,7 +94,7 @@ struct AllDevicesView: View {
     .navigationTitle("Devices")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
-    .withPlatformToolbar {
+    .contentToolbar {
       if authManager.isAuthenticated {
         refreshButton
       }

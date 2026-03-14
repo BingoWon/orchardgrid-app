@@ -28,7 +28,7 @@ struct ChatsView: View {
     .navigationTitle("Chats")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
-    .withPlatformToolbar {
+    .contentToolbar {
       if chatManager.isModelAvailable {
         HStack(spacing: 12) {
           if !chatManager.conversations.isEmpty {

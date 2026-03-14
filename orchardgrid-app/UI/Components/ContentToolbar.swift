@@ -1,22 +1,21 @@
 import SwiftUI
 
-struct WithPlatformToolbar<LeadingContent: View>: ViewModifier {
+struct ContentToolbar<LeadingContent: View>: ViewModifier {
   let leadingContent: LeadingContent
 
   func body(content: Content) -> some View {
     content
       .toolbar {
-        // Only show functional buttons (account lives in Sidebar/Tab Bar)
         ToolbarItem { leadingContent }
       }
   }
 }
 
 extension View {
-  func withPlatformToolbar(
+  func contentToolbar(
     @ViewBuilder leadingContent: () -> some View
   ) -> some View {
-    modifier(WithPlatformToolbar(
+    modifier(ContentToolbar(
       leadingContent: leadingContent()
     ))
   }

@@ -1,8 +1,3 @@
-/**
- * ChatManager.swift
- * Manages on-device chat conversations with Apple Intelligence
- */
-
 import Foundation
 @preconcurrency import FoundationModels
 
@@ -15,16 +10,13 @@ final class ChatManager {
   private(set) var respondingConversationId: UUID?
 
   private var responseTask: Task<Void, Never>?
-
   private var sessions: [UUID: LanguageModelSession] = [:]
   private let model = SystemLanguageModel.default
 
-  private static let systemInstructions = """
+  private static let systemPrompt = """
     You are a helpful, friendly AI assistant powered by Apple Intelligence. \
     Be concise, clear, and informative in your responses.
     """
-
-  // MARK: - Model Availability
 
   var modelAvailability: SystemLanguageModel.Availability {
     model.availability
@@ -34,8 +26,6 @@ final class ChatManager {
     if case .available = model.availability { return true }
     return false
   }
-
-  // MARK: - Init
 
   init() {
     loadConversations()
@@ -74,14 +64,12 @@ final class ChatManager {
           !isResponding, isModelAvailable
     else { return }
 
-    // Add user message
     let userMessage = Message(role: .user, content: content)
     conversations[index].messages.append(userMessage)
     conversations[index].updateTitleIfNeeded()
     conversations[index].updatedAt = Date()
     save()
 
-    // Begin streaming
     isResponding = true
     streamingText = ""
     respondingConversationId = conversationId
@@ -105,10 +93,8 @@ final class ChatManager {
           streamingText = fullContent
         }
 
-        // Append completed assistant message
         appendAssistantMessage(fullContent, to: conversationId)
       } catch is CancellationError {
-        // Save partial content on stop
         let partial = streamingText
         if !partial.isEmpty {
           appendAssistantMessage(partial, to: conversationId)
@@ -146,45 +132,20 @@ final class ChatManager {
     let session: LanguageModelSession
 
     if let conversation = conversation(for: conversationId), !conversation.messages.isEmpty {
-      // Rehydrate session from saved messages
-      let transcript = buildTranscript(from: conversation.messages)
+      let chatMessages = conversation.messages.map {
+        ChatMessage(role: $0.role.rawValue, content: $0.content)
+      }
+      let transcript = LLMProcessor.buildTranscript(
+        messages: chatMessages,
+        systemPrompt: Self.systemPrompt
+      )
       session = LanguageModelSession(transcript: transcript)
     } else {
-      session = LanguageModelSession(instructions: Self.systemInstructions)
+      session = LanguageModelSession(instructions: Self.systemPrompt)
     }
 
     sessions[conversationId] = session
     return session
-  }
-
-  /// Build Transcript from saved messages — mirrors LLMProcessor.buildTranscript
-  private func buildTranscript(from messages: [Message]) -> Transcript {
-    var entries: [Transcript.Entry] = []
-
-    let instructions = Transcript.Instructions(
-      segments: [.text(.init(content: Self.systemInstructions))],
-      toolDefinitions: []
-    )
-    entries.append(.instructions(instructions))
-
-    for message in messages {
-      switch message.role {
-      case .user:
-        let prompt = Transcript.Prompt(
-          segments: [.text(.init(content: message.content))]
-        )
-        entries.append(.prompt(prompt))
-
-      case .assistant:
-        let response = Transcript.Response(
-          assetIDs: [],
-          segments: [.text(.init(content: message.content))]
-        )
-        entries.append(.response(response))
-      }
-    }
-
-    return Transcript(entries: entries)
   }
 
   private func moveToTop(_ conversationId: UUID) {

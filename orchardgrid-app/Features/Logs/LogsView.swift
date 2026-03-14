@@ -43,7 +43,7 @@ struct LogsView: View {
     .navigationTitle("Logs")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
-    .withPlatformToolbar {
+    .contentToolbar {
       if authManager.isAuthenticated {
         refreshButton
       }

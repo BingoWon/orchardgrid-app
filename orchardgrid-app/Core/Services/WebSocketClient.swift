@@ -1,15 +1,6 @@
-/**
- * WebSocketClient.swift
- * OrchardGrid Device Client
- *
- * Connects to Cloudflare platform and processes LLM tasks
- * Note: Lifecycle managed by SharingManager
- */
-
 import Foundation
 @preconcurrency import FoundationModels
 import Network
-import OSLog
 
 @Observable
 @MainActor
@@ -18,7 +9,6 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
   private let serverURL: String
   private let hardwareID: String
-  private(set) var userID: String?
   private let platform: String
   private let osVersion: String
 
@@ -45,16 +35,13 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   var isEnabled = false {
     didSet {
       guard oldValue != isEnabled else { return }
-      if isEnabled {
-        startConnection()
-      } else {
-        stopConnection()
-      }
+      if isEnabled { startConnection() } else { stopConnection() }
     }
   }
 
   // MARK: - Private State
 
+  private var tokenProvider: (@Sendable () async -> String?)?
   private var webSocketTask: URLSessionWebSocketTask?
   private var urlSession: URLSession?
   private var connectionTask: Task<Void, Never>?
@@ -64,7 +51,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   private var isNetworkAvailable = true
   private var lastHeartbeatResponse: Date?
 
-  // MARK: - Injected Dependencies
+  // MARK: - Dependencies
 
   private let llmProcessor: LLMProcessor
 
@@ -76,8 +63,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     serverURL = ProcessInfo.processInfo.environment["ORCHARDGRID_SERVER_URL"]
       ?? "\(Config.webSocketBaseURL)/device/connect"
 
-    hardwareID = DeviceID.current
-    userID = nil
+    hardwareID = DeviceInfo.hardwareID
 
     #if os(macOS)
       platform = "macOS"
@@ -97,26 +83,25 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     networkMonitor.cancel()
   }
 
-  // MARK: - Public API
+  // MARK: - Auth API
 
-  func setUserID(_ userID: String) {
-    guard self.userID != userID else { return }
-    self.userID = userID
-    Logger.log(.websocket, "User ID updated: \(userID)")
+  func setAuth(tokenProvider: @escaping @Sendable () async -> String?) {
+    self.tokenProvider = tokenProvider
+    Logger.log(.websocket, "Auth configured")
 
     guard isEnabled else { return }
 
     if isConnected {
-      Logger.log(.websocket, "Reconnecting with new user identity...")
+      Logger.log(.websocket, "Reconnecting with new auth...")
       stopConnection()
     }
     startConnection()
   }
 
-  func clearUserID() {
-    guard userID != nil else { return }
-    Logger.log(.websocket, "User ID cleared — disconnecting")
-    userID = nil
+  func clearAuth() {
+    guard tokenProvider != nil else { return }
+    Logger.log(.websocket, "Auth cleared — disconnecting")
+    tokenProvider = nil
     stopConnection()
   }
 
@@ -130,8 +115,8 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   // MARK: - Connection Lifecycle
 
   private func startConnection() {
-    guard userID != nil else {
-      Logger.log(.websocket, "No user ID — skipping connection")
+    guard tokenProvider != nil else {
+      Logger.log(.websocket, "No auth — skipping connection")
       return
     }
 
@@ -153,10 +138,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
         if attempt > 0 {
           connectionState = .reconnecting(attempt: attempt, nextRetryIn: delay)
-          Logger.log(
-            .websocket,
-            "Reconnection attempt \(attempt) in \(String(format: "%.1f", delay))s..."
-          )
+          Logger.log(.websocket, "Reconnection attempt \(attempt) in \(String(format: "%.1f", delay))s...")
           await countdown(delay)
           guard !Task.isCancelled else { break }
         }
@@ -165,14 +147,10 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
         let success = await attemptConnect()
 
         if success {
-          Logger.success(
-            .websocket,
-            attempt > 1 ? "Reconnected after \(attempt) attempts" : "Connected"
-          )
+          Logger.success(.websocket, attempt > 1 ? "Reconnected after \(attempt) attempts" : "Connected")
           break
         }
 
-        // Exponential backoff: 1, 2, 4, 8, 16, 32, 60... after 10 attempts: 300
         delay = attempt < 10 ? min(delay * 2, 60) : 300
       }
     }
@@ -202,7 +180,14 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       return false
     }
 
-    var queryItems = [
+    guard let token = await tokenProvider?() else {
+      connectionState = .failed("Authentication required")
+      Logger.error(.websocket, "Failed to obtain auth token")
+      return false
+    }
+
+    urlComponents.queryItems = [
+      URLQueryItem(name: "token", value: token),
       URLQueryItem(name: "hardware_id", value: hardwareID),
       URLQueryItem(name: "platform", value: platform),
       URLQueryItem(name: "os_version", value: osVersion),
@@ -211,10 +196,6 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       URLQueryItem(name: "memory_gb", value: String(format: "%.0f", DeviceInfo.totalMemoryGB)),
       URLQueryItem(name: "supports_image", value: ImageProcessor.isAvailable ? "true" : "false"),
     ]
-    if let userID {
-      queryItems.append(URLQueryItem(name: "user_id", value: userID))
-    }
-    urlComponents.queryItems = queryItems
 
     guard let url = urlComponents.url else {
       connectionState = .failed("Failed to construct URL")
@@ -228,7 +209,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     cleanupConnection()
 
     let configuration = URLSessionConfiguration.default
-    configuration.timeoutIntervalForRequest = DeviceConfig.connectionRequestTimeout
+    configuration.timeoutIntervalForRequest = Config.connectionRequestTimeout
     configuration.timeoutIntervalForResource = 0
     configuration.waitsForConnectivity = true
     configuration.networkServiceType = .responsiveData
@@ -238,15 +219,13 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     webSocketTask?.resume()
     receiveMessage()
 
-    // Wait for connection with timeout
-    let deadline = Date().addingTimeInterval(DeviceConfig.connectionTimeout)
+    let deadline = Date().addingTimeInterval(Config.connectionTimeout)
     while !Task.isCancelled, Date() < deadline {
       if isConnected { return true }
       if case .failed = connectionState { return false }
       try? await Task.sleep(for: .milliseconds(100))
     }
 
-    // Don't report timeout if cancelled - connection was intentionally interrupted
     guard !Task.isCancelled else { return false }
 
     if !isConnected {
@@ -316,13 +295,11 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       guard let error, task is URLSessionWebSocketTask else { return }
 
       let nsError = error as NSError
-      // Ignore cancelled errors - expected during cleanup
       if nsError.domain == NSURLErrorDomain, nsError.code == -999 { return }
 
       Logger.error(.websocket, "Connection error: \(error.localizedDescription)")
       connectionState = .failed(error.localizedDescription)
 
-      // Reconnect if connection loop is not already running
       if isEnabled, isNetworkAvailable, !isConnectionLoopActive {
         startConnection()
       }
@@ -352,13 +329,11 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
           }
         case let .failure(error):
           let nsError = error as NSError
-          // Ignore cancelled errors - expected during cleanup
           if nsError.domain == NSURLErrorDomain, nsError.code == -999 { return }
 
           Logger.error(.websocket, "Receive error: \(error.localizedDescription)")
           self.connectionState = .disconnected
 
-          // Reconnect if connection loop is not already running
           if self.isEnabled, self.isNetworkAvailable, !self.isConnectionLoopActive {
             self.startConnection()
           }
@@ -380,7 +355,6 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
       if type == "heartbeat" || type == "pong" {
         lastHeartbeatResponse = Date()
-        Logger.log(.websocket, "Heartbeat response received")
         return
       }
 
@@ -412,13 +386,13 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     stopHeartbeat()
     heartbeatTask = Task { @MainActor in
       while !Task.isCancelled, isConnected {
-        try? await Task.sleep(for: .seconds(DeviceConfig.heartbeatInterval))
+        try? await Task.sleep(for: .seconds(Config.heartbeatInterval))
         guard isConnected else { return }
 
         if let lastResponse = lastHeartbeatResponse,
-           Date().timeIntervalSince(lastResponse) > DeviceConfig.heartbeatTimeout
+           Date().timeIntervalSince(lastResponse) > Config.heartbeatTimeout
         {
-          Logger.error(.websocket, "Heartbeat timeout - connection appears dead")
+          Logger.error(.websocket, "Heartbeat timeout — connection appears dead")
           connectionState = .disconnected
           stopHeartbeat()
           if isEnabled, isNetworkAvailable {
@@ -427,9 +401,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
           return
         }
 
-        let heartbeat = HeartbeatMessage(type: "heartbeat")
-        await sendMessage(heartbeat)
-        Logger.log(.websocket, "Heartbeat sent")
+        await sendMessage(HeartbeatMessage())
       }
     }
   }
@@ -450,9 +422,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
         if !wasAvailable, isNetworkAvailable {
           Logger.log(.websocket, "Network recovered")
-          if isEnabled, !isConnected {
-            startConnection()
-          }
+          if isEnabled, !isConnected { startConnection() }
         } else if wasAvailable, !isNetworkAvailable {
           Logger.log(.websocket, "Network lost")
         }
@@ -465,19 +435,16 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
   private func processTask(_ taskMessage: TaskMessage) async {
     let startTime = Date()
-    let request = taskMessage.payload
 
     do {
+      let request = taskMessage.payload
       if request.stream == true {
-        try await generateStreamingResponse(for: request, taskId: taskMessage.id)
+        try await streamTask(request, taskId: taskMessage.id)
       } else {
-        let response = try await generateResponse(for: request)
-        let responseMessage = ResponseMessage(
-          id: taskMessage.id,
-          type: "response",
-          payload: response
-        )
-        await sendMessage(responseMessage)
+        let content = try await processChat(request)
+        let tokens = estimateTokens(request.messages)
+        let response = ChatResponse.create(content: content, promptTokens: tokens)
+        await sendMessage(ResponseMessage(id: taskMessage.id, payload: response))
       }
 
       tasksProcessed += 1
@@ -485,48 +452,47 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       Logger.success(.websocket, "Chat task completed in \(String(format: "%.2f", duration))s")
     } catch {
       Logger.error(.websocket, "Task failed: \(error)")
-      let errorMessage = ErrorMessage(
-        id: taskMessage.id,
-        type: "error",
-        error: error.localizedDescription
-      )
-      await sendMessage(errorMessage)
+      await sendMessage(ErrorMessage(id: taskMessage.id, error: error.localizedDescription))
     }
   }
 
-  private func generateStreamingResponse(for request: ChatRequest, taskId: String) async throws {
-    Logger.log(.websocket, "Starting streaming response for task: \(taskId)")
+  private func processChat(_ request: ChatRequest) async throws -> String {
+    let systemPrompt = request.messages.first { $0.role == "system" }?.content
+      ?? Config.defaultSystemPrompt
+    let messages = request.messages.filter { $0.role != "system" }
+    return try await llmProcessor.processRequest(
+      messages: messages,
+      systemPrompt: systemPrompt,
+      responseFormat: request.response_format
+    )
+  }
 
-    let systemPrompt = request.messages.first(where: { $0.role == "system" })?.content
-      ?? LLMConfig.defaultSystemPrompt
-    let conversationMessages = request.messages.filter { $0.role != "system" }
+  private func streamTask(_ request: ChatRequest, taskId: String) async throws {
+    let systemPrompt = request.messages.first { $0.role == "system" }?.content
+      ?? Config.defaultSystemPrompt
+    let messages = request.messages.filter { $0.role != "system" }
 
     _ = try await llmProcessor.processRequest(
-      messages: conversationMessages,
+      messages: messages,
       systemPrompt: systemPrompt,
       responseFormat: request.response_format
     ) { [weak self] delta in
-      Task {
-        let chunkMessage = StreamChunkMessage(id: taskId, type: "stream", delta: delta)
-        await self?.sendMessage(chunkMessage)
-      }
+      Task { await self?.sendMessage(StreamChunkMessage(id: taskId, delta: delta)) }
     }
 
-    let endMessage = StreamEndMessage(id: taskId, type: "stream_end")
-    await sendMessage(endMessage)
+    await sendMessage(StreamEndMessage(id: taskId))
   }
 
   // MARK: - Image Task Processing
 
   private func processImageTask(_ imageTask: ImageTaskMessage) async {
     let startTime = Date()
-    let request = imageTask.payload
 
     do {
       let imageDataArray = try await ImageProcessor.generateImages(
-        prompt: request.prompt,
-        style: request.style,
-        count: request.n ?? 1
+        prompt: imageTask.payload.prompt,
+        style: imageTask.payload.style,
+        count: imageTask.payload.n ?? 1
       )
 
       let imageResponse = ImageResponse(
@@ -534,67 +500,19 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
         data: imageDataArray.map { ImageResponse.ImageData(b64_json: $0.base64EncodedString()) }
       )
 
-      let responseMessage = ImageResponseMessage(
-        id: imageTask.id,
-        type: "image_response",
-        payload: imageResponse
-      )
-      await sendMessage(responseMessage)
+      await sendMessage(ImageResponseMessage(id: imageTask.id, payload: imageResponse))
 
       tasksProcessed += 1
       let duration = Date().timeIntervalSince(startTime)
       Logger.success(.imageGen, "Image task completed in \(String(format: "%.2f", duration))s")
     } catch {
       Logger.error(.imageGen, "Image task failed: \(error)")
-      let errorMessage = ErrorMessage(
-        id: imageTask.id,
-        type: "error",
-        error: error.localizedDescription
-      )
-      await sendMessage(errorMessage)
+      await sendMessage(ErrorMessage(id: imageTask.id, error: error.localizedDescription))
     }
   }
 
-  private func generateResponse(for request: ChatRequest) async throws -> ChatResponse {
-    let systemPrompt = request.messages.first(where: { $0.role == "system" })?.content
-      ?? LLMConfig.defaultSystemPrompt
-    let conversationMessages = request.messages.filter { $0.role != "system" }
-
-    let content = try await llmProcessor.processRequest(
-      messages: conversationMessages,
-      systemPrompt: systemPrompt,
-      responseFormat: request.response_format
-    )
-
-    let id = "chatcmpl-\(UUID().uuidString.prefix(8))"
-    let timestamp = Int(Date().timeIntervalSince1970)
-
-    return ChatResponse(
-      id: id,
-      object: "chat.completion",
-      created: timestamp,
-      model: "apple-intelligence",
-      choices: [
-        ChatResponse.Choice(
-          index: 0,
-          message: ChatMessage(role: "assistant", content: content),
-          finishReason: "stop"
-        ),
-      ],
-      usage: ChatResponse.Usage(
-        promptTokens: estimateTokens(request.messages),
-        completionTokens: estimateTokens([ChatMessage(role: "assistant", content: content)]),
-        totalTokens: estimateTokens(request.messages) + estimateTokens([ChatMessage(
-          role: "assistant",
-          content: content
-        )])
-      )
-    )
-  }
-
   private func estimateTokens(_ messages: [ChatMessage]) -> Int {
-    let totalChars = messages.reduce(0) { $0 + $1.content.count }
-    return max(1, totalChars / 4)
+    max(1, messages.reduce(0) { $0 + $1.content.count } / 4)
   }
 
   // MARK: - Message Sending
@@ -608,8 +526,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
         Logger.error(.websocket, "Failed to encode message as string")
         return
       }
-      let wsMessage = URLSessionWebSocketTask.Message.string(text)
-      try await webSocketTask?.send(wsMessage)
+      try await webSocketTask?.send(.string(text))
     } catch {
       Logger.error(.websocket, "Failed to send message: \(error)")
     }

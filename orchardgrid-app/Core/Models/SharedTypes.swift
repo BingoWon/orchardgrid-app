@@ -1,29 +1,13 @@
-/**
- * SharedTypes.swift
- * OrchardGrid Shared Type Definitions
- *
- * All types used across multiple files are defined here
- * to ensure proper type resolution by SourceKit and Swift compiler.
- *
- * Organization:
- * 1. JSON Schema Types
- * 2. API Request/Response Types
- * 3. WebSocket Message Types
- */
-
 import Foundation
-@preconcurrency import FoundationModels
 
 // MARK: - JSON Schema Types
 
-/// JSON Schema definition for structured output
 struct JSONSchemaDefinition: Codable, Sendable {
   let name: String
   let strict: Bool?
   let schema: JSONSchemaProperty
 }
 
-/// JSON Schema property definition
 struct JSONSchemaProperty: Codable, Sendable {
   let type: String?
   let properties: [String: AnyCodable]?
@@ -42,7 +26,6 @@ struct JSONSchemaProperty: Codable, Sendable {
   }
 }
 
-/// Helper to handle Any in Codable
 struct AnyCodable: Codable, Sendable {
   let value: Any
 
@@ -89,17 +72,32 @@ struct AnyCodable: Codable, Sendable {
       try container.encodeNil()
     }
   }
+
+  func toJSONSchemaProperty() -> JSONSchemaProperty? {
+    guard let dict = value as? [String: Any] else { return nil }
+
+    return JSONSchemaProperty(
+      type: dict["type"] as? String,
+      properties: (dict["properties"] as? [String: Any])?.mapValues { AnyCodable($0) },
+      required: dict["required"] as? [String],
+      items: (dict["items"] as? [String: Any]).map { AnyCodable($0) },
+      enum: dict["enum"] as? [String],
+      minimum: dict["minimum"] as? Double,
+      maximum: dict["maximum"] as? Double,
+      minItems: dict["minItems"] as? Int,
+      maxItems: dict["maxItems"] as? Int,
+      additionalProperties: dict["additionalProperties"] as? Bool
+    )
+  }
 }
 
 // MARK: - API Request/Response Types
 
-/// Chat message in conversation
 struct ChatMessage: Codable, Sendable {
   let role: String
   let content: String
 }
 
-/// Chat completion request
 struct ChatRequest: Codable, Sendable {
   let model: String
   let messages: [ChatMessage]
@@ -107,13 +105,11 @@ struct ChatRequest: Codable, Sendable {
   let response_format: ResponseFormat?
 }
 
-/// Response format specification
 struct ResponseFormat: Codable, Sendable {
   let type: String
   let json_schema: JSONSchemaDefinition?
 }
 
-/// Chat completion response
 struct ChatResponse: Codable, Sendable {
   let id: String
   let object: String
@@ -144,9 +140,31 @@ struct ChatResponse: Codable, Sendable {
       case totalTokens = "total_tokens"
     }
   }
+
+  static func create(
+    content: String,
+    promptTokens: Int = 0,
+    completionTokens: Int = 0
+  ) -> ChatResponse {
+    ChatResponse(
+      id: "chatcmpl-\(UUID().uuidString.prefix(8))",
+      object: "chat.completion",
+      created: Int(Date().timeIntervalSince1970),
+      model: "apple-intelligence",
+      choices: [.init(
+        index: 0,
+        message: .init(role: "assistant", content: content),
+        finishReason: "stop"
+      )],
+      usage: .init(
+        promptTokens: promptTokens,
+        completionTokens: completionTokens,
+        totalTokens: promptTokens + completionTokens
+      )
+    )
+  }
 }
 
-/// Streaming response chunk
 struct StreamChunk: Codable, Sendable {
   let id: String
   let object: String
@@ -164,9 +182,36 @@ struct StreamChunk: Codable, Sendable {
       case finishReason = "finish_reason"
     }
   }
+
+  static func delta(_ id: String, content: String) -> StreamChunk {
+    StreamChunk(
+      id: id,
+      object: "chat.completion.chunk",
+      created: Int(Date().timeIntervalSince1970),
+      model: "apple-intelligence",
+      choices: [.init(
+        index: 0,
+        delta: .init(role: "assistant", content: content),
+        finishReason: nil
+      )]
+    )
+  }
+
+  static func end(_ id: String, finishReason: String = "stop") -> StreamChunk {
+    StreamChunk(
+      id: id,
+      object: "chat.completion.chunk",
+      created: Int(Date().timeIntervalSince1970),
+      model: "apple-intelligence",
+      choices: [.init(
+        index: 0,
+        delta: .init(role: "assistant", content: ""),
+        finishReason: finishReason
+      )]
+    )
+  }
 }
 
-/// Models list response
 struct ModelsResponse: Codable, Sendable {
   let object: String
   let data: [Model]
@@ -184,7 +229,6 @@ struct ModelsResponse: Codable, Sendable {
   }
 }
 
-/// Error response
 struct ErrorResponse: Codable, Sendable {
   let error: ErrorDetail
 
@@ -197,56 +241,75 @@ struct ErrorResponse: Codable, Sendable {
 
 // MARK: - WebSocket Message Types
 
-/// Task message from platform
 struct TaskMessage: Codable, Sendable {
   let id: String
-  let type: String // "task"
+  let type: String
   let payload: ChatRequest
 }
 
-/// Response message to platform
 struct ResponseMessage: Codable, Sendable {
   let id: String
-  let type: String // "response"
+  let type: String
   let payload: ChatResponse
+
+  init(id: String, payload: ChatResponse) {
+    self.id = id
+    type = "response"
+    self.payload = payload
+  }
 }
 
-/// Stream chunk message
 struct StreamChunkMessage: Codable, Sendable {
   let id: String
-  let type: String // "stream"
+  let type: String
   let delta: String
+
+  init(id: String, delta: String) {
+    self.id = id
+    type = "stream"
+    self.delta = delta
+  }
 }
 
-/// Stream end message
 struct StreamEndMessage: Codable, Sendable {
   let id: String
-  let type: String // "stream_end"
+  let type: String
+
+  init(id: String) {
+    self.id = id
+    type = "stream_end"
+  }
 }
 
-/// Error message
 struct ErrorMessage: Codable, Sendable {
   let id: String
-  let type: String // "error"
+  let type: String
   let error: String
+
+  init(id: String, error: String) {
+    self.id = id
+    type = "error"
+    self.error = error
+  }
 }
 
-/// Heartbeat message
 struct HeartbeatMessage: Codable, Sendable {
-  let type: String // "heartbeat"
+  let type: String
+
+  init() {
+    type = "heartbeat"
+  }
 }
 
 // MARK: - Image Generation Types
 
-/// Image generation request (OpenAI-compatible)
 struct ImageRequest: Codable, Sendable {
   let prompt: String
-  let n: Int? // number of images (1-4, default 1)
-  let style: String? // "illustration" | "sketch" (default: illustration)
-  let response_format: String? // "b64_json" only
+  let n: Int?
+  let style: String?
+  let response_format: String?
 }
 
-/// Image generation response (OpenAI-compatible)
 struct ImageResponse: Codable, Sendable {
   let created: Int
   let data: [ImageData]
@@ -256,49 +319,20 @@ struct ImageResponse: Codable, Sendable {
   }
 }
 
-/// Image task message from platform
 struct ImageTaskMessage: Codable, Sendable {
   let id: String
-  let type: String // "image_task"
+  let type: String
   let payload: ImageRequest
 }
 
-/// Image response message to platform
 struct ImageResponseMessage: Codable, Sendable {
   let id: String
-  let type: String // "image_response"
+  let type: String
   let payload: ImageResponse
-}
 
-// MARK: - AnyCodable Extensions
-
-extension AnyCodable {
-  /// Convert AnyCodable to JSONSchemaProperty
-  func toJSONSchemaProperty() -> JSONSchemaProperty? {
-    guard let dict = value as? [String: Any] else { return nil }
-
-    let type = dict["type"] as? String
-    let properties = (dict["properties"] as? [String: Any])?.mapValues { AnyCodable($0) }
-    let required = dict["required"] as? [String]
-    let items = (dict["items"] as? [String: Any]).map { AnyCodable($0) }
-    let enumValues = dict["enum"] as? [String]
-    let minimum = dict["minimum"] as? Double
-    let maximum = dict["maximum"] as? Double
-    let minItems = dict["minItems"] as? Int
-    let maxItems = dict["maxItems"] as? Int
-    let additionalProperties = dict["additionalProperties"] as? Bool
-
-    return JSONSchemaProperty(
-      type: type,
-      properties: properties,
-      required: required,
-      items: items,
-      enum: enumValues,
-      minimum: minimum,
-      maximum: maximum,
-      minItems: minItems,
-      maxItems: maxItems,
-      additionalProperties: additionalProperties
-    )
+  init(id: String, payload: ImageResponse) {
+    self.id = id
+    type = "image_response"
+    self.payload = payload
   }
 }

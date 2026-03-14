@@ -1,13 +1,3 @@
-/**
- * SharingManager.swift
- * OrchardGrid Unified Sharing State Management
- *
- * Single source of truth for:
- * - Apple Intelligence availability
- * - User sharing preferences (cloud/local)
- * - Service lifecycle coordination
- */
-
 import Foundation
 @preconcurrency import FoundationModels
 
@@ -71,18 +61,15 @@ final class SharingManager {
   // MARK: - Initialization
 
   init() {
-    // Load persisted intent
     let wantsCloud = UserDefaults.standard.bool(forKey: Keys.cloud)
     let wantsLocal = UserDefaults.standard.bool(forKey: Keys.local)
 
     wantsCloudSharing = wantsCloud
     wantsLocalSharing = wantsLocal
 
-    // Create services with shared processor
     cloudService = WebSocketClient(llmProcessor: llmProcessor)
     localService = APIServer(llmProcessor: llmProcessor)
 
-    // Sync initial state
     syncAllStates()
   }
 
@@ -100,12 +87,12 @@ final class SharingManager {
     cloudService.retry()
   }
 
-  func setUserID(_ userID: String) {
-    cloudService.setUserID(userID)
+  func setAuth(tokenProvider: @escaping @Sendable () async -> String?) {
+    cloudService.setAuth(tokenProvider: tokenProvider)
   }
 
-  func clearUserID() {
-    cloudService.clearUserID()
+  func clearAuth() {
+    cloudService.clearAuth()
   }
 
   func refreshAvailability() {

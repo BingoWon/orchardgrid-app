@@ -28,7 +28,7 @@ struct LocalDeviceQuickControl: View {
 
         Button {
           if isWideLayout {
-            navigationState.navigateTo(.localDevice)
+            navigationState.selectedItem = .localDevice
           } else {
             showDeviceSheet = true
           }

@@ -1,10 +1,3 @@
-/**
- * DeviceInfo.swift
- * OrchardGrid Device Information
- *
- * Provides hardware and system information
- */
-
 import Foundation
 #if os(macOS)
   import IOKit
@@ -13,7 +6,20 @@ import Foundation
 #endif
 
 enum DeviceInfo {
-  /// Device name (user-configured)
+  static var hardwareID: String {
+    let key = "com.orchardgrid.deviceID"
+    if let saved = UserDefaults.standard.string(forKey: key) {
+      return saved
+    }
+    #if os(iOS)
+      let id = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
+    #else
+      let id = UUID().uuidString
+    #endif
+    UserDefaults.standard.set(id, forKey: key)
+    return id
+  }
+
   static var deviceName: String {
     #if os(macOS)
       return Host.current().localizedName ?? "Mac"

@@ -30,14 +30,12 @@ struct OrchardGridApp: App {
     let authManager = AuthManager()
     let observerClient = ObserverClient()
 
-    authManager.onUserIDChanged = { userId in
-      Logger.log(.app, "User authenticated: \(userId)")
-      sharingManager.setUserID(userId)
+    authManager.onUserIDChanged = { _ in
+      sharingManager.setAuth { await authManager.getToken() }
     }
 
     authManager.onLogout = {
-      Logger.log(.app, "User logged out, disconnecting...")
-      sharingManager.clearUserID()
+      sharingManager.clearAuth()
       observerClient.disconnect()
     }
 

@@ -1,10 +1,3 @@
-/**
- * NetworkInfo.swift
- * OrchardGrid Network Information
- *
- * Provides local network IP address detection
- */
-
 import Foundation
 #if canImport(Darwin)
   import Darwin
@@ -83,51 +76,5 @@ enum NetworkInfo {
 
     freeifaddrs(firstAddr)
     return address
-  }
-
-  /// Get all available local IP addresses with interface names
-  /// Useful for debugging or advanced use cases
-  static var allLocalIPAddresses: [(interface: String, address: String)] {
-    var addresses: [(String, String)] = []
-    var ifaddr: UnsafeMutablePointer<ifaddrs>?
-
-    guard getifaddrs(&ifaddr) == 0, let firstAddr = ifaddr else {
-      return []
-    }
-
-    var ptr = firstAddr
-    while true {
-      let interface = ptr.pointee
-      let addrFamily = interface.ifa_addr.pointee.sa_family
-
-      if addrFamily == UInt8(AF_INET) {
-        let name = String(cString: interface.ifa_name)
-        var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
-        getnameinfo(
-          interface.ifa_addr,
-          socklen_t(interface.ifa_addr.pointee.sa_len),
-          &hostname,
-          socklen_t(hostname.count),
-          nil,
-          socklen_t(0),
-          NI_NUMERICHOST
-        )
-        let addressString = String(cString: hostname)
-
-        // Include all addresses except localhost
-        if !addressString.hasPrefix("127.") {
-          addresses.append((name, addressString))
-        }
-      }
-
-      if let next = interface.ifa_next {
-        ptr = next
-      } else {
-        break
-      }
-    }
-
-    freeifaddrs(firstAddr)
-    return addresses
   }
 }
