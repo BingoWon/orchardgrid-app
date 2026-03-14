@@ -55,18 +55,13 @@ enum SpeechProcessor {
     try audioData.write(to: tempURL)
     defer { try? FileManager.default.removeItem(at: tempURL) }
 
-    let sfRequest = SFSpeechURLRecognitionRequest(url: tempURL)
-    sfRequest.requiresOnDeviceRecognition = true
-    sfRequest.shouldReportPartialResults = false
+    var result = try await recognize(url: tempURL, recognizer: recognizer, onDevice: true)
+    if result == nil {
+      result = try await recognize(url: tempURL, recognizer: recognizer, onDevice: false)
+    }
 
-    let result: SFSpeechRecognitionResult = try await withCheckedThrowingContinuation { cont in
-      recognizer.recognitionTask(with: sfRequest) { result, error in
-        if let error {
-          cont.resume(throwing: error)
-        } else if let result, result.isFinal {
-          cont.resume(returning: result)
-        }
-      }
+    guard let result else {
+      throw SpeechError.unavailable
     }
 
     let segments = result.bestTranscription.segments.map { seg in
@@ -82,6 +77,30 @@ enum SpeechProcessor {
       segments: segments.isEmpty ? nil : segments
     )
     return try JSONEncoder().encode(resp)
+  }
+  private static func recognize(
+    url: URL,
+    recognizer: SFSpeechRecognizer,
+    onDevice: Bool
+  ) async throws -> SFSpeechRecognitionResult? {
+    let sfRequest = SFSpeechURLRecognitionRequest(url: url)
+    sfRequest.requiresOnDeviceRecognition = onDevice
+    sfRequest.shouldReportPartialResults = false
+
+    do {
+      return try await withCheckedThrowingContinuation { cont in
+        recognizer.recognitionTask(with: sfRequest) { result, error in
+          if let error {
+            cont.resume(throwing: error)
+          } else if let result, result.isFinal {
+            cont.resume(returning: result)
+          }
+        }
+      }
+    } catch {
+      if onDevice { return nil }
+      throw error
+    }
   }
 }
 
