@@ -125,6 +125,10 @@ final class LogsManager: Refreshable {
       let result = try JSONDecoder().decode(TasksResponse.self, from: data)
       onSuccess(result)
       lastUpdated = Date()
+    } catch is CancellationError {
+      return
+    } catch let error as URLError where error.code == .cancelled {
+      return
     } catch {
       errorMessage = error.localizedDescription
       Logger.error(.app, "Load tasks error: \(error)")

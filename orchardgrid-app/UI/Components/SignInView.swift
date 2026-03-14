@@ -154,11 +154,19 @@ struct SignInView: View {
   // MARK: - Shared Components
 
   private var logo: some View {
-    Image(nsImage: NSApp.applicationIconImage)
-      .resizable()
-      .scaledToFit()
-      .frame(width: 52, height: 52)
-      .clipShape(RoundedRectangle(cornerRadius: 12))
+    #if os(macOS)
+      Image(nsImage: NSApp.applicationIconImage)
+        .resizable()
+        .scaledToFit()
+        .frame(width: 52, height: 52)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    #else
+      Image("AppIcon")
+        .resizable()
+        .scaledToFit()
+        .frame(width: 52, height: 52)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    #endif
   }
 
   private func titleGroup(title: String, subtitle: String) -> some View {

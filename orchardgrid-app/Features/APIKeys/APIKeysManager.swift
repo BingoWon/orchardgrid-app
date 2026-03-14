@@ -39,6 +39,10 @@ final class APIKeysManager: Refreshable {
       let result = try JSONDecoder().decode(Response.self, from: data)
       apiKeys = result.keys
       lastUpdated = Date()
+    } catch is CancellationError {
+      return
+    } catch let error as URLError where error.code == .cancelled {
+      return
     } catch {
       Logger.error(.api, "Failed to load API keys: \(error.localizedDescription)")
       lastError = error.localizedDescription

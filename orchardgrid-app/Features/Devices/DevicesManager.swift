@@ -43,6 +43,10 @@ final class DevicesManager: Refreshable {
       lastError = nil
       lastUpdated = Date()
       Logger.success(.devices, "Fetched \(devices.count) devices")
+    } catch is CancellationError {
+      return
+    } catch let error as URLError where error.code == .cancelled {
+      return
     } catch {
       Logger.error(.devices, "Failed to fetch devices: \(error)")
       lastError = error.localizedDescription
