@@ -1,8 +1,3 @@
-/**
- * Logger.swift
- * OrchardGrid Logging Utility
- */
-
 import Foundation
 import OSLog
 
@@ -18,6 +13,11 @@ enum Logger {
     case observer
     case background
     case imageGen
+    case nlp
+    case vision
+    case speech
+    case sound
+    case translate
 
     var logger: os.Logger {
       os.Logger(subsystem: Logger.subsystem, category: rawValue)
@@ -33,6 +33,11 @@ enum Logger {
       case .observer: "👁️"
       case .background: "🌙"
       case .imageGen: "🎨"
+      case .nlp: "📝"
+      case .vision: "👀"
+      case .speech: "🎙️"
+      case .sound: "🔊"
+      case .translate: "🌍"
       }
     }
   }

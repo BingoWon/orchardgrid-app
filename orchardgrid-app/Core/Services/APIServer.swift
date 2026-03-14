@@ -119,10 +119,52 @@ final class APIServer {
 
   private let llmProcessor: LLMProcessor
 
+  private typealias Handler = @MainActor (Data) async throws -> Data
+
+  private let capabilityRoutes: [String: Handler]
+
   // MARK: - Initialization
 
   init(llmProcessor: LLMProcessor) {
     self.llmProcessor = llmProcessor
+
+    var routes: [String: Handler] = [:]
+
+    if ImageProcessor.isAvailable {
+      routes["/v1/images/generations"] = { data in
+        let req = try JSONDecoder().decode(ImageRequest.self, from: data)
+        let images = try await ImageProcessor.generateImages(
+          prompt: req.prompt, style: req.style, count: req.n ?? 1
+        )
+        let resp = ImageResponse(
+          created: Int(Date().timeIntervalSince1970),
+          data: images.map { .init(b64_json: $0.base64EncodedString()) }
+        )
+        return try JSONEncoder().encode(resp)
+      }
+    }
+
+    if TranslationProcessor.isAvailable {
+      routes["/v1/translations"] = { data in try await TranslationProcessor.handle(data) }
+    }
+
+    if NLPProcessor.isAvailable {
+      routes["/v1/nlp/analyze"] = { data in try await NLPProcessor.handle(data) }
+    }
+
+    if VisionProcessor.isAvailable {
+      routes["/v1/vision/analyze"] = { data in try await VisionProcessor.handle(data) }
+    }
+
+    if SpeechProcessor.isAvailable {
+      routes["/v1/audio/transcriptions"] = { data in try await SpeechProcessor.handle(data) }
+    }
+
+    if SoundProcessor.isAvailable {
+      routes["/v1/audio/classify"] = { data in try await SoundProcessor.handle(data) }
+    }
+
+    capabilityRoutes = routes
     startNetworkMonitoring()
   }
 
@@ -224,16 +266,46 @@ final class APIServer {
     switch (request.method, request.path) {
     case ("GET", "/v1/models"):
       await sendModels(to: connection)
+
     case ("POST", "/v1/chat/completions"):
       await handleChatCompletion(request: request, connection: connection)
-    case ("POST", "/v1/images/generations"):
-      await handleImageGeneration(request: request, connection: connection)
+
+    case ("POST", let path) where capabilityRoutes[path] != nil:
+      await handleGenericCapability(path: path, request: request, connection: connection)
+
     default:
       await sendError(.notFound, to: connection)
     }
   }
 
-  // MARK: - Chat Completion
+  // MARK: - Generic Capability Handler
+
+  private func handleGenericCapability(
+    path: String,
+    request: HTTPRequest,
+    connection: NWConnection
+  ) async {
+    guard let handler = capabilityRoutes[path] else {
+      await sendError(.notFound, to: connection)
+      return
+    }
+
+    guard let body = request.body else {
+      await sendError(.badRequest, message: "Missing request body", to: connection)
+      return
+    }
+
+    requestCount += 1
+
+    do {
+      let result = try await handler(body)
+      await send(HTTP.json(body: result), to: connection, closeAfter: true)
+    } catch {
+      await sendError(.internalError, message: error.localizedDescription, to: connection)
+    }
+  }
+
+  // MARK: - Chat Completion (special: supports streaming)
 
   private func handleChatCompletion(
     request: HTTPRequest,
@@ -256,13 +328,13 @@ final class APIServer {
         .content ?? Config.defaultSystemPrompt
       let messages = chatRequest.messages.filter { $0.role != "system" }
 
-      guard let lastUserMessage = messages.last(where: { $0.role == "user" }) else {
+      guard messages.last(where: { $0.role == "user" }) != nil else {
         await sendError(.badRequest, message: "No user message found", to: connection)
         return
       }
 
       requestCount += 1
-      lastRequest = lastUserMessage.content
+      lastRequest = messages.last { $0.role == "user" }?.content ?? ""
 
       if chatRequest.stream == true {
         await streamResponse(
@@ -342,68 +414,32 @@ final class APIServer {
     connection.cancel()
   }
 
-  // MARK: - Image Generation
-
-  private func handleImageGeneration(
-    request: HTTPRequest,
-    connection: NWConnection
-  ) async {
-    guard let body = request.body else {
-      await sendError(.badRequest, message: "Missing request body", to: connection)
-      return
-    }
-
-    do {
-      let imageRequest = try JSONDecoder().decode(ImageRequest.self, from: body)
-
-      guard !imageRequest.prompt.isEmpty else {
-        await sendError(.badRequest, message: "Prompt cannot be empty", to: connection)
-        return
-      }
-
-      let imageDataArray = try await ImageProcessor.generateImages(
-        prompt: imageRequest.prompt,
-        style: imageRequest.style,
-        count: imageRequest.n ?? 1
-      )
-
-      let imageResponse = ImageResponse(
-        created: Int(Date().timeIntervalSince1970),
-        data: imageDataArray.map { ImageResponse.ImageData(b64_json: $0.base64EncodedString()) }
-      )
-
-      await sendJSON(imageResponse, to: connection)
-    } catch let error as ImageProcessorError {
-      switch error {
-      case .notSupported, .unavailable:
-        await sendError(.serviceUnavailable, message: error.localizedDescription, to: connection)
-      case .invalidStyle, .invalidCount:
-        await sendError(.badRequest, message: error.localizedDescription, to: connection)
-      case .conversionFailed, .generationFailed:
-        await sendError(.internalError, message: error.localizedDescription, to: connection)
-      }
-    } catch {
-      await sendError(
-        .badRequest,
-        message: "Invalid request format: \(error.localizedDescription)",
-        to: connection
-      )
-    }
-  }
-
   // MARK: - Response Helpers
 
   private func sendModels(to connection: NWConnection) async {
-    let response = ModelsResponse(
-      object: "list",
-      data: [.init(
-        id: "apple-intelligence",
-        object: "model",
-        created: Int(Date().timeIntervalSince1970),
-        ownedBy: "apple"
-      )]
-    )
-    await sendJSON(response, to: connection)
+    var models: [ModelsResponse.Model] = []
+    let now = Int(Date().timeIntervalSince1970)
+
+    if llmProcessor.isAvailable {
+      models.append(.init(id: "apple-intelligence", object: "model", created: now, ownedBy: "apple"))
+    }
+    if ImageProcessor.isAvailable {
+      models.append(.init(id: "apple-intelligence-image", object: "model", created: now, ownedBy: "apple"))
+    }
+
+    let capabilities: [(String, Bool)] = [
+      ("translate", TranslationProcessor.isAvailable),
+      ("nlp", NLPProcessor.isAvailable),
+      ("vision", VisionProcessor.isAvailable),
+      ("speech", SpeechProcessor.isAvailable),
+      ("sound", SoundProcessor.isAvailable),
+    ]
+
+    for (id, available) in capabilities where available {
+      models.append(.init(id: "apple-intelligence-\(id)", object: "model", created: now, ownedBy: "apple"))
+    }
+
+    await sendJSON(ModelsResponse(object: "list", data: models), to: connection)
   }
 
   private func sendJSON(_ response: some Encodable, to connection: NWConnection) async {

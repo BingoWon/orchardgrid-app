@@ -10,7 +10,7 @@ final class SharingManager {
   let cloudService: WebSocketClient
   let localService: APIServer
 
-  // MARK: - Model Availability
+  // MARK: - Availability
 
   var modelAvailability: SystemLanguageModel.Availability {
     llmProcessor.availability
@@ -22,6 +22,10 @@ final class SharingManager {
 
   var isImageAvailable: Bool {
     ImageProcessor.isAvailable
+  }
+
+  var availableCapabilities: [String] {
+    cloudService.availableCapabilities
   }
 
   // MARK: - User Intent (Persisted)

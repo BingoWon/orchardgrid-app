@@ -1,5 +1,11 @@
 import Foundation
 
+// MARK: - Capabilities
+
+enum Capability: String, Codable, Sendable, CaseIterable {
+  case chat, image, translate, nlp, vision, speech, sound
+}
+
 // MARK: - JSON Schema Types
 
 struct JSONSchemaDefinition: Codable, Sendable {
@@ -91,7 +97,7 @@ struct AnyCodable: Codable, Sendable {
   }
 }
 
-// MARK: - API Request/Response Types
+// MARK: - OpenAI-Compatible API Types
 
 struct ChatMessage: Codable, Sendable {
   let role: String
@@ -239,68 +245,6 @@ struct ErrorResponse: Codable, Sendable {
   }
 }
 
-// MARK: - WebSocket Message Types
-
-struct TaskMessage: Codable, Sendable {
-  let id: String
-  let type: String
-  let payload: ChatRequest
-}
-
-struct ResponseMessage: Codable, Sendable {
-  let id: String
-  let type: String
-  let payload: ChatResponse
-
-  init(id: String, payload: ChatResponse) {
-    self.id = id
-    type = "response"
-    self.payload = payload
-  }
-}
-
-struct StreamChunkMessage: Codable, Sendable {
-  let id: String
-  let type: String
-  let delta: String
-
-  init(id: String, delta: String) {
-    self.id = id
-    type = "stream"
-    self.delta = delta
-  }
-}
-
-struct StreamEndMessage: Codable, Sendable {
-  let id: String
-  let type: String
-
-  init(id: String) {
-    self.id = id
-    type = "stream_end"
-  }
-}
-
-struct ErrorMessage: Codable, Sendable {
-  let id: String
-  let type: String
-  let error: String
-
-  init(id: String, error: String) {
-    self.id = id
-    type = "error"
-    self.error = error
-  }
-}
-
-struct HeartbeatMessage: Codable, Sendable {
-  let type: String
-
-  init() {
-    type = "heartbeat"
-  }
-}
-
 // MARK: - Image Generation Types
 
 struct ImageRequest: Codable, Sendable {
@@ -316,23 +260,5 @@ struct ImageResponse: Codable, Sendable {
 
   struct ImageData: Codable, Sendable {
     let b64_json: String
-  }
-}
-
-struct ImageTaskMessage: Codable, Sendable {
-  let id: String
-  let type: String
-  let payload: ImageRequest
-}
-
-struct ImageResponseMessage: Codable, Sendable {
-  let id: String
-  let type: String
-  let payload: ImageResponse
-
-  init(id: String, payload: ImageResponse) {
-    self.id = id
-    type = "image_response"
-    self.payload = payload
   }
 }

@@ -50,9 +50,14 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   private var isNetworkAvailable = true
   private var lastHeartbeatResponse: Date?
 
-  // MARK: - Dependencies
+  // MARK: - Capability Handlers
 
   private let llmProcessor: LLMProcessor
+  private var handlers: [String: @MainActor (Data) async throws -> Data] = [:]
+
+  var availableCapabilities: [String] {
+    handlers.keys.sorted()
+  }
 
   // MARK: - Initialization
 
@@ -75,11 +80,60 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     osVersion = ProcessInfo.processInfo.operatingSystemVersionString
 
     super.init()
+    registerCapabilities()
     startNetworkMonitoring()
   }
 
   deinit {
     networkMonitor.cancel()
+  }
+
+  // MARK: - Capability Registration
+
+  private func registerCapabilities() {
+    if llmProcessor.isAvailable {
+      handlers["chat"] = { [weak self] data in
+        guard let self else { throw CapabilityError.unavailable }
+        let req = try JSONDecoder().decode(ChatRequest.self, from: data)
+        let content = try await self.processChat(req)
+        let tokens = self.estimateTokens(req.messages)
+        return try JSONEncoder().encode(ChatResponse.create(content: content, promptTokens: tokens))
+      }
+    }
+
+    if ImageProcessor.isAvailable {
+      handlers["image"] = { data in
+        let req = try JSONDecoder().decode(ImageRequest.self, from: data)
+        let images = try await ImageProcessor.generateImages(
+          prompt: req.prompt, style: req.style, count: req.n ?? 1
+        )
+        let resp = ImageResponse(
+          created: Int(Date().timeIntervalSince1970),
+          data: images.map { .init(b64_json: $0.base64EncodedString()) }
+        )
+        return try JSONEncoder().encode(resp)
+      }
+    }
+
+    if TranslationProcessor.isAvailable {
+      handlers["translate"] = { data in try await TranslationProcessor.handle(data) }
+    }
+
+    if NLPProcessor.isAvailable {
+      handlers["nlp"] = { data in try await NLPProcessor.handle(data) }
+    }
+
+    if VisionProcessor.isAvailable {
+      handlers["vision"] = { data in try await VisionProcessor.handle(data) }
+    }
+
+    if SpeechProcessor.isAvailable {
+      handlers["speech"] = { data in try await SpeechProcessor.handle(data) }
+    }
+
+    if SoundProcessor.isAvailable {
+      handlers["sound"] = { data in try await SoundProcessor.handle(data) }
+    }
   }
 
   // MARK: - Auth API
@@ -184,7 +238,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       URLQueryItem(name: "device_name", value: DeviceInfo.deviceName),
       URLQueryItem(name: "chip_model", value: DeviceInfo.chipModel),
       URLQueryItem(name: "memory_gb", value: String(format: "%.0f", DeviceInfo.totalMemoryGB)),
-      URLQueryItem(name: "supports_image", value: ImageProcessor.isAvailable ? "true" : "false"),
+      URLQueryItem(name: "capabilities", value: availableCapabilities.joined(separator: ",")),
     ]
 
     if let token = await tokenProvider?() {
@@ -339,41 +393,98 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   }
 
   private func handleMessage(_ text: String) async {
-    do {
-      let data = text.data(using: .utf8)!
-
-      guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let type = json["type"] as? String
-      else {
-        Logger.error(.websocket, "Failed to parse message JSON")
-        return
-      }
-
-      if type == "heartbeat" || type == "pong" {
-        lastHeartbeatResponse = Date()
-        return
-      }
-
-      let decoder = JSONDecoder()
-      decoder.keyDecodingStrategy = .convertFromSnakeCase
-
-      switch type {
-      case "task":
-        let taskMessage = try decoder.decode(TaskMessage.self, from: data)
-        Logger.log(.websocket, "Received task: \(taskMessage.id)")
-        await processTask(taskMessage)
-
-      case "image_task":
-        let imageTaskMessage = try decoder.decode(ImageTaskMessage.self, from: data)
-        Logger.log(.imageGen, "Received image task: \(imageTaskMessage.id)")
-        await processImageTask(imageTaskMessage)
-
-      default:
-        Logger.log(.websocket, "Unknown message type: \(type)")
-      }
-    } catch {
-      Logger.error(.websocket, "Failed to decode message: \(error)")
+    guard let data = text.data(using: .utf8),
+          let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    else {
+      Logger.error(.websocket, "Failed to parse message JSON")
+      return
     }
+
+    if let type = json["type"] as? String, type == "heartbeat" || type == "pong" {
+      lastHeartbeatResponse = Date()
+      return
+    }
+
+    guard let id = json["id"] as? String,
+          let capability = json["capability"] as? String,
+          let payloadObj = json["payload"]
+    else { return }
+
+    let stream = (json["stream"] as? Bool) ?? false
+    let payloadData: Data
+    do {
+      payloadData = try JSONSerialization.data(withJSONObject: payloadObj)
+    } catch {
+      Logger.error(.websocket, "Failed to serialize payload")
+      return
+    }
+
+    Logger.log(.websocket, "Task \(id.prefix(8)): \(capability)\(stream ? " [stream]" : "")")
+
+    if capability == "chat", stream {
+      await handleStreamingChat(id: id, payload: payloadData)
+    } else {
+      await handleCapabilityTask(id: id, capability: capability, payload: payloadData)
+    }
+  }
+
+  // MARK: - Unified Task Dispatch
+
+  private func handleCapabilityTask(id: String, capability: String, payload: Data) async {
+    guard let handler = handlers[capability] else {
+      await sendError(id: id, error: "Unsupported capability: \(capability)")
+      return
+    }
+
+    let start = Date()
+    do {
+      let result = try await handler(payload)
+      await sendResponse(id: id, payload: result)
+      tasksProcessed += 1
+      let duration = Date().timeIntervalSince(start)
+      Logger.success(.websocket, "\(capability) task \(id.prefix(8)) completed in \(String(format: "%.2f", duration))s")
+    } catch {
+      Logger.error(.websocket, "\(capability) task \(id.prefix(8)) failed: \(error)")
+      await sendError(id: id, error: error.localizedDescription)
+    }
+  }
+
+  private func handleStreamingChat(id: String, payload: Data) async {
+    let start = Date()
+    do {
+      let req = try JSONDecoder().decode(ChatRequest.self, from: payload)
+      let content = try await processChat(req) { [weak self] delta in
+        Task { await self?.sendStreamDelta(id: id, delta: delta) }
+      }
+      await sendStreamEnd(id: id)
+      tasksProcessed += 1
+      let duration = Date().timeIntervalSince(start)
+      Logger.success(.websocket, "chat stream \(id.prefix(8)) completed in \(String(format: "%.2f", duration))s")
+    } catch {
+      Logger.error(.websocket, "chat stream \(id.prefix(8)) failed: \(error)")
+      await sendError(id: id, error: error.localizedDescription)
+    }
+  }
+
+  // MARK: - Chat Processing
+
+  private func processChat(
+    _ request: ChatRequest,
+    onChunk: ((String) -> Void)? = nil
+  ) async throws -> String {
+    let systemPrompt = request.messages.first { $0.role == "system" }?.content
+      ?? Config.defaultSystemPrompt
+    let messages = request.messages.filter { $0.role != "system" }
+    return try await llmProcessor.processRequest(
+      messages: messages,
+      systemPrompt: systemPrompt,
+      responseFormat: request.response_format,
+      onChunk: onChunk
+    )
+  }
+
+  private func estimateTokens(_ messages: [ChatMessage]) -> Int {
+    max(1, messages.reduce(0) { $0 + $1.content.count } / 4)
   }
 
   // MARK: - Heartbeat
@@ -397,7 +508,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
           return
         }
 
-        await sendMessage(HeartbeatMessage())
+        await sendJSON(["type": "heartbeat"])
       }
     }
   }
@@ -427,104 +538,46 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     networkMonitor.start(queue: .global(qos: .utility))
   }
 
-  // MARK: - Task Processing
-
-  private func processTask(_ taskMessage: TaskMessage) async {
-    let startTime = Date()
-
-    do {
-      let request = taskMessage.payload
-      if request.stream == true {
-        try await streamTask(request, taskId: taskMessage.id)
-      } else {
-        let content = try await processChat(request)
-        let tokens = estimateTokens(request.messages)
-        let response = ChatResponse.create(content: content, promptTokens: tokens)
-        await sendMessage(ResponseMessage(id: taskMessage.id, payload: response))
-      }
-
-      tasksProcessed += 1
-      let duration = Date().timeIntervalSince(startTime)
-      Logger.success(.websocket, "Chat task completed in \(String(format: "%.2f", duration))s")
-    } catch {
-      Logger.error(.websocket, "Task failed: \(error)")
-      await sendMessage(ErrorMessage(id: taskMessage.id, error: error.localizedDescription))
-    }
-  }
-
-  private func processChat(_ request: ChatRequest) async throws -> String {
-    let systemPrompt = request.messages.first { $0.role == "system" }?.content
-      ?? Config.defaultSystemPrompt
-    let messages = request.messages.filter { $0.role != "system" }
-    return try await llmProcessor.processRequest(
-      messages: messages,
-      systemPrompt: systemPrompt,
-      responseFormat: request.response_format
-    )
-  }
-
-  private func streamTask(_ request: ChatRequest, taskId: String) async throws {
-    let systemPrompt = request.messages.first { $0.role == "system" }?.content
-      ?? Config.defaultSystemPrompt
-    let messages = request.messages.filter { $0.role != "system" }
-
-    _ = try await llmProcessor.processRequest(
-      messages: messages,
-      systemPrompt: systemPrompt,
-      responseFormat: request.response_format
-    ) { [weak self] delta in
-      Task { await self?.sendMessage(StreamChunkMessage(id: taskId, delta: delta)) }
-    }
-
-    await sendMessage(StreamEndMessage(id: taskId))
-  }
-
-  // MARK: - Image Task Processing
-
-  private func processImageTask(_ imageTask: ImageTaskMessage) async {
-    let startTime = Date()
-
-    do {
-      let imageDataArray = try await ImageProcessor.generateImages(
-        prompt: imageTask.payload.prompt,
-        style: imageTask.payload.style,
-        count: imageTask.payload.n ?? 1
-      )
-
-      let imageResponse = ImageResponse(
-        created: Int(Date().timeIntervalSince1970),
-        data: imageDataArray.map { ImageResponse.ImageData(b64_json: $0.base64EncodedString()) }
-      )
-
-      await sendMessage(ImageResponseMessage(id: imageTask.id, payload: imageResponse))
-
-      tasksProcessed += 1
-      let duration = Date().timeIntervalSince(startTime)
-      Logger.success(.imageGen, "Image task completed in \(String(format: "%.2f", duration))s")
-    } catch {
-      Logger.error(.imageGen, "Image task failed: \(error)")
-      await sendMessage(ErrorMessage(id: imageTask.id, error: error.localizedDescription))
-    }
-  }
-
-  private func estimateTokens(_ messages: [ChatMessage]) -> Int {
-    max(1, messages.reduce(0) { $0 + $1.content.count } / 4)
-  }
-
   // MARK: - Message Sending
 
-  private func sendMessage(_ message: some Encodable) async {
+  private func sendResponse(id: String, payload: Data) async {
+    guard let payloadObj = try? JSONSerialization.jsonObject(with: payload) else { return }
+    await sendJSON(["id": id, "type": "response", "payload": payloadObj])
+  }
+
+  private func sendStreamDelta(id: String, delta: String) async {
+    await sendJSON(["id": id, "type": "stream", "delta": delta])
+  }
+
+  private func sendStreamEnd(id: String) async {
+    await sendJSON(["id": id, "type": "stream_end"])
+  }
+
+  private func sendError(id: String, error: String) async {
+    await sendJSON(["id": id, "type": "error", "error": error])
+  }
+
+  private func sendJSON(_ object: [String: Any]) async {
     do {
-      let encoder = JSONEncoder()
-      encoder.keyEncodingStrategy = .convertToSnakeCase
-      let data = try encoder.encode(message)
-      guard let text = String(data: data, encoding: .utf8) else {
-        Logger.error(.websocket, "Failed to encode message as string")
-        return
-      }
+      let data = try JSONSerialization.data(withJSONObject: object)
+      guard let text = String(data: data, encoding: .utf8) else { return }
       try await webSocketTask?.send(.string(text))
     } catch {
       Logger.error(.websocket, "Failed to send message: \(error)")
+    }
+  }
+}
+
+// MARK: - Capability Error
+
+enum CapabilityError: LocalizedError {
+  case unavailable
+  case unsupported(String)
+
+  var errorDescription: String? {
+    switch self {
+    case .unavailable: "Capability is not available"
+    case let .unsupported(cap): "Unsupported capability: \(cap)"
     }
   }
 }
