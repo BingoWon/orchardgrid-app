@@ -131,6 +131,7 @@ struct OrchardGridApp: App {
   private func requestPermissions() async {
     let speechGranted = await SpeechProcessor.requestPermissionIfNeeded()
     Logger.log(.app, "Speech recognition permission: \(speechGranted ? "granted" : "denied")")
+    sharingManager.refreshAvailability()
   }
 
   private func setupTerminationHandler() {

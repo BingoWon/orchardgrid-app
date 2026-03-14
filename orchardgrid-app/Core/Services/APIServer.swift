@@ -99,7 +99,7 @@ final class APIServer {
   private(set) var errorMessage = ""
   private(set) var localIPAddress: String?
 
-  var port: UInt16 { Config.apiServerPort }
+  private(set) var port: UInt16 = Config.apiServerPort
 
   // MARK: - Enabled State (Managed by SharingManager)
 
@@ -165,39 +165,70 @@ final class APIServer {
   func start() async {
     guard !isRunning else { return }
 
-    do {
-      let parameters = NWParameters.tcp
-      parameters.allowLocalEndpointReuse = true
-      let listener = try NWListener(using: parameters, on: NWEndpoint.Port(integerLiteral: port))
-
-      listener.stateUpdateHandler = { [weak self] state in
-        Task { @MainActor [weak self] in
-          guard let self else { return }
-          switch state {
-          case .ready:
-            isRunning = true
-            errorMessage = ""
-          case let .failed(error):
-            isRunning = false
-            errorMessage = "Failed: \(error.localizedDescription)"
-          case .cancelled:
-            isRunning = false
-          default:
-            break
+    let maxAttempts: UInt16 = 10
+    for offset: UInt16 in 0..<maxAttempts {
+      let candidatePort = Config.apiServerPort &+ offset
+      if let boundListener = await Self.tryBind(port: candidatePort) {
+        boundListener.stateUpdateHandler = { [weak self] state in
+          Task { @MainActor [weak self] in
+            guard let self else { return }
+            if case .failed = state {
+              self.isRunning = false
+              self.errorMessage = "Server stopped unexpectedly"
+            } else if case .cancelled = state {
+              self.isRunning = false
+            }
           }
         }
-      }
 
-      listener.newConnectionHandler = { [weak self] connection in
-        Task { @MainActor in
-          await self?.handleConnection(connection)
+        boundListener.newConnectionHandler = { [weak self] connection in
+          Task { @MainActor in
+            await self?.handleConnection(connection)
+          }
+        }
+
+        self.listener = boundListener
+        self.port = candidatePort
+        self.isRunning = true
+        self.errorMessage = ""
+
+        if offset > 0 {
+          Logger.warning(.api, "Port \(Config.apiServerPort) in use, bound to \(candidatePort)")
+        }
+        return
+      }
+    }
+
+    let lastPort = Config.apiServerPort &+ maxAttempts &- 1
+    errorMessage = "Ports \(Config.apiServerPort)–\(lastPort) all in use"
+    Logger.error(.api, errorMessage)
+  }
+
+  private static func tryBind(port: UInt16) async -> NWListener? {
+    let parameters = NWParameters.tcp
+    parameters.allowLocalEndpointReuse = true
+
+    guard let listener = try? NWListener(using: parameters, on: NWEndpoint.Port(integerLiteral: port)) else {
+      return nil
+    }
+
+    return await withCheckedContinuation { cont in
+      var didResume = false
+      listener.stateUpdateHandler = { state in
+        guard !didResume else { return }
+        switch state {
+        case .ready:
+          didResume = true
+          cont.resume(returning: listener)
+        case .failed, .cancelled:
+          didResume = true
+          listener.cancel()
+          cont.resume(returning: nil)
+        default:
+          break
         }
       }
-
-      self.listener = listener
       listener.start(queue: .global())
-    } catch {
-      errorMessage = "Failed: \(error.localizedDescription)"
     }
   }
 

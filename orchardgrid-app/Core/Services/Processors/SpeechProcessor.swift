@@ -20,7 +20,27 @@ enum SpeechProcessor {
   }
 
   static var isAvailable: Bool {
-    SFSpeechRecognizer()?.isAvailable ?? false
+    let status = SFSpeechRecognizer.authorizationStatus()
+    if status == .denied || status == .restricted { return false }
+    return SFSpeechRecognizer()?.isAvailable ?? false
+  }
+
+  static var unavailabilityReason: String? {
+    let status = SFSpeechRecognizer.authorizationStatus()
+    if status == .denied {
+      return "Permission denied. Enable in Settings → Privacy & Security → Speech Recognition."
+    }
+    if status == .restricted {
+      return "Speech recognition is restricted on this device."
+    }
+    if SFSpeechRecognizer()?.isAvailable != true {
+      return "Speech recognition is not available on this device."
+    }
+    return nil
+  }
+
+  static var needsSettingsRedirect: Bool {
+    SFSpeechRecognizer.authorizationStatus() == .denied
   }
 
   static func requestPermissionIfNeeded() async -> Bool {

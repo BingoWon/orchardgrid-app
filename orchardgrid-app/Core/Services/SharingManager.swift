@@ -20,14 +20,35 @@ final class SharingManager {
     llmProcessor.isAvailable
   }
 
+  private(set) var availabilityVersion = 0
+
   func isCapabilityAvailable(_ capability: Capability) -> Bool {
-    switch capability {
+    _ = availabilityVersion
+    return switch capability {
     case .chat: llmProcessor.isAvailable
     case .image: ImageProcessor.isAvailable
     case .nlp: NLPProcessor.isAvailable
     case .vision: VisionProcessor.isAvailable
     case .speech: SpeechProcessor.isAvailable
     case .sound: SoundProcessor.isAvailable
+    }
+  }
+
+  func capabilityUnavailabilityReason(_ capability: Capability) -> String? {
+    switch capability {
+    case .chat: isModelAvailable ? nil : "Apple Intelligence is not available."
+    case .image: ImageProcessor.unavailabilityReason
+    case .nlp: NLPProcessor.isAvailable ? nil : "Text analysis is not available on this device."
+    case .vision: VisionProcessor.isAvailable ? nil : "Vision is not available on this device."
+    case .speech: SpeechProcessor.unavailabilityReason
+    case .sound: SoundProcessor.isAvailable ? nil : "Sound analysis is not available on this device."
+    }
+  }
+
+  func capabilityNeedsSettingsRedirect(_ capability: Capability) -> Bool {
+    switch capability {
+    case .speech: SpeechProcessor.needsSettingsRedirect
+    default: false
     }
   }
 
@@ -73,6 +94,13 @@ final class SharingManager {
   var localRequestCount: Int { localService.requestCount }
   var localPort: UInt16 { localService.port }
   var localIPAddress: String? { localService.localIPAddress }
+  var localErrorMessage: String? {
+    let msg = localService.errorMessage
+    return msg.isEmpty ? nil : msg
+  }
+  var isUsingFallbackPort: Bool {
+    localService.port != Config.apiServerPort && localService.isRunning
+  }
 
   // MARK: - Initialization
 
@@ -130,6 +158,7 @@ final class SharingManager {
   }
 
   func refreshAvailability() {
+    availabilityVersion += 1
     syncAllStates()
   }
 

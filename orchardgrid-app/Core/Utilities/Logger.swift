@@ -45,6 +45,11 @@ enum Logger {
     category.logger.info("\(output, privacy: .public)")
   }
 
+  static func warning(_ category: Category, _ message: String) {
+    let output = "⚠️ [\(category.rawValue.uppercased())] \(message)"
+    category.logger.warning("\(output, privacy: .public)")
+  }
+
   static func error(_ category: Category, _ message: String) {
     let output = "❌ [\(category.rawValue.uppercased())] \(message)"
     category.logger.error("\(output, privacy: .public)")

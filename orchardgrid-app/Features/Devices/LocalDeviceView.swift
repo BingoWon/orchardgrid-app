@@ -177,12 +177,23 @@ struct LocalDeviceView: View {
       if sharing.wantsLocalSharing {
         Divider()
 
-        StatusRow(
-          icon: sharing.isLocalActive ? "checkmark.circle.fill" : "hourglass.circle.fill",
-          iconColor: sharing.isLocalActive ? .green : .orange,
-          title: sharing.isLocalActive ? "Running" : "Starting...",
-          subtitle: "Port \(sharing.localPort)"
-        )
+        if let error = sharing.localErrorMessage {
+          StatusRow(
+            icon: "exclamationmark.triangle.fill",
+            iconColor: .red,
+            title: "Failed to Start",
+            subtitle: error
+          )
+        } else {
+          StatusRow(
+            icon: sharing.isLocalActive ? "checkmark.circle.fill" : "hourglass.circle.fill",
+            iconColor: sharing.isLocalActive ? .green : .orange,
+            title: sharing.isLocalActive ? "Running" : "Starting...",
+            subtitle: sharing.isUsingFallbackPort
+              ? "Port \(sharing.localPort) (auto-selected, \(Config.apiServerPort) in use)"
+              : "Port \(sharing.localPort)"
+          )
+        }
 
         if sharing.isLocalActive {
           Divider()
@@ -235,7 +246,9 @@ struct LocalDeviceView: View {
           CapabilityRow(
             capability: capability,
             isEnabled: sharing.isCapabilityEnabled(capability),
-            isAvailable: sharing.isCapabilityAvailable(capability)
+            isAvailable: sharing.isCapabilityAvailable(capability),
+            unavailabilityReason: sharing.capabilityUnavailabilityReason(capability),
+            needsSettingsRedirect: sharing.capabilityNeedsSettingsRedirect(capability)
           ) { enabled in
             sharing.setCapabilityEnabled(capability, enabled: enabled)
           }
@@ -259,37 +272,80 @@ private struct CapabilityRow: View {
   let capability: Capability
   let isEnabled: Bool
   let isAvailable: Bool
+  let unavailabilityReason: String?
+  let needsSettingsRedirect: Bool
   let onToggle: (Bool) -> Void
 
   var body: some View {
-    HStack(spacing: 12) {
-      Image(systemName: capability.icon)
-        .font(.body)
-        .foregroundStyle(isAvailable ? .primary : .tertiary)
-        .frame(width: 24)
+    VStack(alignment: .leading, spacing: 6) {
+      HStack(spacing: 12) {
+        Image(systemName: capability.icon)
+          .font(.body)
+          .foregroundStyle(isAvailable ? .primary : .tertiary)
+          .frame(width: 24)
 
-      Text(capability.displayName)
-        .font(.subheadline)
-        .fontWeight(.medium)
-        .foregroundStyle(isAvailable ? .primary : .tertiary)
+        Text(capability.displayName)
+          .font(.subheadline)
+          .fontWeight(.medium)
+          .foregroundStyle(isAvailable ? .primary : .tertiary)
 
-      Spacer()
+        Spacer()
 
-      if !isAvailable {
-        Text("Unavailable")
-          .font(.caption)
-          .foregroundStyle(.tertiary)
+        if !isAvailable {
+          Text("Unavailable")
+            .font(.caption)
+            .foregroundStyle(.tertiary)
+        }
+
+        Toggle("", isOn: Binding(
+          get: { isEnabled && isAvailable },
+          set: { onToggle($0) }
+        ))
+        .toggleStyle(.switch)
+        .labelsHidden()
+        .disabled(!isAvailable)
       }
 
-      Toggle("", isOn: Binding(
-        get: { isEnabled && isAvailable },
-        set: { onToggle($0) }
-      ))
-      .toggleStyle(.switch)
-      .labelsHidden()
-      .disabled(!isAvailable)
+      if !isAvailable, let reason = unavailabilityReason {
+        HStack(spacing: 6) {
+          Text(reason)
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+
+          if needsSettingsRedirect {
+            settingsButton
+          }
+        }
+        .padding(.leading, 36)
+      }
     }
     .padding(.vertical, 8)
+  }
+
+  @ViewBuilder
+  private var settingsButton: some View {
+    #if os(iOS)
+      Button("Open Settings") {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+          UIApplication.shared.open(url)
+        }
+      }
+      .font(.caption2)
+      .buttonStyle(.bordered)
+      .controlSize(.mini)
+    #elseif os(macOS)
+      Button("Open Settings") {
+        if let url = URL(
+          string:
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_SpeechRecognition"
+        ) {
+          NSWorkspace.shared.open(url)
+        }
+      }
+      .font(.caption2)
+      .buttonStyle(.bordered)
+      .controlSize(.mini)
+    #endif
   }
 }
 
