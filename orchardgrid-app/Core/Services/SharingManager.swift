@@ -24,7 +24,6 @@ final class SharingManager {
     switch capability {
     case .chat: llmProcessor.isAvailable
     case .image: ImageProcessor.isAvailable
-    case .translate: TranslationProcessor.isAvailable
     case .nlp: NLPProcessor.isAvailable
     case .vision: VisionProcessor.isAvailable
     case .speech: SpeechProcessor.isAvailable

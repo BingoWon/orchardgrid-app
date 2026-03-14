@@ -121,7 +121,6 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
     let staticHandlers: [(Capability, Bool, @MainActor @Sendable (Data) async throws -> Data)] = [
       (.image, ImageProcessor.isAvailable, { data in try await ImageProcessor.handle(data) }),
-      (.translate, TranslationProcessor.isAvailable, { data in try await TranslationProcessor.handle(data) }),
       (.nlp, NLPProcessor.isAvailable, { data in try await NLPProcessor.handle(data) }),
       (.vision, VisionProcessor.isAvailable, { data in try await VisionProcessor.handle(data) }),
       (.speech, SpeechProcessor.isAvailable, { data in try await SpeechProcessor.handle(data) }),

@@ -127,7 +127,6 @@ final class APIServer {
   private static let routeToCapability: [String: Capability] = [
     "/v1/chat/completions": .chat,
     "/v1/images/generations": .image,
-    "/v1/translations": .translate,
     "/v1/nlp/analyze": .nlp,
     "/v1/vision/analyze": .vision,
     "/v1/audio/transcriptions": .speech,
@@ -136,7 +135,6 @@ final class APIServer {
 
   private static let routeHandlers: [(path: String, available: Bool, handler: Handler)] = [
     ("/v1/images/generations", ImageProcessor.isAvailable, { data in try await ImageProcessor.handle(data) }),
-    ("/v1/translations", TranslationProcessor.isAvailable, { data in try await TranslationProcessor.handle(data) }),
     ("/v1/nlp/analyze", NLPProcessor.isAvailable, { data in try await NLPProcessor.handle(data) }),
     ("/v1/vision/analyze", VisionProcessor.isAvailable, { data in try await VisionProcessor.handle(data) }),
     ("/v1/audio/transcriptions", SpeechProcessor.isAvailable, { data in try await SpeechProcessor.handle(data) }),

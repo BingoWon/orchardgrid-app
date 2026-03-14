@@ -3,13 +3,12 @@ import Foundation
 // MARK: - Capabilities
 
 enum Capability: String, Codable, Sendable, CaseIterable {
-  case chat, image, translate, nlp, vision, speech, sound
+  case chat, image, nlp, vision, speech, sound
 
   var displayName: String {
     switch self {
     case .chat: "Chat"
     case .image: "Image Generation"
-    case .translate: "Translation"
     case .nlp: "Text Analysis"
     case .vision: "Vision"
     case .speech: "Speech Recognition"
@@ -21,7 +20,6 @@ enum Capability: String, Codable, Sendable, CaseIterable {
     switch self {
     case .chat: "bubble.left.and.text.bubble.right"
     case .image: "photo.artframe"
-    case .translate: "character.book.closed"
     case .nlp: "text.magnifyingglass"
     case .vision: "eye"
     case .speech: "waveform"

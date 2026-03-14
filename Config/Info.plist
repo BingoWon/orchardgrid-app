@@ -51,8 +51,6 @@
 	</array>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>OrchardGrid uses speech recognition to provide speech-to-text transcription as a shared AI capability.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>OrchardGrid uses the microphone to process audio for speech recognition and sound analysis.</string>
 	<key>API_BASE_URL</key>
 	<string>$(API_BASE_URL)</string>
 	<key>CLERK_PUBLISHABLE_KEY</key>
