@@ -221,13 +221,7 @@ struct AllDevicesView: View {
       }
     } label: {
       Image(systemName: "arrow.clockwise")
-        .rotationEffect(.degrees(devicesManager.isRefreshing ? 360 : 0))
-        .animation(
-          devicesManager.isRefreshing
-            ? .linear(duration: 1).repeatForever(autoreverses: false)
-            : .default,
-          value: devicesManager.isRefreshing
-        )
+        .symbolEffect(.rotate, isActive: devicesManager.isRefreshing)
     }
     .disabled(devicesManager.isRefreshing)
   }

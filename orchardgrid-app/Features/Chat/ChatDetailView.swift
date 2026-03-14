@@ -318,10 +318,13 @@ private struct MessageBubble: View {
   @State private var showCopied = false
 
   var body: some View {
-    HStack(alignment: .top) {
-      if message.role == .user { Spacer(minLength: 48) }
+    HStack(alignment: .bottom, spacing: 4) {
+      if message.role == .user {
+        Spacer(minLength: 48)
+        if !message.content.isEmpty { copyButton }
+      }
 
-      VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
+      VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 8) {
         if message.role == .user, message.hasImages {
           ForEach(message.imageFilenames, id: \.self) { filename in
             ChatImageView(filename: filename, compact: true)
@@ -337,13 +340,12 @@ private struct MessageBubble: View {
             ChatImageView(filename: filename, compact: false)
           }
         }
-
-        if !message.content.isEmpty {
-          copyButton
-        }
       }
 
-      if message.role == .assistant { Spacer(minLength: 48) }
+      if message.role == .assistant {
+        if !message.content.isEmpty { copyButton }
+        Spacer(minLength: 48)
+      }
     }
   }
 
@@ -373,28 +375,16 @@ private struct MessageBubble: View {
 
   private var copyButton: some View {
     Button {
-      #if os(macOS)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(message.content, forType: .string)
-      #else
-        UIPasteboard.general.string = message.content
-      #endif
+      Clipboard.copy(message.content)
       withAnimation(.easeInOut(duration: 0.2)) { showCopied = true }
-      DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+      Task {
+        try? await Task.sleep(for: .seconds(1.5))
         withAnimation(.easeInOut(duration: 0.2)) { showCopied = false }
       }
     } label: {
-      HStack(spacing: 3) {
-        Image(systemName: showCopied ? "checkmark" : "doc.on.doc")
-        if showCopied {
-          Text("Copied")
-        }
-      }
-      .font(.caption2)
-      .foregroundStyle(.secondary)
-      .padding(.horizontal, 6)
-      .padding(.vertical, 3)
-      .background(.fill.quaternary, in: Capsule())
+      Image(systemName: showCopied ? "checkmark" : "doc.on.doc")
+        .font(.caption2)
+        .foregroundStyle(showCopied ? Color.green : Color.secondary.opacity(0.5))
     }
     .buttonStyle(.plain)
   }

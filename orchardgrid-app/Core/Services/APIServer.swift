@@ -94,8 +94,6 @@ final class APIServer {
 
   private(set) var isRunning = false
   private(set) var requestCount = 0
-  private(set) var lastRequest = ""
-  private(set) var lastResponse = ""
   private(set) var errorMessage = ""
   private(set) var localIPAddress: String?
   private(set) var portConflict = false
@@ -182,14 +180,14 @@ final class APIServer {
             self.isRunning = true
             self.errorMessage = ""
             self.portConflict = false
-          case let .failed(error):
+          case let .failed(nwError):
             self.isRunning = false
-            if "\(error)".contains("48") || "\(error)".contains("Address already in use") {
+            if case .posix(let code) = nwError, code == .EADDRINUSE {
               self.portConflict = true
               self.errorMessage = "Port \(self.port) is already in use"
               self.suggestedPort = Self.findAvailablePort(from: self.port &+ 1)
             } else {
-              self.errorMessage = "Server error: \(error.localizedDescription)"
+              self.errorMessage = "Server error: \(nwError.localizedDescription)"
             }
           case .cancelled:
             self.isRunning = false
@@ -235,9 +233,6 @@ final class APIServer {
     let fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)
     guard fd >= 0 else { return false }
     defer { Darwin.close(fd) }
-
-    var opt: Int32 = 1
-    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, socklen_t(MemoryLayout<Int32>.size))
 
     var addr = sockaddr_in6()
     addr.sin6_len = UInt8(MemoryLayout<sockaddr_in6>.size)
@@ -405,7 +400,6 @@ final class APIServer {
       }
 
       requestCount += 1
-      lastRequest = messages.last { $0.role == "user" }?.content ?? ""
 
       if chatRequest.stream == true {
         await streamResponse(
@@ -444,7 +438,6 @@ final class APIServer {
         responseFormat: responseFormat
       )
 
-      lastResponse = content
       await sendJSON(ChatResponse.create(content: content), to: connection)
     } catch {
       await sendLLMError(error, to: connection)
@@ -463,7 +456,7 @@ final class APIServer {
     await sendSSE(StreamChunk.delta(id, content: ""), to: connection)
 
     do {
-      let fullContent = try await llmProcessor.processRequest(
+      _ = try await llmProcessor.processRequest(
         messages: messages,
         systemPrompt: systemPrompt,
         responseFormat: responseFormat
@@ -472,8 +465,6 @@ final class APIServer {
           await self?.sendSSE(StreamChunk.delta(id, content: delta), to: connection)
         }
       }
-
-      lastResponse = fullContent
 
       await sendSSE(StreamChunk.end(id), to: connection)
       await send("data: [DONE]\n\n", to: connection, closeAfter: false)

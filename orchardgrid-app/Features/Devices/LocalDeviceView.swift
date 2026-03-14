@@ -1,5 +1,6 @@
 import FoundationModels
 import SwiftUI
+
 #if os(macOS)
   import AppKit
 #elseif os(iOS)
@@ -154,11 +155,16 @@ struct LocalDeviceView: View {
 
   // MARK: - Share Locally Card
 
-  @State private var portInput = ""
+  @State private var portText = ""
 
   private var isLocalStarting: Bool {
     sharing.wantsLocalSharing && !sharing.isLocalActive
       && !sharing.localPortConflict && sharing.localErrorMessage == nil
+  }
+
+  private var portNeedsApply: Bool {
+    guard let port = UInt16(portText) else { return false }
+    return port != sharing.localPort
   }
 
   private var localShareCard: some View {
@@ -189,22 +195,11 @@ struct LocalDeviceView: View {
       if sharing.wantsLocalSharing {
         Divider()
 
-        if sharing.localPortConflict {
-          portConflictSection
-        } else if isLocalStarting {
-          StatusRow(
-            isLoading: true,
-            title: "Starting...",
-            subtitle: "Port \(sharing.localPort)"
-          )
-        } else if sharing.isLocalActive {
-          StatusRow(
-            icon: "checkmark.circle.fill",
-            iconColor: .green,
-            title: "Running",
-            subtitle: "Port \(sharing.localPort)"
-          )
+        localStatusSection
 
+        portConfigRow
+
+        if sharing.isLocalActive {
           Divider()
 
           VStack(alignment: .leading, spacing: 12) {
@@ -226,68 +221,93 @@ struct LocalDeviceView: View {
           HStack(spacing: 40) {
             StatView(title: "Requests Served", value: "\(sharing.localRequestCount)")
           }
-        } else if let error = sharing.localErrorMessage {
-          StatusRow(
-            icon: "exclamationmark.triangle.fill",
-            iconColor: .red,
-            title: "Failed to Start",
-            subtitle: error
-          )
         }
       }
     }
     .padding()
     .frame(maxWidth: .infinity, alignment: .leading)
     .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
-  }
-
-  private var portConflictSection: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      HStack(spacing: 8) {
-        Image(systemName: "exclamationmark.triangle.fill")
-          .foregroundStyle(.orange)
-        Text("Port \(sharing.localPort) is already in use")
-          .font(.subheadline)
-          .fontWeight(.medium)
-      }
-
-      HStack(spacing: 12) {
-        HStack {
-          Text("Port")
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-          TextField("Port", text: $portInput)
-            .textFieldStyle(.roundedBorder)
-            .frame(width: 80)
-            #if os(iOS)
-              .keyboardType(.numberPad)
-            #endif
-        }
-
-        if let p = UInt16(portInput), APIServer.isPortAvailable(p) {
-          Label("Available", systemImage: "checkmark.circle.fill")
-            .font(.caption)
-            .foregroundStyle(.green)
-        } else if !portInput.isEmpty {
-          Label("In use", systemImage: "xmark.circle.fill")
-            .font(.caption)
-            .foregroundStyle(.red)
-        }
-
-        Spacer()
-
-        Button("Start") {
-          if let p = UInt16(portInput) {
-            sharing.setLocalPort(p)
-          }
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.small)
-        .disabled(UInt16(portInput).map { !APIServer.isPortAvailable($0) } ?? true)
+    .task { portText = String(sharing.localPort) }
+    .onChange(of: sharing.localPortConflict) { _, isConflict in
+      if isConflict, let suggested = sharing.localSuggestedPort {
+        portText = String(suggested)
       }
     }
-    .onAppear {
-      portInput = sharing.localSuggestedPort.map(String.init) ?? String(sharing.localPort &+ 1)
+  }
+
+  @ViewBuilder
+  private var localStatusSection: some View {
+    if sharing.localPortConflict {
+      StatusRow(
+        icon: "exclamationmark.triangle.fill",
+        iconColor: .orange,
+        title: "Port Conflict",
+        subtitle: "Port \(sharing.localPort) is already in use"
+      )
+    } else if isLocalStarting {
+      StatusRow(
+        isLoading: true,
+        title: "Starting...",
+        subtitle: "Port \(sharing.localPort)"
+      )
+    } else if sharing.isLocalActive {
+      StatusRow(
+        icon: "checkmark.circle.fill",
+        iconColor: .green,
+        title: "Running",
+        subtitle: "Port \(sharing.localPort)"
+      )
+    } else if let error = sharing.localErrorMessage {
+      StatusRow(
+        icon: "exclamationmark.triangle.fill",
+        iconColor: .red,
+        title: "Failed to Start",
+        subtitle: error
+      )
+    }
+  }
+
+  private var portConfigRow: some View {
+    HStack(spacing: 8) {
+      Text("Port")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+
+      TextField("", text: $portText)
+        .font(.system(.caption, design: .monospaced))
+        .multilineTextAlignment(.center)
+        .frame(width: 64)
+        .padding(.vertical, 4)
+        .padding(.horizontal, 6)
+        .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 6))
+        #if os(iOS)
+          .keyboardType(.numberPad)
+        #endif
+
+      if portNeedsApply, let port = UInt16(portText) {
+        if APIServer.isPortAvailable(port) {
+          Image(systemName: "checkmark.circle.fill")
+            .font(.caption2)
+            .foregroundStyle(.green)
+        } else {
+          Image(systemName: "xmark.circle.fill")
+            .font(.caption2)
+            .foregroundStyle(.red)
+        }
+      }
+
+      Spacer()
+
+      if portNeedsApply {
+        Button("Apply") {
+          guard let port = UInt16(portText) else { return }
+          sharing.setLocalPort(port)
+        }
+        .font(.caption)
+        .buttonStyle(.borderedProminent)
+        .controlSize(.mini)
+        .disabled(UInt16(portText).map { !APIServer.isPortAvailable($0) } ?? true)
+      }
     }
   }
   // MARK: - Shared Capabilities Card
@@ -647,7 +667,7 @@ struct EndpointRow: View {
       Spacer()
 
       Button {
-        copyToClipboard(url)
+        Clipboard.copy(url)
       } label: {
         Image(systemName: "doc.on.doc")
           .font(.caption)
@@ -656,15 +676,6 @@ struct EndpointRow: View {
       .buttonStyle(.plain)
       .help("Copy URL")
     }
-  }
-
-  private func copyToClipboard(_ text: String) {
-    #if os(macOS)
-      NSPasteboard.general.clearContents()
-      NSPasteboard.general.setString(text, forType: .string)
-    #elseif os(iOS)
-      UIPasteboard.general.string = text
-    #endif
   }
 }
 
