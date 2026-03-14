@@ -46,7 +46,6 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   private var urlSession: URLSession?
   private var connectionTask: Task<Void, Never>?
   private var heartbeatTask: Task<Void, Never>?
-  private var isConnectionLoopActive = false
   private let networkMonitor = NWPathMonitor()
   private var isNetworkAvailable = true
   private var lastHeartbeatResponse: Date?
@@ -121,8 +120,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   private func startConnection() {
     connectionTask?.cancel()
     connectionTask = Task { @MainActor in
-      isConnectionLoopActive = true
-      defer { isConnectionLoopActive = false }
+      defer { connectionTask = nil }
 
       var attempt = 0
       var delay: TimeInterval = 1
@@ -278,7 +276,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       connectionState = .disconnected
       stopHeartbeat()
       Logger.log(.websocket, "Closed: \(closeCode.rawValue)")
-      if isEnabled, isNetworkAvailable {
+      if isEnabled, isNetworkAvailable, connectionTask == nil {
         startConnection()
       }
     }
@@ -298,7 +296,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       Logger.error(.websocket, "Connection error: \(error.localizedDescription)")
       connectionState = .failed(error.localizedDescription)
 
-      if isEnabled, isNetworkAvailable, !isConnectionLoopActive {
+      if isEnabled, isNetworkAvailable, connectionTask == nil {
         startConnection()
       }
     }
@@ -332,7 +330,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
           Logger.error(.websocket, "Receive error: \(error.localizedDescription)")
           self.connectionState = .disconnected
 
-          if self.isEnabled, self.isNetworkAvailable, !self.isConnectionLoopActive {
+          if self.isEnabled, self.isNetworkAvailable, self.connectionTask == nil {
             self.startConnection()
           }
         }
