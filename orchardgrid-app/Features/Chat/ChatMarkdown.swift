@@ -1,15 +1,4 @@
-/**
- * ChatMarkdown.swift
- * Lightweight markdown renderer for AI chat messages
- */
-
 import SwiftUI
-
-#if os(macOS)
-  import AppKit
-#else
-  import UIKit
-#endif
 
 // MARK: - Public View
 
@@ -187,14 +176,18 @@ private struct CodeBlockView: View {
       Spacer()
 
       Button {
-        copyCode()
+        Clipboard.copy(code)
+        copied = true
+        Task {
+          try? await Task.sleep(for: .seconds(2))
+          copied = false
+        }
       } label: {
         HStack(spacing: 4) {
           Image(systemName: copied ? "checkmark" : "doc.on.doc")
-            .font(.caption2)
           Text(copied ? "Copied" : "Copy")
-            .font(.caption2)
         }
+        .font(.caption2)
         .foregroundStyle(copied ? .green : .secondary)
         .animation(.easeInOut(duration: 0.2), value: copied)
       }
@@ -205,19 +198,6 @@ private struct CodeBlockView: View {
     .padding(.bottom, 2)
   }
 
-  private func copyCode() {
-    #if os(macOS)
-      NSPasteboard.general.clearContents()
-      NSPasteboard.general.setString(code, forType: .string)
-    #else
-      UIPasteboard.general.string = code
-    #endif
-    copied = true
-    Task {
-      try? await Task.sleep(for: .seconds(2))
-      copied = false
-    }
-  }
 }
 
 // MARK: - Block Types

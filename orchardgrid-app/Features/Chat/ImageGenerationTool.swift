@@ -53,7 +53,7 @@ struct ImageGenerationTool: Tool {
   }
 
   func call(arguments: Arguments) async throws -> String {
-    guard ImageProcessor.isAvailable else {
+    guard await ImageProcessor.isAvailable else {
       return "Image generation is not available on this device."
     }
 
@@ -72,7 +72,7 @@ struct ImageGenerationTool: Tool {
       }
 
       let filename = "chat_\(UUID().uuidString).png"
-      let dir = ChatImages.directory
+      let dir = await ChatImages.directory
       let url = dir.appendingPathComponent(filename)
 
       try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

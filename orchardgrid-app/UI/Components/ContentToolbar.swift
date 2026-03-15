@@ -1,12 +1,15 @@
 import SwiftUI
 
-struct ContentToolbar<LeadingContent: View>: ViewModifier {
-  let leadingContent: LeadingContent
+struct ContentToolbar<TrailingContent: View>: ViewModifier {
+  let trailingContent: TrailingContent
 
   func body(content: Content) -> some View {
     content
       .toolbar {
-        ToolbarItem { leadingContent }
+        #if !os(macOS)
+          ToolbarSpacer(.fixed, placement: .topBarTrailing)
+        #endif
+        ToolbarItem(placement: .confirmationAction) { trailingContent }
       }
   }
 }
@@ -15,9 +18,6 @@ extension View {
   func contentToolbar(
     @ViewBuilder leadingContent: () -> some View
   ) -> some View {
-    modifier(
-      ContentToolbar(
-        leadingContent: leadingContent()
-      ))
+    modifier(ContentToolbar(trailingContent: leadingContent()))
   }
 }

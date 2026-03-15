@@ -131,18 +131,11 @@ enum DeviceInfo {
     #endif
   }
 
-  /// Total physical memory in bytes
-  static var totalMemoryBytes: UInt64 {
-    ProcessInfo.processInfo.physicalMemory
-  }
+  static let totalMemoryBytes: UInt64 = ProcessInfo.processInfo.physicalMemory
 
-  /// Total physical memory in GB (formatted)
-  static var totalMemoryGB: Double {
-    Double(totalMemoryBytes) / 1_073_741_824.0
-  }
+  static let totalMemoryGB: Double = Double(totalMemoryBytes) / 1_073_741_824.0
 
-  /// Formatted memory string (e.g., "16 GB", "36 GB")
-  static var formattedMemory: String {
+  static let formattedMemory: String = {
     let gb = totalMemoryGB
     if gb >= 1 {
       return String(format: "%.0f GB", gb)
@@ -150,5 +143,5 @@ enum DeviceInfo {
       let mb = Double(totalMemoryBytes) / 1_048_576.0
       return String(format: "%.0f MB", mb)
     }
-  }
+  }()
 }

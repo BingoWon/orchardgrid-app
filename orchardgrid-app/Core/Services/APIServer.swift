@@ -404,10 +404,7 @@ final class APIServer {
         return
       }
 
-      let systemPrompt =
-        chatRequest.messages.first { $0.role == "system" }?
-        .content ?? Config.defaultSystemPrompt
-      let messages = chatRequest.messages.filter { $0.role != "system" }
+      let messages = chatRequest.nonSystemMessages
 
       guard messages.last(where: { $0.role == "user" }) != nil else {
         await sendError(.badRequest, message: "No user message found", to: connection)
@@ -419,14 +416,14 @@ final class APIServer {
       if chatRequest.stream == true {
         await streamResponse(
           messages: messages,
-          systemPrompt: systemPrompt,
+          systemPrompt: chatRequest.systemPrompt,
           responseFormat: chatRequest.responseFormat,
           connection: connection
         )
       } else {
         await sendChatResponse(
           messages: messages,
-          systemPrompt: systemPrompt,
+          systemPrompt: chatRequest.systemPrompt,
           responseFormat: chatRequest.responseFormat,
           connection: connection
         )

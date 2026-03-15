@@ -28,11 +28,9 @@ final class SchemaConverter {
   }
 
   private var dependencies: [DynamicGenerationSchema] = []
-  private var schemaCounter = 0
 
   func convert(_ jsonSchema: JSONSchemaDefinition) throws -> GenerationSchema {
     dependencies.removeAll()
-    schemaCounter = 0
 
     guard jsonSchema.schema.type == "object" else {
       throw ConversionError.invalidSchema("Root schema must be object type")

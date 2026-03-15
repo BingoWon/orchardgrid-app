@@ -10,6 +10,7 @@ struct PlaceholderView: View {
       Image(systemName: icon)
         .font(.system(size: 48))
         .foregroundStyle(.secondary)
+        .symbolColorRenderingMode(.gradient)
 
       VStack(spacing: 8) {
         Text(title)

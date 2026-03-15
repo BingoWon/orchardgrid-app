@@ -1,10 +1,14 @@
 import SwiftUI
 
+private enum LogTab: Int {
+  case consuming, providing
+}
+
 struct LogsView: View {
   @Environment(AuthManager.self) private var authManager
   @Environment(LogsManager.self) private var manager
   @Environment(ObserverClient.self) private var observerClient
-  @State private var selectedTab = 0
+  @State private var selectedTab = LogTab.consuming
   @State private var consumingStatus = "all"
   @State private var providingStatus = "all"
   @State private var consumingPageSize = 50
@@ -16,7 +20,7 @@ struct LogsView: View {
 
   var body: some View {
     ScrollView {
-      GlassEffectContainer {
+      GlassEffectContainer(spacing: Constants.standardSpacing) {
         VStack(alignment: .leading, spacing: Constants.standardSpacing) {
           if authManager.isAuthenticated {
             authenticatedContent
@@ -41,6 +45,7 @@ struct LogsView: View {
       await loadData(isManualRefresh: true)
     }
     .navigationTitle("Logs")
+    .navigationSubtitle("\(manager.consumingTotal + manager.providingTotal) tasks")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .contentToolbar {
@@ -57,42 +62,27 @@ struct LogsView: View {
 
   @ViewBuilder
   private var authenticatedContent: some View {
-    // Status Bar
     HStack {
-      HStack(spacing: 4) {
-        Circle()
-          .fill(observerClient.status == .connected ? .green : .gray)
-          .frame(width: 6, height: 6)
-        Text(observerClient.status == .connected ? "Live" : "Offline")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      }
-
+      ConnectionStatusBadge(isConnected: observerClient.status == .connected)
       Spacer()
-
       if !manager.isInitialLoading {
         LastUpdatedView(lastUpdatedText: manager.lastUpdatedText)
       }
     }
 
-    // Loading State
     if manager.isInitialLoading {
-      loadingState
-    }
-    // Error State
-    else if let error = manager.errorMessage {
-      errorState(error: error)
-    }
-    // Content
-    else {
-      // Summary Card
+      ProgressView()
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 60)
+    } else if let error = manager.errorMessage {
+      ErrorBanner(message: error) {
+        Task { await loadData(isManualRefresh: true) }
+      }
+    } else {
       summaryCard
-
-      // Tab Selector
       tabSelector
 
-      // Task List
-      if selectedTab == 0 {
+      if selectedTab == .consuming {
         taskSection(
           title: "Consuming Tasks",
           tasks: manager.consumingTasks,
@@ -127,9 +117,9 @@ struct LogsView: View {
         .foregroundStyle(.secondary)
 
       HStack(spacing: 16) {
-        SummaryStatView(title: "Consuming", value: "\(manager.consumingTotal)")
-        SummaryStatView(title: "Providing", value: "\(manager.providingTotal)")
-        SummaryStatView(
+        StatCard(title: "Consuming", value: "\(manager.consumingTotal)")
+        StatCard(title: "Providing", value: "\(manager.providingTotal)")
+        StatCard(
           title: "Total",
           value: "\(manager.consumingTotal + manager.providingTotal)"
         )
@@ -144,8 +134,8 @@ struct LogsView: View {
 
   private var tabSelector: some View {
     Picker("", selection: $selectedTab) {
-      Text("Consuming").tag(0)
-      Text("Providing").tag(1)
+      Text("Consuming").tag(LogTab.consuming)
+      Text("Providing").tag(LogTab.providing)
     }
     .pickerStyle(.segmented)
   }
@@ -253,47 +243,13 @@ struct LogsView: View {
 
   // MARK: - States
 
-  private var loadingState: some View {
-    VStack(spacing: 16) {
-      ProgressView()
-      Text("Loading logs...")
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-    }
-    .frame(maxWidth: .infinity)
-    .padding(.vertical, 60)
-  }
-
   private var emptyTasksState: some View {
-    VStack(spacing: 12) {
-      Image(systemName: "tray")
-        .font(.system(size: 32))
-        .foregroundStyle(.secondary)
-      Text("No tasks found")
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-    }
+    ContentUnavailableView(
+      "No Tasks Found",
+      systemImage: "tray",
+      description: Text("Tasks will appear here once processed")
+    )
     .frame(maxWidth: .infinity)
-    .padding(.vertical, 40)
-  }
-
-  private func errorState(error: String) -> some View {
-    HStack {
-      Image(systemName: "exclamationmark.triangle.fill")
-        .foregroundStyle(.orange)
-
-      Text(error)
-        .font(.subheadline)
-
-      Spacer()
-
-      Button("Retry") {
-        Task { await loadData(isManualRefresh: true) }
-      }
-      .buttonStyle(.glass)
-    }
-    .padding()
-    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
   }
 
   // MARK: - Refresh Button
@@ -303,13 +259,7 @@ struct LogsView: View {
       Task { await loadData(isManualRefresh: true) }
     } label: {
       Image(systemName: "arrow.clockwise")
-        .rotationEffect(.degrees(manager.isRefreshing ? 360 : 0))
-        .animation(
-          manager.isRefreshing
-            ? .linear(duration: 1).repeatForever(autoreverses: false)
-            : .default,
-          value: manager.isRefreshing
-        )
+        .symbolEffect(.rotate, isActive: manager.isRefreshing)
     }
     .disabled(manager.isRefreshing)
   }
@@ -356,27 +306,6 @@ struct LogsView: View {
   }
 }
 
-// MARK: - Summary Stat View
-
-private struct SummaryStatView: View {
-  let title: String
-  let value: String
-
-  var body: some View {
-    VStack(spacing: 4) {
-      Text(value)
-        .font(.title2.bold())
-
-      Text(title)
-        .font(.caption)
-        .foregroundStyle(.secondary)
-    }
-    .frame(maxWidth: .infinity)
-    .padding(.vertical, 12)
-    .background(.ultraThinMaterial, in: .rect(cornerRadius: 10))
-  }
-}
-
 // MARK: - Task Card
 
 private struct TaskCard: View {
@@ -412,11 +341,10 @@ private struct TaskCard: View {
         }
         .font(.caption)
         .foregroundStyle(.secondary)
-        .labelStyle(.titleOnly)
       }
     }
     .padding(12)
-    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
+    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 12, style: .continuous))
   }
 
   private var statusColor: Color {

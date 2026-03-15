@@ -6,10 +6,7 @@ struct LastUpdatedView: View {
 
   var body: some View {
     HStack {
-      Image(systemName: "clock")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-      Text("Updated \(lastUpdatedText)")
+      Label("Updated \(lastUpdatedText)", systemImage: "clock")
         .font(.caption)
         .foregroundStyle(.secondary)
       Spacer()

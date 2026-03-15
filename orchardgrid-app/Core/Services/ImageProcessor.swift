@@ -10,7 +10,6 @@
 import CoreGraphics
 import Foundation
 import ImagePlayground
-import OSLog
 
 #if os(macOS)
   import AppKit

@@ -139,6 +139,16 @@ struct ChatRequest: Codable, Sendable {
   }
 }
 
+extension ChatRequest {
+  var systemPrompt: String {
+    messages.first { $0.role == "system" }?.content ?? Config.defaultSystemPrompt
+  }
+
+  var nonSystemMessages: [ChatMessage] {
+    messages.filter { $0.role != "system" }
+  }
+}
+
 struct ResponseFormat: Codable, Sendable {
   let type: String
   let jsonSchema: JSONSchemaDefinition?

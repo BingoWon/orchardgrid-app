@@ -36,6 +36,7 @@ struct ChatDetailView: View {
       inputBar
     }
     .navigationTitle(conversation?.title ?? "Chat")
+    .navigationSubtitle(isStreaming ? "Responding..." : "")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .onDisappear { cleanupIfEmpty() }
@@ -92,6 +93,7 @@ struct ChatDetailView: View {
       Image(systemName: "apple.intelligence")
         .font(.system(size: 40))
         .foregroundStyle(.secondary)
+        .symbolColorRenderingMode(.gradient)
 
       Text("Apple Intelligence")
         .font(.title3)

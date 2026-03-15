@@ -1,6 +1,6 @@
 import Foundation
 
-struct Device: Codable, Identifiable {
+struct Device: Codable, Identifiable, Sendable {
   let id: String
   let userId: String
   let platform: String
@@ -59,21 +59,21 @@ struct Device: Codable, Identifiable {
     isOnline ? "Online" : "Offline"
   }
 
+  private static let lastSeenFormatter: RelativeDateTimeFormatter = {
+    let f = RelativeDateTimeFormatter()
+    f.unitsStyle = .full
+    return f
+  }()
+
   var lastSeenText: String {
     guard let heartbeat = lastHeartbeat else { return "Never" }
     let date = Date(timeIntervalSince1970: TimeInterval(heartbeat) / 1000)
-    let formatter = RelativeDateTimeFormatter()
-    formatter.unitsStyle = .full
-    return formatter.localizedString(for: date, relativeTo: Date())
+    return Self.lastSeenFormatter.localizedString(for: date, relativeTo: Date())
   }
 
   var shortOSVersion: String? {
     guard let v = osVersion else { return nil }
-    let pattern = #"Version\s+([\d.]+)"#
-    guard let regex = try? NSRegularExpression(pattern: pattern),
-      let match = regex.firstMatch(in: v, range: NSRange(v.startIndex..., in: v)),
-      let range = Range(match.range(at: 1), in: v)
-    else { return v }
-    return String(v[range])
+    guard let match = v.firstMatch(of: /Version\s+([\d.]+)/) else { return v }
+    return String(match.1)
   }
 }

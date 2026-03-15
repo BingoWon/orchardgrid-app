@@ -22,12 +22,7 @@ struct MainView: View {
         }
       #endif
     }
-    .sheet(
-      isPresented: Binding(
-        get: { authManager.showAuthSheet },
-        set: { authManager.showAuthSheet = $0 }
-      )
-    ) {
+    .sheet(isPresented: Bindable(authManager).showAuthSheet) {
       #if os(iOS)
         AuthView()
       #else
@@ -92,6 +87,7 @@ struct MainView: View {
     } detail: {
       NavigationStack {
         detailView(for: navigationState.selectedItem)
+          .backgroundExtensionEffect()
           #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
           #endif

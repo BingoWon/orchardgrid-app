@@ -72,7 +72,6 @@ struct Conversation: Identifiable, Codable, Sendable {
 
   var titleSnippet: String {
     messages
-      .filter { $0.role == .user || $0.role == .assistant }
       .prefix(4)
       .map { "\($0.role.rawValue): \(String($0.content.prefix(200)))" }
       .joined(separator: "\n")

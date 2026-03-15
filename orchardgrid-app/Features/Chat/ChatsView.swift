@@ -12,7 +12,7 @@ struct ChatsView: View {
 
   var body: some View {
     ScrollView {
-      GlassEffectContainer {
+      GlassEffectContainer(spacing: Constants.standardSpacing) {
         VStack(alignment: .leading, spacing: Constants.standardSpacing) {
           if !chatManager.isModelAvailable {
             AIStatusCard(availability: chatManager.modelAvailability)
@@ -26,6 +26,7 @@ struct ChatsView: View {
       }
     }
     .navigationTitle("Chats")
+    .navigationSubtitle(chatManager.conversations.isEmpty ? "" : "\(chatManager.conversations.count) conversations")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .contentToolbar {
@@ -97,32 +98,20 @@ struct ChatsView: View {
   // MARK: - Empty State
 
   private var emptyState: some View {
-    VStack(spacing: 12) {
-      Image(systemName: "apple.intelligence")
-        .font(.system(size: 36))
-        .foregroundStyle(.secondary)
-
-      Text("No Conversations")
-        .font(.headline)
-
+    ContentUnavailableView {
+      Label("No Conversations", systemImage: "apple.intelligence")
+    } description: {
       Text("Start a new chat with Apple Intelligence")
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-
+    } actions: {
       Button {
         let conv = chatManager.createConversation()
         selectedConversationId = conv.id
       } label: {
         Label("New Chat", systemImage: "plus")
-          .font(.subheadline.weight(.medium))
-          .padding(.horizontal, 20)
-          .padding(.vertical, 10)
       }
       .buttonStyle(.borderedProminent)
-      .padding(.top, 4)
     }
     .frame(maxWidth: .infinity)
-    .padding(.vertical, 48)
   }
 }
 
@@ -163,7 +152,7 @@ private struct ConversationCard: View {
     .padding(.horizontal, 12)
     .padding(.vertical, 10)
     .frame(maxWidth: .infinity, alignment: .leading)
-    .glassEffect(in: .rect(cornerRadius: 10, style: .continuous))
+    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 10, style: .continuous))
   }
 }
 

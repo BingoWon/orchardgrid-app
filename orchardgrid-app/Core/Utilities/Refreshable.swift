@@ -1,17 +1,19 @@
 import Foundation
 
-/// Protocol for managers that track last updated time
+private let relativeFormatter: RelativeDateTimeFormatter = {
+  let f = RelativeDateTimeFormatter()
+  f.unitsStyle = .abbreviated
+  return f
+}()
+
 @MainActor
 protocol Refreshable {
   var lastUpdated: Date? { get }
 }
 
 extension Refreshable {
-  /// Formatted last updated time
   var lastUpdatedText: String {
     guard let lastUpdated else { return "Never" }
-    let formatter = RelativeDateTimeFormatter()
-    formatter.unitsStyle = .abbreviated
-    return formatter.localizedString(for: lastUpdated, relativeTo: Date())
+    return relativeFormatter.localizedString(for: lastUpdated, relativeTo: Date())
   }
 }

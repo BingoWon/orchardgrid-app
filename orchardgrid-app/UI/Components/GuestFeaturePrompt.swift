@@ -14,6 +14,7 @@ struct GuestFeaturePrompt: View {
       Image(systemName: icon)
         .font(.system(size: 48))
         .foregroundStyle(.secondary)
+        .symbolColorRenderingMode(.gradient)
 
       Text(title)
         .font(.title2)

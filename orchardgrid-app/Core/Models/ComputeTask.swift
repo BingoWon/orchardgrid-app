@@ -1,6 +1,6 @@
 import Foundation
 
-struct ComputeTask: Identifiable, Codable {
+struct ComputeTask: Identifiable, Codable, Sendable {
   let id: String
   let userId: String
   let deviceId: String?
@@ -40,7 +40,7 @@ struct ComputeTask: Identifiable, Codable {
   }
 }
 
-struct TasksResponse: Codable {
+struct TasksResponse: Codable, Sendable {
   let tasks: [ComputeTask]
   let total: Int
   let limit: Int

@@ -16,25 +16,15 @@ struct AllDevicesView: View {
 
   var body: some View {
     ScrollView {
-      GlassEffectContainer {
+      GlassEffectContainer(spacing: Constants.standardSpacing) {
         VStack(alignment: .leading, spacing: Constants.standardSpacing) {
           // Local Device Quick Control (always visible)
           // Wide layout: QuickControl + Summary side by side
           // Compact layout: QuickControl + Summary stacked
           if authManager.isAuthenticated {
-            // Connection Status & Last Updated (only when authenticated)
             HStack {
-              HStack(spacing: 4) {
-                Circle()
-                  .fill(observerClient.status == .connected ? .green : .gray)
-                  .frame(width: 6, height: 6)
-                Text(observerClient.status == .connected ? "Live" : "Offline")
-                  .font(.caption)
-                  .foregroundStyle(.secondary)
-              }
-
+              ConnectionStatusBadge(isConnected: observerClient.status == .connected)
               Spacer()
-
               LastUpdatedView(lastUpdatedText: devicesManager.lastUpdatedText)
             }
 
@@ -62,9 +52,14 @@ struct AllDevicesView: View {
               emptyState
             }
 
-            // Error State
             if let error = devicesManager.lastError {
-              errorState(error: error)
+              ErrorBanner(message: error) {
+                Task {
+                  if let token = await authManager.getToken() {
+                    await devicesManager.fetchDevices(authToken: token)
+                  }
+                }
+              }
             }
           } else {
             // Guest Mode: Show QuickControl + Guest Prompt
@@ -92,6 +87,7 @@ struct AllDevicesView: View {
       }
     }
     .navigationTitle("Devices")
+    .navigationSubtitle("\(devicesManager.onlineDevices.count) online")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .contentToolbar {
@@ -115,9 +111,9 @@ struct AllDevicesView: View {
         .foregroundStyle(.secondary)
 
       HStack(spacing: 16) {
-        SummaryStatCard(title: "Total", value: "\(devicesManager.devices.count)")
-        SummaryStatCard(title: "Online", value: "\(devicesManager.onlineDevices.count)")
-        SummaryStatCard(title: "Tasks", value: "\(devicesManager.totalTasksProcessed)")
+        StatCard(title: "Total", value: "\(devicesManager.devices.count)")
+        StatCard(title: "Online", value: "\(devicesManager.onlineDevices.count)")
+        StatCard(title: "Tasks", value: "\(devicesManager.totalTasksProcessed)")
       }
     }
     .padding(Constants.standardPadding)
@@ -168,46 +164,12 @@ struct AllDevicesView: View {
   // MARK: - Empty State
 
   private var emptyState: some View {
-    VStack(spacing: 16) {
-      Image(systemName: "server.rack")
-        .font(.system(size: 48))
-        .foregroundStyle(.secondary)
-
-      Text("No Devices")
-        .font(.title2)
-        .fontWeight(.semibold)
-
-      Text("Connect a device to get started")
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-    }
+    ContentUnavailableView(
+      "No Devices",
+      systemImage: "server.rack",
+      description: Text("Connect a device to get started")
+    )
     .frame(maxWidth: .infinity)
-    .padding(.vertical, 60)
-  }
-
-  // MARK: - Error State
-
-  private func errorState(error: String) -> some View {
-    HStack {
-      Image(systemName: "exclamationmark.triangle.fill")
-        .foregroundStyle(.orange)
-
-      Text(error)
-        .font(.subheadline)
-
-      Spacer()
-
-      Button("Retry") {
-        Task {
-          if let token = await authManager.getToken() {
-            await devicesManager.fetchDevices(authToken: token)
-          }
-        }
-      }
-      .buttonStyle(.glass)
-    }
-    .padding()
-    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
   }
 
   // MARK: - Refresh Button
@@ -229,7 +191,7 @@ struct AllDevicesView: View {
 
 // MARK: - Device Card
 
-struct DeviceCard: View {
+private struct DeviceCard: View {
   let device: Device
 
   var body: some View {
@@ -299,32 +261,11 @@ struct DeviceCard: View {
       .frame(minWidth: 50)
     }
     .padding(12)
-    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
+    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 12, style: .continuous))
   }
 
   private var statusColor: Color {
     device.statusColor == "green" ? .green : .gray
-  }
-}
-
-// MARK: - Summary Stat Card
-
-private struct SummaryStatCard: View {
-  let title: String
-  let value: String
-
-  var body: some View {
-    VStack(spacing: 4) {
-      Text(value)
-        .font(.title2.bold())
-
-      Text(title)
-        .font(.caption)
-        .foregroundStyle(.secondary)
-    }
-    .frame(maxWidth: .infinity)
-    .padding(.vertical, 12)
-    .background(.ultraThinMaterial, in: .rect(cornerRadius: 10))
   }
 }
 

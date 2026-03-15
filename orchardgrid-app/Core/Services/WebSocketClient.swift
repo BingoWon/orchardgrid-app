@@ -457,7 +457,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     let start = Date()
     do {
       let req = try JSONDecoder().decode(ChatRequest.self, from: payload)
-      let content = try await processChat(req) { [weak self] delta in
+      _ = try await processChat(req) { [weak self] delta in
         Task { await self?.sendStreamDelta(id: id, delta: delta) }
       }
       await sendStreamEnd(id: id)
@@ -477,13 +477,9 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     _ request: ChatRequest,
     onChunk: ((String) -> Void)? = nil
   ) async throws -> String {
-    let systemPrompt =
-      request.messages.first { $0.role == "system" }?.content
-      ?? Config.defaultSystemPrompt
-    let messages = request.messages.filter { $0.role != "system" }
     return try await llmProcessor.processRequest(
-      messages: messages,
-      systemPrompt: systemPrompt,
+      messages: request.nonSystemMessages,
+      systemPrompt: request.systemPrompt,
       responseFormat: request.responseFormat,
       onChunk: onChunk
     )

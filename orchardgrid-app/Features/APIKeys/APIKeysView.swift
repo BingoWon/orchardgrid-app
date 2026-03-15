@@ -1,11 +1,5 @@
 import SwiftUI
 
-#if os(macOS)
-  import AppKit
-#else
-  import UIKit
-#endif
-
 struct APIKeysView: View {
   @Environment(AuthManager.self) private var authManager
   @Environment(ObserverClient.self) private var observerClient
@@ -14,13 +8,12 @@ struct APIKeysView: View {
   @State private var editingName = ""
   @State private var showDeleteConfirmation = false
   @State private var keyToDelete: APIKey?
-  @State private var copiedText: String?
   @State private var showAPIReference = true
   @State private var newlyCreatedKey: String?
 
   var body: some View {
     ScrollView {
-      GlassEffectContainer {
+      GlassEffectContainer(spacing: Constants.standardSpacing) {
         VStack(alignment: .leading, spacing: Constants.standardSpacing) {
           if authManager.isAuthenticated {
             authenticatedContent
@@ -47,6 +40,7 @@ struct APIKeysView: View {
       await manager.loadAPIKeys(authToken: token, isManualRefresh: true)
     }
     .navigationTitle("API Keys")
+    .navigationSubtitle(manager.apiKeys.isEmpty ? "" : "\(manager.apiKeys.count) keys")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .contentToolbar {
@@ -92,9 +86,7 @@ struct APIKeysView: View {
       )
     ) {
       Button("Copy Key") {
-        if let key = newlyCreatedKey {
-          copyToClipboard(key)
-        }
+        if let key = newlyCreatedKey { Clipboard.copy(key) }
         newlyCreatedKey = nil
       }
       Button("Done") {
@@ -112,26 +104,24 @@ struct APIKeysView: View {
   @ViewBuilder
   private var authenticatedContent: some View {
     HStack {
-      HStack(spacing: 4) {
-        Circle()
-          .fill(observerClient.status == .connected ? .green : .gray)
-          .frame(width: 6, height: 6)
-        Text(observerClient.status == .connected ? "Live" : "Offline")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      }
-
+      ConnectionStatusBadge(isConnected: observerClient.status == .connected)
       Spacer()
-
       if !manager.isInitialLoading {
         LastUpdatedView(lastUpdatedText: manager.lastUpdatedText)
       }
     }
 
     if manager.isInitialLoading {
-      loadingState
+      ProgressView()
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 60)
     } else if let error = manager.lastError {
-      errorState(error: error)
+      ErrorBanner(message: error) {
+        Task {
+          guard let token = await authManager.getToken() else { return }
+          await manager.loadAPIKeys(authToken: token)
+        }
+      }
     } else if manager.apiKeys.isEmpty {
       emptyState
     } else {
@@ -168,10 +158,10 @@ struct APIKeysView: View {
               .font(.system(.callout, design: .monospaced))
               .lineLimit(1)
             Spacer()
-            copyButton(text: Config.hostURL)
+            CopyButton(text: Config.hostURL)
           }
           .padding(10)
-          .background(.ultraThinMaterial, in: .rect(cornerRadius: 8))
+          .background(.fill.quaternary, in: .rect(cornerRadius: 8))
 
           endpointSection(
             method: "POST",
@@ -230,7 +220,7 @@ struct APIKeysView: View {
           .padding(.vertical, 2)
           .background(.blue.opacity(0.12), in: .capsule)
           .foregroundStyle(.blue)
-        copyButton(text: model)
+        CopyButton(text: model)
       }
 
       VStack(spacing: 4) {
@@ -265,9 +255,7 @@ struct APIKeysView: View {
         APIKeyCard(
           key: key,
           isEditing: editingHint == key.keyHint,
-          isCopied: copiedText == key.keyHint,
           editingName: $editingName,
-          onCopy: { copyToClipboard(key.keyHint) },
           onEdit: {
             editingHint = key.keyHint
             editingName = key.name ?? ""
@@ -286,84 +274,19 @@ struct APIKeysView: View {
     }
   }
 
-  // MARK: - States
-
-  private var loadingState: some View {
-    VStack(spacing: 16) {
-      ProgressView()
-      Text("Loading API keys...")
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-    }
-    .frame(maxWidth: .infinity)
-    .padding(.vertical, 60)
-  }
-
   private var emptyState: some View {
-    VStack(spacing: 16) {
-      Image(systemName: "key.fill")
-        .font(.system(size: 48))
-        .foregroundStyle(.secondary)
-
-      Text("No API Keys")
-        .font(.title2)
-        .fontWeight(.semibold)
-
+    ContentUnavailableView {
+      Label("No API Keys", systemImage: "key.fill")
+    } description: {
       Text("Create an API key to get started")
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-
-      Button("Create API Key") {
-        createKey()
-      }
-      .buttonStyle(.borderedProminent)
+    } actions: {
+      Button("Create API Key") { createKey() }
+        .buttonStyle(.borderedProminent)
     }
     .frame(maxWidth: .infinity)
-    .padding(.vertical, 60)
-  }
-
-  private func errorState(error: String) -> some View {
-    HStack {
-      Image(systemName: "exclamationmark.triangle.fill")
-        .foregroundStyle(.orange)
-
-      Text(error)
-        .font(.subheadline)
-
-      Spacer()
-
-      Button("Retry") {
-        Task {
-          guard let token = await authManager.getToken() else { return }
-          await manager.loadAPIKeys(authToken: token)
-        }
-      }
-      .buttonStyle(.glass)
-    }
-    .padding()
-    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
   }
 
   // MARK: - Helpers
-
-  private func copyButton(text: String) -> some View {
-    Button {
-      copyToClipboard(text)
-    } label: {
-      HStack(spacing: 4) {
-        Image(systemName: copiedText == text ? "checkmark" : "doc.on.doc")
-          .font(.caption)
-          .foregroundStyle(copiedText == text ? .green : .blue)
-        if copiedText == text {
-          Text("Copied")
-            .font(.caption2)
-            .foregroundStyle(.green)
-        }
-      }
-      .animation(.easeInOut(duration: 0.2), value: copiedText)
-    }
-    .buttonStyle(.plain)
-  }
 
   private func createKey() {
     Task {
@@ -386,22 +309,6 @@ struct APIKeysView: View {
     }
   }
 
-  private func copyToClipboard(_ text: String) {
-    #if os(macOS)
-      NSPasteboard.general.clearContents()
-      NSPasteboard.general.setString(text, forType: .string)
-    #else
-      UIPasteboard.general.string = text
-    #endif
-
-    copiedText = text
-    Task {
-      try? await Task.sleep(for: .seconds(2))
-      if copiedText == text {
-        copiedText = nil
-      }
-    }
-  }
 }
 
 // MARK: - API Key Card
@@ -409,9 +316,7 @@ struct APIKeysView: View {
 private struct APIKeyCard: View {
   let key: APIKey
   let isEditing: Bool
-  let isCopied: Bool
   @Binding var editingName: String
-  let onCopy: () -> Void
   let onEdit: () -> Void
   let onSave: () -> Void
   let onCancelEdit: () -> Void
@@ -445,21 +350,7 @@ private struct APIKeyCard: View {
         Spacer()
 
         HStack(spacing: 16) {
-          Button {
-            onCopy()
-          } label: {
-            HStack(spacing: 4) {
-              Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
-                .foregroundStyle(isCopied ? .green : .blue)
-              if isCopied {
-                Text("Copied")
-                  .font(.caption2)
-                  .foregroundStyle(.green)
-              }
-            }
-            .animation(.easeInOut(duration: 0.2), value: isCopied)
-          }
-          .buttonStyle(.plain)
+          CopyButton(text: key.keyHint)
 
           Button {
             onDelete()
@@ -478,14 +369,16 @@ private struct APIKeyCard: View {
         .lineLimit(1)
 
       HStack {
-        Text("Created: \(formatDate(key.createdAt))")
-          .font(.caption)
-          .foregroundStyle(.secondary)
+        Text(
+          "Created: \(timestampDate(key.createdAt).formatted(date: .abbreviated, time: .shortened))"
+        )
+        .font(.caption)
+        .foregroundStyle(.secondary)
 
         Spacer()
 
         if let lastUsed = key.lastUsedAt {
-          Text("Last used: \(formatRelativeTime(lastUsed))")
+          Text("Last used: \(timestampDate(lastUsed).formatted(.relative(presentation: .named)))")
             .font(.caption)
             .foregroundStyle(.secondary)
         } else {
@@ -499,26 +392,8 @@ private struct APIKeyCard: View {
     .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
   }
 
-  private func formatDate(_ timestamp: Int) -> String {
-    let date = Date(timeIntervalSince1970: TimeInterval(timestamp) / 1000)
-    let formatter = DateFormatter()
-    formatter.dateStyle = .medium
-    formatter.timeStyle = .short
-    return formatter.string(from: date)
-  }
-
-  private func formatRelativeTime(_ timestamp: Int) -> String {
-    let date = Date(timeIntervalSince1970: TimeInterval(timestamp) / 1000)
-    let diff = Date().timeIntervalSince(date)
-    let seconds = Int(diff)
-    let minutes = seconds / 60
-    let hours = minutes / 60
-    let days = hours / 24
-
-    if days > 0 { return "\(days)d ago" }
-    if hours > 0 { return "\(hours)h ago" }
-    if minutes > 0 { return "\(minutes)m ago" }
-    return "\(seconds)s ago"
+  private func timestampDate(_ ms: Int) -> Date {
+    Date(timeIntervalSince1970: TimeInterval(ms) / 1000)
   }
 }
 

@@ -20,6 +20,10 @@ struct AccountView: View {
       }
     }
     .navigationTitle("Account")
+    .navigationSubtitle(
+      authManager.isAuthenticated
+        ? (Clerk.shared.user?.primaryEmailAddress?.emailAddress ?? "") : "Guest"
+    )
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .alert("Delete Account?", isPresented: $showDeleteConfirmation) {
@@ -121,26 +125,10 @@ struct AccountView: View {
   }
 
   private func deleteAccount() async {
-    guard let token = await authManager.getToken() else { return }
-
     isDeleting = true
     defer { isDeleting = false }
-
     do {
-      let url = URL(string: "\(Config.apiBaseURL)/account")!
-      var request = URLRequest(url: url)
-      request.httpMethod = "DELETE"
-      request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
-      let (data, response) = try await Config.urlSession.data(for: request)
-
-      guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-        let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
-        throw NSError(domain: errorText, code: -1)
-      }
-
-      await authManager.signOut()
-      Logger.log(.auth, "Account deleted successfully")
+      try await authManager.deleteAccount()
     } catch {
       Logger.error(.auth, "Failed to delete account: \(error.localizedDescription)")
     }

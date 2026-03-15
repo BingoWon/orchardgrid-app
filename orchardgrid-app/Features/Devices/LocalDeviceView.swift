@@ -21,7 +21,7 @@ struct LocalDeviceView: View {
 
   var body: some View {
     ScrollView {
-      GlassEffectContainer {
+      GlassEffectContainer(spacing: 16) {
         VStack(alignment: .leading, spacing: 16) {
           if !sharing.isModelAvailable {
             AIStatusCard(availability: sharing.modelAvailability)
@@ -45,6 +45,7 @@ struct LocalDeviceView: View {
       }
     }
     .navigationTitle(DeviceInfo.deviceName)
+    .navigationSubtitle(DeviceInfo.chipModel)
   }
 
   // MARK: - Share to Cloud Card
