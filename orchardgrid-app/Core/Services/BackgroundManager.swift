@@ -28,8 +28,8 @@ final class BackgroundManager {
     private var powerAssertionID: IOPMAssertionID = 0
   #elseif os(iOS)
     private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
-    static let processingTaskIdentifier = "com.orchardgrid.app.processing"
-    static let refreshTaskIdentifier = "com.orchardgrid.app.refresh"
+    static let processingTaskIdentifier = "com.orchardgrid.app.dev.processing"
+    static let refreshTaskIdentifier = "com.orchardgrid.app.dev.refresh"
   #endif
 
   // MARK: - Initialization

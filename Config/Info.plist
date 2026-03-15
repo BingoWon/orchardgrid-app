@@ -46,8 +46,8 @@
 	</array>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
-		<string>com.orchardgrid.app.processing</string>
-		<string>com.orchardgrid.app.refresh</string>
+		<string>com.orchardgrid.app.dev.processing</string>
+		<string>com.orchardgrid.app.dev.refresh</string>
 	</array>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>OrchardGrid uses speech recognition to provide speech-to-text transcription as a shared AI capability.</string>

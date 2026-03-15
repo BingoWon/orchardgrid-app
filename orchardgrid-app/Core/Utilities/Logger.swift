@@ -2,7 +2,7 @@ import Foundation
 import OSLog
 
 enum Logger {
-  private static let subsystem = "com.orchardgrid.app"
+  private static let subsystem = "com.orchardgrid.app.dev"
 
   enum Category: String {
     case auth
