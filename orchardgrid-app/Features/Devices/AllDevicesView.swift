@@ -87,7 +87,6 @@ struct AllDevicesView: View {
       }
     }
     .navigationTitle("Devices")
-    .navigationSubtitle("\(devicesManager.onlineDevices.count) online")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .contentToolbar {

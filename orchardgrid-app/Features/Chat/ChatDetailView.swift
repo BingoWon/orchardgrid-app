@@ -36,7 +36,6 @@ struct ChatDetailView: View {
       inputBar
     }
     .navigationTitle(conversation?.title ?? "Chat")
-    .navigationSubtitle(isStreaming ? "Responding..." : "")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .onDisappear { cleanupIfEmpty() }

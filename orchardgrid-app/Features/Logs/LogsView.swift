@@ -45,7 +45,6 @@ struct LogsView: View {
       await loadData(isManualRefresh: true)
     }
     .navigationTitle("Logs")
-    .navigationSubtitle("\(manager.consumingTotal + manager.providingTotal) tasks")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .contentToolbar {

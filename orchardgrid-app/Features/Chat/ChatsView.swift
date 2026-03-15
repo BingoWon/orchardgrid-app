@@ -1,8 +1,3 @@
-/**
- * ChatsView.swift
- * Conversation list — browse, create, and manage chat sessions
- */
-
 import SwiftUI
 
 struct ChatsView: View {
@@ -11,37 +6,32 @@ struct ChatsView: View {
   @State private var showDeleteAll = false
 
   var body: some View {
-    ScrollView {
-      GlassEffectContainer(spacing: Constants.standardSpacing) {
-        VStack(alignment: .leading, spacing: Constants.standardSpacing) {
-          if !chatManager.isModelAvailable {
-            AIStatusCard(availability: chatManager.modelAvailability)
-          } else if chatManager.conversations.isEmpty {
-            emptyState
-          } else {
-            conversationList
-          }
+    Group {
+      if !chatManager.isModelAvailable {
+        ScrollView {
+          AIStatusCard(availability: chatManager.modelAvailability)
+            .padding(Constants.standardPadding)
         }
-        .padding(Constants.standardPadding)
+      } else if chatManager.conversations.isEmpty {
+        emptyState
+      } else {
+        conversationList
       }
     }
     .navigationTitle("Chats")
-    .navigationSubtitle(chatManager.conversations.isEmpty ? "" : "\(chatManager.conversations.count) conversations")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .contentToolbar {
-      if chatManager.isModelAvailable {
+      if chatManager.isModelAvailable, !chatManager.conversations.isEmpty {
         HStack(spacing: 12) {
-          if !chatManager.conversations.isEmpty {
-            Menu {
-              Button(role: .destructive) {
-                showDeleteAll = true
-              } label: {
-                Label("Delete All", systemImage: "trash")
-              }
+          Menu {
+            Button(role: .destructive) {
+              showDeleteAll = true
             } label: {
-              Image(systemName: "ellipsis.circle")
+              Label("Delete All", systemImage: "trash")
             }
+          } label: {
+            Image(systemName: "ellipsis.circle")
           }
 
           Button {
@@ -69,29 +59,29 @@ struct ChatsView: View {
   // MARK: - Conversation List
 
   private var conversationList: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      Text("History")
-        .font(.subheadline)
-        .fontWeight(.medium)
-        .foregroundStyle(.tertiary)
-        .padding(.leading, 4)
-
-      ForEach(chatManager.conversations) { conversation in
-        Button {
-          selectedConversationId = conversation.id
-        } label: {
-          ConversationCard(conversation: conversation)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .contextMenu {
-          Button(role: .destructive) {
-            chatManager.deleteConversation(id: conversation.id)
+    GlassEffectContainer {
+      List {
+        ForEach(chatManager.conversations) { conversation in
+          Button {
+            selectedConversationId = conversation.id
           } label: {
-            Label("Delete", systemImage: "trash")
+            ConversationRow(conversation: conversation)
+          }
+          .buttonStyle(.plain)
+          .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+          .listRowBackground(Color.clear)
+          .listRowSeparator(.hidden)
+          .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
+              chatManager.deleteConversation(id: conversation.id)
+            } label: {
+              Label("Delete", systemImage: "trash")
+            }
           }
         }
       }
+      .listStyle(.plain)
+      .scrollContentBackground(.hidden)
     }
   }
 
@@ -100,6 +90,7 @@ struct ChatsView: View {
   private var emptyState: some View {
     ContentUnavailableView {
       Label("No Conversations", systemImage: "apple.intelligence")
+        .symbolColorRenderingMode(.gradient)
     } description: {
       Text("Start a new chat with Apple Intelligence")
     } actions: {
@@ -110,14 +101,14 @@ struct ChatsView: View {
         Label("New Chat", systemImage: "plus")
       }
       .buttonStyle(.borderedProminent)
+      .controlSize(.large)
     }
-    .frame(maxWidth: .infinity)
   }
 }
 
-// MARK: - Conversation Card
+// MARK: - Conversation Row
 
-private struct ConversationCard: View {
+private struct ConversationRow: View {
   let conversation: Conversation
 
   var body: some View {

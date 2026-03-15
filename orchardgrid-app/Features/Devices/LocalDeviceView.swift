@@ -45,7 +45,6 @@ struct LocalDeviceView: View {
       }
     }
     .navigationTitle(DeviceInfo.deviceName)
-    .navigationSubtitle(DeviceInfo.chipModel)
   }
 
   // MARK: - Share to Cloud Card

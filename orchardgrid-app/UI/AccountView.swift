@@ -42,10 +42,6 @@ struct AccountView: View {
       }
     }
     .navigationTitle("Account")
-    .navigationSubtitle(
-      authManager.isAuthenticated
-        ? (Clerk.shared.user?.primaryEmailAddress?.emailAddress ?? "") : "Guest"
-    )
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .alert("Delete Account?", isPresented: $showDeleteConfirmation) {

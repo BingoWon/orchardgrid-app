@@ -40,7 +40,6 @@ struct APIKeysView: View {
       await manager.loadAPIKeys(authToken: token, isManualRefresh: true)
     }
     .navigationTitle("API Keys")
-    .navigationSubtitle(manager.apiKeys.isEmpty ? "" : "\(manager.apiKeys.count) keys")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .contentToolbar {
