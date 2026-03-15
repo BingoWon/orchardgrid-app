@@ -133,7 +133,8 @@ enum SpeechError: LocalizedError {
     switch self {
     case .unavailable: "Speech recognition is not available on this device"
     case .invalidAudio: "Failed to decode the provided audio data"
-    case .notAuthorized: "Speech recognition permission not granted. Please enable it in System Settings → Privacy & Security → Speech Recognition."
+    case .notAuthorized:
+      "Speech recognition permission not granted. Please enable it in System Settings → Privacy & Security → Speech Recognition."
     }
   }
 }

@@ -1,8 +1,9 @@
 import ClerkKit
+import SwiftUI
+
 #if os(iOS)
   import ClerkKitUI
 #endif
-import SwiftUI
 
 struct AccountView: View {
   @Environment(AuthManager.self) private var authManager
@@ -47,7 +48,8 @@ struct AccountView: View {
         GuestFeaturePrompt(
           icon: "person.circle",
           title: "Sign In to Your Account",
-          description: "Sign in to unlock all features and track your contributions across devices.",
+          description:
+            "Sign in to unlock all features and track your contributions across devices.",
           benefits: [
             "Manage your profile",
             "Track all your devices",

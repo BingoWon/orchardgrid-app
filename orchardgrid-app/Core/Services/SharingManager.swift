@@ -41,7 +41,8 @@ final class SharingManager {
     case .nlp: NLPProcessor.isAvailable ? nil : "Text analysis is not available on this device."
     case .vision: VisionProcessor.isAvailable ? nil : "Vision is not available on this device."
     case .speech: SpeechProcessor.unavailabilityReason
-    case .sound: SoundProcessor.isAvailable ? nil : "Sound analysis is not available on this device."
+    case .sound:
+      SoundProcessor.isAvailable ? nil : "Sound analysis is not available on this device."
     }
   }
 
@@ -79,7 +80,8 @@ final class SharingManager {
   private(set) var enabledCapabilities: Set<Capability> {
     didSet {
       guard oldValue != enabledCapabilities else { return }
-      UserDefaults.standard.set(enabledCapabilities.map(\.rawValue), forKey: Keys.enabledCapabilities)
+      UserDefaults.standard.set(
+        enabledCapabilities.map(\.rawValue), forKey: Keys.enabledCapabilities)
       syncCapabilities()
     }
   }
@@ -167,7 +169,7 @@ final class SharingManager {
 
   func reconnectCloudIfNeeded() {
     guard wantsCloudSharing, isModelAvailable,
-          !cloudService.isConnected, cloudService.connectionState == .disconnected
+      !cloudService.isConnected, cloudService.connectionState == .disconnected
     else { return }
     cloudService.retry()
   }

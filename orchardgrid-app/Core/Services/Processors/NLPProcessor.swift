@@ -55,7 +55,7 @@ enum NLPProcessor {
     if needsTokens {
       let tagger = NLTagger(tagSchemes: [.lexicalClass, .lemma, .nameType])
       tagger.string = req.text
-      let range = req.text.startIndex ..< req.text.endIndex
+      let range = req.text.startIndex..<req.text.endIndex
 
       if tasks.contains("tokens") || tasks.contains("pos_tags") || tasks.contains("lemmas") {
         var tokens: [Token] = []
@@ -66,7 +66,8 @@ enum NLPProcessor {
           var token = Token(text: String(req.text[tokenRange]))
           if tasks.contains("pos_tags") { token.pos = tag?.rawValue }
           if tasks.contains("lemmas") {
-            token.lemma = tagger.tag(at: tokenRange.lowerBound, unit: .word, scheme: .lemma).0?.rawValue
+            token.lemma =
+              tagger.tag(at: tokenRange.lowerBound, unit: .word, scheme: .lemma).0?.rawValue
           }
           tokens.append(token)
           return true
@@ -83,11 +84,12 @@ enum NLPProcessor {
           if let tag {
             let start = req.text.distance(from: req.text.startIndex, to: tokenRange.lowerBound)
             let length = req.text.distance(from: tokenRange.lowerBound, to: tokenRange.upperBound)
-            entities.append(Entity(
-              text: String(req.text[tokenRange]),
-              type: tag.rawValue,
-              range: [start, start + length]
-            ))
+            entities.append(
+              Entity(
+                text: String(req.text[tokenRange]),
+                type: tag.rawValue,
+                range: [start, start + length]
+              ))
           }
           return true
         }
@@ -98,7 +100,7 @@ enum NLPProcessor {
     if tasks.contains("sentences") {
       let tokenizer = NLTokenizer(unit: .sentence)
       tokenizer.string = req.text
-      resp.sentences = tokenizer.tokens(for: req.text.startIndex ..< req.text.endIndex)
+      resp.sentences = tokenizer.tokens(for: req.text.startIndex..<req.text.endIndex)
         .map { String(req.text[$0]) }
     }
 

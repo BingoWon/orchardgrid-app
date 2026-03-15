@@ -213,7 +213,7 @@ final class BackgroundManager {
 
       // Schedule refresh task
       let refreshRequest = BGAppRefreshTaskRequest(identifier: Self.refreshTaskIdentifier)
-      refreshRequest.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60) // 15 minutes
+      refreshRequest.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)  // 15 minutes
 
       do {
         try BGTaskScheduler.shared.submit(refreshRequest)

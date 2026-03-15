@@ -104,16 +104,17 @@ final class LogsManager: Refreshable {
 
       guard httpResponse.statusCode == 200 else {
         // Try to parse error message from response
-        let errorMessage: String = if let errorData = try? JSONDecoder().decode(
-          [String: String].self,
-          from: data
-        ),
-          let message = errorData["error"]
-        {
-          message
-        } else {
-          "Server returned status code \(httpResponse.statusCode)"
-        }
+        let errorMessage: String =
+          if let errorData = try? JSONDecoder().decode(
+            [String: String].self,
+            from: data
+          ),
+            let message = errorData["error"]
+          {
+            message
+          } else {
+            "Server returned status code \(httpResponse.statusCode)"
+          }
 
         throw NSError(
           domain: "LogsManager",

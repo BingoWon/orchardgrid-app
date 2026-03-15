@@ -17,11 +17,11 @@ final class SchemaConverter {
 
     var description: String {
       switch self {
-      case let .unsupportedType(type):
+      case .unsupportedType(let type):
         "Unsupported type: \(type)"
       case .missingProperties:
         "Missing properties in object schema"
-      case let .invalidSchema(reason):
+      case .invalidSchema(let reason):
         "Invalid schema: \(reason)"
       }
     }
@@ -72,9 +72,10 @@ final class SchemaConverter {
     return try GenerationSchema(root: rootSchema, dependencies: dependencies)
   }
 
-  private func convertProperty(name: String,
-                               property: JSONSchemaProperty) throws -> DynamicGenerationSchema
-  {
+  private func convertProperty(
+    name: String,
+    property: JSONSchemaProperty
+  ) throws -> DynamicGenerationSchema {
     guard let type = property.type else {
       throw ConversionError.invalidSchema("Property must have type")
     }
@@ -99,7 +100,7 @@ final class SchemaConverter {
 
     case "array":
       guard let items = property.items,
-            let itemProperty = items.toJSONSchemaProperty()
+        let itemProperty = items.toJSONSchemaProperty()
       else {
         throw ConversionError.invalidSchema("Array must have items")
       }

@@ -62,10 +62,13 @@ struct LocalDeviceView: View {
 
         Spacer()
 
-        Toggle("", isOn: Binding(
-          get: { sharing.wantsCloudSharing },
-          set: { sharing.setCloudSharing($0) }
-        ))
+        Toggle(
+          "",
+          isOn: Binding(
+            get: { sharing.wantsCloudSharing },
+            set: { sharing.setCloudSharing($0) }
+          )
+        )
         .toggleStyle(.switch)
       }
 
@@ -120,7 +123,7 @@ struct LocalDeviceView: View {
         StatView(title: "Hardware ID", value: String(DeviceInfo.hardwareID.prefix(8)))
       }
 
-    case let .reconnecting(attempt, nextRetryIn):
+    case .reconnecting(let attempt, let nextRetryIn):
       VStack(alignment: .leading, spacing: 12) {
         StatusRow(
           isLoading: true,
@@ -135,7 +138,7 @@ struct LocalDeviceView: View {
         .controlSize(.small)
       }
 
-    case let .failed(error):
+    case .failed(let error):
       VStack(alignment: .leading, spacing: 12) {
         StatusRow(
           icon: "exclamationmark.triangle.fill",
@@ -184,10 +187,13 @@ struct LocalDeviceView: View {
           ProgressView()
             .controlSize(.small)
         } else {
-          Toggle("", isOn: Binding(
-            get: { sharing.isLocalActive },
-            set: { sharing.setLocalSharing($0) }
-          ))
+          Toggle(
+            "",
+            isOn: Binding(
+              get: { sharing.isLocalActive },
+              set: { sharing.setLocalSharing($0) }
+            )
+          )
           .toggleStyle(.switch)
         }
       }
@@ -383,10 +389,13 @@ private struct CapabilityRow: View {
             .foregroundStyle(.tertiary)
         }
 
-        Toggle("", isOn: Binding(
-          get: { isEnabled && isAvailable },
-          set: { onToggle($0) }
-        ))
+        Toggle(
+          "",
+          isOn: Binding(
+            get: { isEnabled && isAvailable },
+            set: { onToggle($0) }
+          )
+        )
         .toggleStyle(.switch)
         .labelsHidden()
         .disabled(!isAvailable)

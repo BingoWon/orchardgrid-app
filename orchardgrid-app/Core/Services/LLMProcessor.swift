@@ -33,11 +33,12 @@ final class LLMProcessor {
     let prompt = lastMessage.content
 
     if let responseFormat, responseFormat.type == "json_schema",
-       let jsonSchema = responseFormat.json_schema
+      let jsonSchema = responseFormat.jsonSchema
     {
       let schema = try SchemaConverter().convert(jsonSchema)
       if let onChunk {
-        return try await streamJSON(session: session, prompt: prompt, schema: schema, onChunk: onChunk)
+        return try await streamJSON(
+          session: session, prompt: prompt, schema: schema, onChunk: onChunk)
       }
       return try await session.respond(to: prompt, schema: schema).content.jsonString
     }
@@ -55,7 +56,8 @@ final class LLMProcessor {
     prompt: String,
     onChunk: (String) -> Void
   ) async throws -> String {
-    var full = "", prev = ""
+    var full = ""
+    var prev = ""
     for try await snapshot in session.streamResponse(to: prompt) {
       full = snapshot.content
       let delta = String(full.dropFirst(prev.count))
@@ -71,7 +73,8 @@ final class LLMProcessor {
     schema: GenerationSchema,
     onChunk: (String) -> Void
   ) async throws -> String {
-    var full = "", prev = ""
+    var full = ""
+    var prev = ""
     for try await snapshot in session.streamResponse(to: prompt, schema: schema) {
       full = snapshot.content.jsonString
       let delta = String(full.dropFirst(prev.count))
@@ -89,22 +92,28 @@ final class LLMProcessor {
   ) -> Transcript {
     var entries: [Transcript.Entry] = []
 
-    entries.append(.instructions(Transcript.Instructions(
-      segments: [.text(.init(content: systemPrompt))],
-      toolDefinitions: []
-    )))
+    entries.append(
+      .instructions(
+        Transcript.Instructions(
+          segments: [.text(.init(content: systemPrompt))],
+          toolDefinitions: []
+        )))
 
     for message in messages {
       switch message.role {
       case "user":
-        entries.append(.prompt(Transcript.Prompt(
-          segments: [.text(.init(content: message.content))]
-        )))
+        entries.append(
+          .prompt(
+            Transcript.Prompt(
+              segments: [.text(.init(content: message.content))]
+            )))
       case "assistant":
-        entries.append(.response(Transcript.Response(
-          assetIDs: [],
-          segments: [.text(.init(content: message.content))]
-        )))
+        entries.append(
+          .response(
+            Transcript.Response(
+              assetIDs: [],
+              segments: [.text(.init(content: message.content))]
+            )))
       default:
         break
       }
@@ -125,9 +134,9 @@ enum LLMError: Error, LocalizedError {
     switch self {
     case .modelUnavailable:
       "Model is not available"
-    case let .invalidRequest(message):
+    case .invalidRequest(let message):
       "Invalid request: \(message)"
-    case let .processingFailed(message):
+    case .processingFailed(let message):
       "Processing failed: \(message)"
     }
   }

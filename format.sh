@@ -1,21 +1,26 @@
 #!/bin/bash
 
 # OrchardGrid App - Code Formatter
-# Uses SwiftFormat to format all Swift files
+# Uses apple/swift-format (AST-based) to format all Swift files
 
 set -e
 
-echo "🎨 Formatting Swift code..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Check if swiftformat is installed
-if ! command -v swiftformat &> /dev/null; then
-    echo "❌ Error: swiftformat not found"
-    echo "Install with: brew install swiftformat"
+echo "🎨 Formatting Swift code with swift-format..."
+
+if ! command -v swift-format &> /dev/null; then
+    echo "❌ Error: swift-format not found"
+    echo "Install with: brew install swift-format"
     exit 1
 fi
 
-# Format all Swift files
-swiftformat . --config .swiftformat
+echo "   swift-format $(swift-format --version)"
+
+swift-format format \
+  --configuration "$SCRIPT_DIR/.swift-format" \
+  --in-place \
+  --recursive \
+  "$SCRIPT_DIR"
 
 echo "✅ Code formatting complete!"
-

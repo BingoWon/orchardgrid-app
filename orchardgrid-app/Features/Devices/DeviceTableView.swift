@@ -173,12 +173,3 @@ struct DeviceTableView: View {
 #Preview {
   DeviceTableView(devices: [])
 }
-
-
-
-
-
-
-
-
-

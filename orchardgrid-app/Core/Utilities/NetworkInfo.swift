@@ -1,4 +1,5 @@
 import Foundation
+
 #if canImport(Darwin)
   import Darwin
 #endif
@@ -42,7 +43,7 @@ enum NetworkInfo {
 
         // Filter out localhost and link-local addresses
         guard !addressString.hasPrefix("127."),
-              !addressString.hasPrefix("169.254.")
+          !addressString.hasPrefix("169.254.")
         else {
           if let next = interface.ifa_next {
             ptr = next

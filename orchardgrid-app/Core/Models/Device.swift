@@ -71,8 +71,8 @@ struct Device: Codable, Identifiable {
     guard let v = osVersion else { return nil }
     let pattern = #"Version\s+([\d.]+)"#
     guard let regex = try? NSRegularExpression(pattern: pattern),
-          let match = regex.firstMatch(in: v, range: NSRange(v.startIndex..., in: v)),
-          let range = Range(match.range(at: 1), in: v)
+      let match = regex.firstMatch(in: v, range: NSRange(v.startIndex..., in: v)),
+      let range = Range(match.range(at: 1), in: v)
     else { return v }
     return String(v[range])
   }

@@ -82,7 +82,8 @@ struct ImageGenerationTool: Tool {
 
       return "Image generated successfully for prompt: \(arguments.prompt)"
     } catch {
-      let hint = referenceURL == nil
+      let hint =
+        referenceURL == nil
         ? " Tip: If your prompt involves a person, ask the user to attach a reference photo first."
         : ""
       return "Image generation failed: \(error.localizedDescription)\(hint)"

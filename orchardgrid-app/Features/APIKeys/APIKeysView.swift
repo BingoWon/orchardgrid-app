@@ -1,4 +1,5 @@
 import SwiftUI
+
 #if os(macOS)
   import AppKit
 #else
@@ -27,7 +28,8 @@ struct APIKeysView: View {
             GuestFeaturePrompt(
               icon: "key.fill",
               title: "Get Your API Keys",
-              description: "Sign in to create API keys and access OrchardGrid from your applications.",
+              description:
+                "Sign in to create API keys and access OrchardGrid from your applications.",
               benefits: [
                 "Standard Chat Completion API format",
                 "Works with popular AI tools",
@@ -82,10 +84,13 @@ struct APIKeysView: View {
         Text("Are you sure you want to delete \"\(key.name ?? "this API key")\"?")
       }
     }
-    .alert("API Key Created", isPresented: .init(
-      get: { newlyCreatedKey != nil },
-      set: { if !$0 { newlyCreatedKey = nil } }
-    )) {
+    .alert(
+      "API Key Created",
+      isPresented: .init(
+        get: { newlyCreatedKey != nil },
+        set: { if !$0 { newlyCreatedKey = nil } }
+      )
+    ) {
       Button("Copy Key") {
         if let key = newlyCreatedKey {
           copyToClipboard(key)
@@ -365,7 +370,7 @@ struct APIKeysView: View {
       guard let token = await authManager.getToken() else { return }
       let defaultName = ISO8601DateFormatter().string(from: Date())
       if let created = await manager.createAPIKey(name: defaultName, authToken: token),
-         let fullKey = created.key
+        let fullKey = created.key
       {
         newlyCreatedKey = fullKey
       }
@@ -427,7 +432,9 @@ private struct APIKeyCard: View {
         } else {
           Text(key.name ?? "Unnamed")
             .font(.headline)
-          Button { onEdit() } label: {
+          Button {
+            onEdit()
+          } label: {
             Image(systemName: "pencil")
               .font(.caption)
               .foregroundStyle(.secondary)
@@ -438,7 +445,9 @@ private struct APIKeyCard: View {
         Spacer()
 
         HStack(spacing: 16) {
-          Button { onCopy() } label: {
+          Button {
+            onCopy()
+          } label: {
             HStack(spacing: 4) {
               Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
                 .foregroundStyle(isCopied ? .green : .blue)
@@ -452,7 +461,9 @@ private struct APIKeyCard: View {
           }
           .buttonStyle(.plain)
 
-          Button { onDelete() } label: {
+          Button {
+            onDelete()
+          } label: {
             Image(systemName: "trash")
               .foregroundStyle(.red)
           }

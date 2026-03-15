@@ -72,7 +72,7 @@ final class ChatManager {
 
   func sendMessage(_ content: String, imageFilenames: [String] = [], in conversationId: UUID) {
     guard let index = conversations.firstIndex(where: { $0.id == conversationId }),
-          !isResponding, isModelAvailable
+      !isResponding, isModelAvailable
     else { return }
 
     let userMessage = Message(role: .user, content: content, imageFilenames: imageFilenames)
@@ -160,7 +160,7 @@ final class ChatManager {
 
   private func generateTitle(for conversationId: UUID) async {
     guard let idx = conversations.firstIndex(where: { $0.id == conversationId }),
-          conversations[idx].needsTitleGeneration
+      conversations[idx].needsTitleGeneration
     else { return }
 
     let snippet = conversations[idx].titleSnippet
@@ -174,8 +174,8 @@ final class ChatManager {
         .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
 
       guard !title.isEmpty,
-            let current = conversations.firstIndex(where: { $0.id == conversationId }),
-            conversations[current].needsTitleGeneration
+        let current = conversations.firstIndex(where: { $0.id == conversationId }),
+        conversations[current].needsTitleGeneration
       else { return }
 
       conversations[current].title = title
@@ -188,8 +188,8 @@ final class ChatManager {
 
   private func fallbackTitle(for conversationId: UUID) {
     guard let idx = conversations.firstIndex(where: { $0.id == conversationId }),
-          conversations[idx].title == "New Chat",
-          let first = conversations[idx].messages.first(where: { $0.role == .user })
+      conversations[idx].title == "New Chat",
+      let first = conversations[idx].messages.first(where: { $0.role == .user })
     else { return }
 
     let trimmed = first.content.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -230,7 +230,7 @@ final class ChatManager {
 
   private func moveToTop(_ conversationId: UUID) {
     guard let index = conversations.firstIndex(where: { $0.id == conversationId }),
-          index != 0
+      index != 0
     else { return }
     let conversation = conversations.remove(at: index)
     conversations.insert(conversation, at: 0)

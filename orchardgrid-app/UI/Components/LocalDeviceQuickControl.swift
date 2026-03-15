@@ -48,14 +48,14 @@ struct LocalDeviceQuickControl: View {
       .sheet(isPresented: $showDeviceSheet) {
         NavigationStack {
           LocalDeviceView()
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-              ToolbarItem(placement: .topBarTrailing) {
-                Button(role: .close) {
-                  showDeviceSheet = false
-                }
+          .navigationBarTitleDisplayMode(.inline)
+          .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+              Button(role: .close) {
+                showDeviceSheet = false
               }
             }
+          }
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)

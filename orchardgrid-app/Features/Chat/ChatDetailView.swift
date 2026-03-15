@@ -135,7 +135,7 @@ struct ChatDetailView: View {
 
         TextField("Message", text: $inputText, axis: .vertical)
           .textFieldStyle(.plain)
-          .lineLimit(1 ... 5)
+          .lineLimit(1...5)
           .focused($isInputFocused)
           .padding(.horizontal, 14)
           .padding(.vertical, 10)
@@ -419,7 +419,8 @@ private struct ChatImageView: View {
     let maxDim: CGFloat = compact ? 80 : 320
     let radius: CGFloat = compact ? 10 : 12
 
-    return img
+    return
+      img
       .resizable()
       .aspectRatio(contentMode: compact ? .fill : .fit)
       .frame(maxWidth: maxDim, maxHeight: maxDim)
@@ -428,7 +429,9 @@ private struct ChatImageView: View {
         RoundedRectangle(cornerRadius: radius, style: .continuous)
           .strokeBorder(.primary.opacity(0.08), lineWidth: 0.5)
       )
-      .shadow(color: .black.opacity(compact ? 0.05 : 0.1), radius: compact ? 4 : 8, y: compact ? 2 : 4)
+      .shadow(
+        color: .black.opacity(compact ? 0.05 : 0.1), radius: compact ? 4 : 8, y: compact ? 2 : 4
+      )
       .onTapGesture { isFullscreen = true }
       .sheet(isPresented: $isFullscreen) {
         ImagePreviewSheet(loaded: loaded)
@@ -520,7 +523,7 @@ private struct TypingIndicator: View {
 
   var body: some View {
     HStack(spacing: 5) {
-      ForEach(0 ..< 3, id: \.self) { index in
+      ForEach(0..<3, id: \.self) { index in
         Circle()
           .fill(.secondary)
           .frame(width: 7, height: 7)

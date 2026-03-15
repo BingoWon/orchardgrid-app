@@ -27,20 +27,20 @@ struct ChatMarkdownView: View {
   @ViewBuilder
   private func blockView(for block: MarkdownBlock) -> some View {
     switch block {
-    case let .paragraph(text):
+    case .paragraph(let text):
       inlineMarkdown(text)
 
-    case let .heading(level, text):
+    case .heading(let level, let text):
       headingView(level: level, text: text)
         .padding(.top, level == 1 ? 6 : 4)
 
-    case let .codeBlock(language, code):
+    case .codeBlock(let language, let code):
       CodeBlockView(language: language, code: code)
 
-    case let .list(items, ordered):
+    case .list(let items, let ordered):
       listView(items: items, ordered: ordered)
 
-    case let .blockquote(text):
+    case .blockquote(let text):
       blockquoteView(text: text)
 
     case .divider:
@@ -252,10 +252,11 @@ private enum MarkdownParser {
           i += 1
         }
         if i < lines.count { i += 1 }
-        blocks.append(.codeBlock(
-          language.isEmpty ? nil : language,
-          codeLines.joined(separator: "\n")
-        ))
+        blocks.append(
+          .codeBlock(
+            language.isEmpty ? nil : language,
+            codeLines.joined(separator: "\n")
+          ))
         continue
       }
 
@@ -376,7 +377,7 @@ private enum MarkdownParser {
       if ch == "#" { level += 1 } else { break }
     }
     guard level >= 1, level <= 6, trimmed.count > level,
-          trimmed[trimmed.index(trimmed.startIndex, offsetBy: level)] == " "
+      trimmed[trimmed.index(trimmed.startIndex, offsetBy: level)] == " "
     else { return nil }
     let text = String(trimmed.dropFirst(level + 1))
     return (level, text)
@@ -388,7 +389,7 @@ private enum MarkdownParser {
 
   private static func isOrderedListItem(_ line: String) -> Bool {
     guard let dotIndex = line.firstIndex(of: ".") else { return false }
-    let prefix = line[line.startIndex ..< dotIndex]
+    let prefix = line[line.startIndex..<dotIndex]
     guard prefix.allSatisfy(\.isNumber), !prefix.isEmpty else { return false }
     let afterDot = line.index(after: dotIndex)
     return afterDot < line.endIndex && line[afterDot] == " "

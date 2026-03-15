@@ -48,7 +48,7 @@ enum VisionProcessor {
   static func handle(_ data: Data) async throws -> Data {
     let req = try JSONDecoder().decode(Request.self, from: data)
     guard let imageData = Data(base64Encoded: req.image),
-          let cgImage = decodeCGImage(from: imageData)
+      let cgImage = decodeCGImage(from: imageData)
     else {
       throw VisionError.invalidImage
     }

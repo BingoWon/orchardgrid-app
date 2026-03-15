@@ -64,7 +64,8 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   init(llmProcessor: LLMProcessor) {
     self.llmProcessor = llmProcessor
 
-    serverURL = ProcessInfo.processInfo.environment["ORCHARDGRID_SERVER_URL"]
+    serverURL =
+      ProcessInfo.processInfo.environment["ORCHARDGRID_SERVER_URL"]
       ?? "\(Config.webSocketBaseURL)/device/connect"
 
     hardwareID = DeviceInfo.hardwareID
@@ -127,8 +128,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     ]
 
     for (capability, available, handler) in staticHandlers
-      where enabledCapabilities.contains(capability) && available
-    {
+    where enabledCapabilities.contains(capability) && available {
       handlers[capability] = handler
     }
   }
@@ -185,7 +185,8 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
         if attempt > 0 {
           connectionState = .reconnecting(attempt: attempt, nextRetryIn: delay)
-          Logger.log(.websocket, "Reconnection attempt \(attempt) in \(String(format: "%.1f", delay))s...")
+          Logger.log(
+            .websocket, "Reconnection attempt \(attempt) in \(String(format: "%.1f", delay))s...")
           await countdown(delay)
           guard !Task.isCancelled else { break }
         }
@@ -194,7 +195,8 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
         let success = await attemptConnect()
 
         if success {
-          Logger.success(.websocket, attempt > 1 ? "Reconnected after \(attempt) attempts" : "Connected")
+          Logger.success(
+            .websocket, attempt > 1 ? "Reconnected after \(attempt) attempts" : "Connected")
           break
         }
 
@@ -287,7 +289,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   private func countdown(_ seconds: TimeInterval) async {
     var remaining = seconds
     while remaining > 0, !Task.isCancelled {
-      if case let .reconnecting(attempt, _) = connectionState {
+      if case .reconnecting(let attempt, _) = connectionState {
         connectionState = .reconnecting(attempt: attempt, nextRetryIn: remaining)
       }
       try? await Task.sleep(for: .seconds(1))
@@ -360,11 +362,11 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       guard let self else { return }
       Task { @MainActor in
         switch result {
-        case let .success(message):
+        case .success(let message):
           switch message {
-          case let .string(text):
+          case .string(let text):
             await self.handleMessage(text)
-          case let .data(data):
+          case .data(let data):
             if let text = String(data: data, encoding: .utf8) {
               await self.handleMessage(text)
             }
@@ -374,7 +376,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
           if self.isConnected {
             self.receiveMessage()
           }
-        case let .failure(error):
+        case .failure(let error):
           let nsError = error as NSError
           if nsError.domain == NSURLErrorDomain, nsError.code == -999 { return }
 
@@ -391,7 +393,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
   private func handleMessage(_ text: String) async {
     guard let data = text.data(using: .utf8),
-          let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
     else {
       Logger.error(.websocket, "Failed to parse message JSON")
       return
@@ -403,9 +405,9 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     }
 
     guard let id = json["id"] as? String,
-          let capabilityStr = json["capability"] as? String,
-          let capability = Capability(rawValue: capabilityStr),
-          let payloadObj = json["payload"]
+      let capabilityStr = json["capability"] as? String,
+      let capability = Capability(rawValue: capabilityStr),
+      let payloadObj = json["payload"]
     else { return }
 
     let stream = (json["stream"] as? Bool) ?? false
@@ -417,7 +419,8 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       return
     }
 
-    Logger.log(.websocket, "Task \(id.prefix(8)): \(capability.rawValue)\(stream ? " [stream]" : "")")
+    Logger.log(
+      .websocket, "Task \(id.prefix(8)): \(capability.rawValue)\(stream ? " [stream]" : "")")
 
     if capability == .chat, stream {
       await handleStreamingChat(id: id, payload: payloadData)
@@ -440,7 +443,10 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       await sendResponse(id: id, payload: result)
       tasksProcessed += 1
       let duration = Date().timeIntervalSince(start)
-      Logger.success(.websocket, "\(capability.rawValue) task \(id.prefix(8)) completed in \(String(format: "%.2f", duration))s")
+      Logger.success(
+        .websocket,
+        "\(capability.rawValue) task \(id.prefix(8)) completed in \(String(format: "%.2f", duration))s"
+      )
     } catch {
       Logger.error(.websocket, "\(capability.rawValue) task \(id.prefix(8)) failed: \(error)")
       await sendError(id: id, error: error.localizedDescription)
@@ -457,7 +463,8 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       await sendStreamEnd(id: id)
       tasksProcessed += 1
       let duration = Date().timeIntervalSince(start)
-      Logger.success(.websocket, "chat stream \(id.prefix(8)) completed in \(String(format: "%.2f", duration))s")
+      Logger.success(
+        .websocket, "chat stream \(id.prefix(8)) completed in \(String(format: "%.2f", duration))s")
     } catch {
       Logger.error(.websocket, "chat stream \(id.prefix(8)) failed: \(error)")
       await sendError(id: id, error: error.localizedDescription)
@@ -470,13 +477,14 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     _ request: ChatRequest,
     onChunk: ((String) -> Void)? = nil
   ) async throws -> String {
-    let systemPrompt = request.messages.first { $0.role == "system" }?.content
+    let systemPrompt =
+      request.messages.first { $0.role == "system" }?.content
       ?? Config.defaultSystemPrompt
     let messages = request.messages.filter { $0.role != "system" }
     return try await llmProcessor.processRequest(
       messages: messages,
       systemPrompt: systemPrompt,
-      responseFormat: request.response_format,
+      responseFormat: request.responseFormat,
       onChunk: onChunk
     )
   }
@@ -495,7 +503,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
         guard isConnected else { return }
 
         if let lastResponse = lastHeartbeatResponse,
-           Date().timeIntervalSince(lastResponse) > Config.heartbeatTimeout
+          Date().timeIntervalSince(lastResponse) > Config.heartbeatTimeout
         {
           Logger.error(.websocket, "Heartbeat timeout — connection appears dead")
           connectionState = .disconnected

@@ -34,13 +34,13 @@ enum ImageProcessorError: LocalizedError, Sendable {
       "Image generation is not supported on this device"
     case .unavailable:
       "Image generation is temporarily unavailable. The model may still be downloading."
-    case let .invalidStyle(style):
+    case .invalidStyle(let style):
       "Invalid style '\(style)'. Supported styles: illustration, sketch"
-    case let .invalidCount(n):
+    case .invalidCount(let n):
       "Invalid image count \(n). Must be between 1 and 4."
     case .conversionFailed:
       "Failed to convert generated image to PNG data"
-    case let .generationFailed(message):
+    case .generationFailed(let message):
       "Image generation failed: \(message)"
     }
   }
@@ -69,7 +69,7 @@ enum ImageProcessor {
     let images = try await generateImages(prompt: req.prompt, style: req.style, count: req.n ?? 1)
     let resp = ImageResponse(
       created: Int(Date().timeIntervalSince1970),
-      data: images.map { .init(b64_json: $0.base64EncodedString()) }
+      data: images.map { .init(b64Json: $0.base64EncodedString()) }
     )
     return try JSONEncoder().encode(resp)
   }
@@ -89,7 +89,7 @@ enum ImageProcessor {
     count: Int,
     sourceImage: URL? = nil
   ) async throws -> [Data] {
-    guard (1 ... 4).contains(count) else {
+    guard (1...4).contains(count) else {
       throw ImageProcessorError.invalidCount(count)
     }
 

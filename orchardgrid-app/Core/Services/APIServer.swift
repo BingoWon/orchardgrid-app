@@ -57,23 +57,23 @@ private enum HTTP {
   ) -> String {
     let json = String(data: body, encoding: .utf8) ?? ""
     return """
-    HTTP/1.1 \(status) \(statusText)\r
-    Content-Type: application/json\r
-    Content-Length: \(body.count)\r
-    Connection: close\r
-    \r
-    \(json)
-    """
+      HTTP/1.1 \(status) \(statusText)\r
+      Content-Type: application/json\r
+      Content-Length: \(body.count)\r
+      Connection: close\r
+      \r
+      \(json)
+      """
   }
 
   static let sseHeaders = """
-  HTTP/1.1 200 OK\r
-  Content-Type: text/event-stream\r
-  Cache-Control: no-cache\r
-  Connection: keep-alive\r
-  \r
+    HTTP/1.1 200 OK\r
+    Content-Type: text/event-stream\r
+    Cache-Control: no-cache\r
+    Connection: keep-alive\r
+    \r
 
-  """
+    """
 
   static func empty(status: Int, statusText: String) -> String {
     """
@@ -134,11 +134,23 @@ final class APIServer {
   ]
 
   private static let routeHandlers: [(path: String, available: Bool, handler: Handler)] = [
-    ("/v1/images/generations", ImageProcessor.isAvailable, { data in try await ImageProcessor.handle(data) }),
+    (
+      "/v1/images/generations", ImageProcessor.isAvailable,
+      { data in try await ImageProcessor.handle(data) }
+    ),
     ("/v1/nlp/analyze", NLPProcessor.isAvailable, { data in try await NLPProcessor.handle(data) }),
-    ("/v1/vision/analyze", VisionProcessor.isAvailable, { data in try await VisionProcessor.handle(data) }),
-    ("/v1/audio/transcriptions", SpeechProcessor.isAvailable, { data in try await SpeechProcessor.handle(data) }),
-    ("/v1/audio/classify", SoundProcessor.isAvailable, { data in try await SoundProcessor.handle(data) }),
+    (
+      "/v1/vision/analyze", VisionProcessor.isAvailable,
+      { data in try await VisionProcessor.handle(data) }
+    ),
+    (
+      "/v1/audio/transcriptions", SpeechProcessor.isAvailable,
+      { data in try await SpeechProcessor.handle(data) }
+    ),
+    (
+      "/v1/audio/classify", SoundProcessor.isAvailable,
+      { data in try await SoundProcessor.handle(data) }
+    ),
   ]
 
   // MARK: - Initialization
@@ -180,7 +192,7 @@ final class APIServer {
             self.isRunning = true
             self.errorMessage = ""
             self.portConflict = false
-          case let .failed(nwError):
+          case .failed(let nwError):
             self.isRunning = false
             if case .posix(let code) = nwError, code == .EADDRINUSE {
               self.portConflict = true
@@ -278,7 +290,7 @@ final class APIServer {
     connection.start(queue: .global())
 
     guard let rawRequest = await receiveRequest(from: connection),
-          let httpRequest = HTTPRequest(rawRequest: rawRequest)
+      let httpRequest = HTTPRequest(rawRequest: rawRequest)
     else {
       await sendError(.badRequest, to: connection)
       return
@@ -315,7 +327,8 @@ final class APIServer {
 
   private func receiveChunk(from connection: NWConnection) async -> (Data?, Bool) {
     await withCheckedContinuation { continuation in
-      connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, isComplete, _ in
+      connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) {
+        data, _, isComplete, _ in
         continuation.resume(returning: (data, isComplete))
       }
     }
@@ -323,9 +336,10 @@ final class APIServer {
 
   private func processRequest(_ request: HTTPRequest, connection: NWConnection) async {
     if let capability = Self.routeToCapability[request.path],
-       !enabledCapabilities.contains(capability)
+      !enabledCapabilities.contains(capability)
     {
-      await sendError(.serviceUnavailable, message: "\(capability.displayName) is disabled", to: connection)
+      await sendError(
+        .serviceUnavailable, message: "\(capability.displayName) is disabled", to: connection)
       return
     }
 
@@ -390,7 +404,8 @@ final class APIServer {
         return
       }
 
-      let systemPrompt = chatRequest.messages.first { $0.role == "system" }?
+      let systemPrompt =
+        chatRequest.messages.first { $0.role == "system" }?
         .content ?? Config.defaultSystemPrompt
       let messages = chatRequest.messages.filter { $0.role != "system" }
 
@@ -405,14 +420,14 @@ final class APIServer {
         await streamResponse(
           messages: messages,
           systemPrompt: systemPrompt,
-          responseFormat: chatRequest.response_format,
+          responseFormat: chatRequest.responseFormat,
           connection: connection
         )
       } else {
         await sendChatResponse(
           messages: messages,
           systemPrompt: systemPrompt,
-          responseFormat: chatRequest.response_format,
+          responseFormat: chatRequest.responseFormat,
           connection: connection
         )
       }
@@ -483,12 +498,18 @@ final class APIServer {
     var models: [ModelsResponse.Model] = []
 
     if enabledCapabilities.contains(.chat), llmProcessor.isAvailable {
-      models.append(.init(id: "apple-intelligence", object: "model", created: now, ownedBy: "apple"))
+      models.append(
+        .init(id: "apple-intelligence", object: "model", created: now, ownedBy: "apple"))
     }
 
     for (path, capability) in Self.routeToCapability {
-      guard enabledCapabilities.contains(capability), capabilityRoutes[path] != nil else { continue }
-      models.append(.init(id: "apple-intelligence-\(capability.rawValue)", object: "model", created: now, ownedBy: "apple"))
+      guard enabledCapabilities.contains(capability), capabilityRoutes[path] != nil else {
+        continue
+      }
+      models.append(
+        .init(
+          id: "apple-intelligence-\(capability.rawValue)", object: "model", created: now,
+          ownedBy: "apple"))
     }
 
     await sendJSON(ModelsResponse(object: "list", data: models), to: connection)
@@ -505,7 +526,7 @@ final class APIServer {
     let encoder = JSONEncoder()
     encoder.keyEncodingStrategy = .convertToSnakeCase
     guard let data = try? encoder.encode(chunk),
-          let json = String(data: data, encoding: .utf8)
+      let json = String(data: data, encoding: .utf8)
     else { return }
     await send("data: \(json)\n\n", to: connection, closeAfter: false)
   }
@@ -515,9 +536,9 @@ final class APIServer {
       switch llmError {
       case .modelUnavailable:
         await sendError(.serviceUnavailable, message: "Model not available", to: connection)
-      case let .invalidRequest(msg):
+      case .invalidRequest(let msg):
         await sendError(.badRequest, message: msg, to: connection)
-      case let .processingFailed(msg):
+      case .processingFailed(let msg):
         await sendError(.internalError, message: msg, to: connection)
       }
     } else {
@@ -542,8 +563,9 @@ final class APIServer {
     encoder.keyEncodingStrategy = .convertToSnakeCase
 
     guard let data = try? encoder.encode(errorResponse) else {
-      await send(HTTP.empty(status: error.statusCode, statusText: error.statusMessage),
-                 to: connection, closeAfter: true)
+      await send(
+        HTTP.empty(status: error.statusCode, statusText: error.statusMessage),
+        to: connection, closeAfter: true)
       return
     }
 
@@ -562,10 +584,12 @@ final class APIServer {
     guard let data = text.data(using: .utf8) else { return }
 
     await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-      connection.send(content: data, completion: .contentProcessed { _ in
-        if closeAfter { connection.cancel() }
-        continuation.resume()
-      })
+      connection.send(
+        content: data,
+        completion: .contentProcessed { _ in
+          if closeAfter { connection.cancel() }
+          continuation.resume()
+        })
     }
   }
 }

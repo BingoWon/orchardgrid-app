@@ -1,4 +1,5 @@
 import Foundation
+
 #if os(macOS)
   import IOKit
 #elseif os(iOS)
@@ -87,27 +88,27 @@ enum DeviceInfo {
       // Precise mapping based on device identifier
       switch identifier {
       // iPhone 17 series (2025)
-      case "iPhone18,1": return "Apple A19 Pro" // iPhone 17 Pro
-      case "iPhone18,2": return "Apple A19 Pro" // iPhone 17 Pro Max
-      case "iPhone18,3": return "Apple A19" // iPhone 17
-      case "iPhone18,4": return "Apple A19 Pro" // iPhone Air
+      case "iPhone18,1": return "Apple A19 Pro"  // iPhone 17 Pro
+      case "iPhone18,2": return "Apple A19 Pro"  // iPhone 17 Pro Max
+      case "iPhone18,3": return "Apple A19"  // iPhone 17
+      case "iPhone18,4": return "Apple A19 Pro"  // iPhone Air
       // iPhone 16 series (2024)
-      case "iPhone17,1": return "Apple A18 Pro" // iPhone 16 Pro
-      case "iPhone17,2": return "Apple A18 Pro" // iPhone 16 Pro Max
-      case "iPhone17,3": return "Apple A18" // iPhone 16
-      case "iPhone17,4": return "Apple A18" // iPhone 16 Plus
-      case "iPhone17,5": return "Apple A18" // iPhone 16e
+      case "iPhone17,1": return "Apple A18 Pro"  // iPhone 16 Pro
+      case "iPhone17,2": return "Apple A18 Pro"  // iPhone 16 Pro Max
+      case "iPhone17,3": return "Apple A18"  // iPhone 16
+      case "iPhone17,4": return "Apple A18"  // iPhone 16 Plus
+      case "iPhone17,5": return "Apple A18"  // iPhone 16e
       // iPhone 15 series (2023)
-      case "iPhone16,1": return "Apple A17 Pro" // iPhone 15 Pro
-      case "iPhone16,2": return "Apple A17 Pro" // iPhone 15 Pro Max
-      case "iPhone15,4": return "Apple A16 Bionic" // iPhone 15
-      case "iPhone15,5": return "Apple A16 Bionic" // iPhone 15 Plus
+      case "iPhone16,1": return "Apple A17 Pro"  // iPhone 15 Pro
+      case "iPhone16,2": return "Apple A17 Pro"  // iPhone 15 Pro Max
+      case "iPhone15,4": return "Apple A16 Bionic"  // iPhone 15
+      case "iPhone15,5": return "Apple A16 Bionic"  // iPhone 15 Plus
       default:
         // Fallback: try to extract generation from identifier
         if identifier.hasPrefix("iPhone") {
           let components = identifier.components(separatedBy: ",")
           if let majorVersion = components.first?.replacingOccurrences(of: "iPhone", with: ""),
-             let major = Int(majorVersion)
+            let major = Int(majorVersion)
           {
             if major >= 18 {
               return "Apple A19"

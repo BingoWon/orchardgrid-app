@@ -15,8 +15,9 @@ extension View {
   func contentToolbar(
     @ViewBuilder leadingContent: () -> some View
   ) -> some View {
-    modifier(ContentToolbar(
-      leadingContent: leadingContent()
-    ))
+    modifier(
+      ContentToolbar(
+        leadingContent: leadingContent()
+      ))
   }
 }

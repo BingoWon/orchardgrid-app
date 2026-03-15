@@ -33,7 +33,9 @@ struct SignInView: View {
   private var closeBar: some View {
     HStack {
       Spacer()
-      Button { dismiss() } label: {
+      Button {
+        dismiss()
+      } label: {
         Image(systemName: "xmark")
           .font(.system(size: 12, weight: .bold))
           .foregroundStyle(.secondary)
@@ -253,8 +255,7 @@ struct SignInView: View {
           .textContentType(mode == .signUp ? .newPassword : .password)
           .onSubmit {
             Task {
-              if mode == .signIn { await signInWithEmail() }
-              else { await signUpWithEmail() }
+              if mode == .signIn { await signInWithEmail() } else { await signUpWithEmail() }
             }
           }
       }
@@ -384,8 +385,11 @@ struct SignInView: View {
   private func isUserCancellation(_ error: Error) -> Bool {
     let nsError = error as NSError
     switch (nsError.domain, nsError.code) {
-    case (ASWebAuthenticationSessionError.errorDomain, ASWebAuthenticationSessionError.canceledLogin.rawValue),
-         (ASAuthorizationError.errorDomain, ASAuthorizationError.canceled.rawValue):
+    case (
+      ASWebAuthenticationSessionError.errorDomain,
+      ASWebAuthenticationSessionError.canceledLogin.rawValue
+    ),
+      (ASAuthorizationError.errorDomain, ASAuthorizationError.canceled.rawValue):
       return true
     default:
       return Task.isCancelled

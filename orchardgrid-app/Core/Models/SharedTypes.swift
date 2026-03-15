@@ -131,12 +131,22 @@ struct ChatRequest: Codable, Sendable {
   let model: String
   let messages: [ChatMessage]
   let stream: Bool?
-  let response_format: ResponseFormat?
+  let responseFormat: ResponseFormat?
+
+  enum CodingKeys: String, CodingKey {
+    case model, messages, stream
+    case responseFormat = "response_format"
+  }
 }
 
 struct ResponseFormat: Codable, Sendable {
   let type: String
-  let json_schema: JSONSchemaDefinition?
+  let jsonSchema: JSONSchemaDefinition?
+
+  enum CodingKeys: String, CodingKey {
+    case type
+    case jsonSchema = "json_schema"
+  }
 }
 
 struct ChatResponse: Codable, Sendable {
@@ -180,11 +190,13 @@ struct ChatResponse: Codable, Sendable {
       object: "chat.completion",
       created: Int(Date().timeIntervalSince1970),
       model: "apple-intelligence",
-      choices: [.init(
-        index: 0,
-        message: .init(role: "assistant", content: content),
-        finishReason: "stop"
-      )],
+      choices: [
+        .init(
+          index: 0,
+          message: .init(role: "assistant", content: content),
+          finishReason: "stop"
+        )
+      ],
       usage: .init(
         promptTokens: promptTokens,
         completionTokens: completionTokens,
@@ -218,11 +230,13 @@ struct StreamChunk: Codable, Sendable {
       object: "chat.completion.chunk",
       created: Int(Date().timeIntervalSince1970),
       model: "apple-intelligence",
-      choices: [.init(
-        index: 0,
-        delta: .init(role: "assistant", content: content),
-        finishReason: nil
-      )]
+      choices: [
+        .init(
+          index: 0,
+          delta: .init(role: "assistant", content: content),
+          finishReason: nil
+        )
+      ]
     )
   }
 
@@ -232,11 +246,13 @@ struct StreamChunk: Codable, Sendable {
       object: "chat.completion.chunk",
       created: Int(Date().timeIntervalSince1970),
       model: "apple-intelligence",
-      choices: [.init(
-        index: 0,
-        delta: .init(role: "assistant", content: ""),
-        finishReason: finishReason
-      )]
+      choices: [
+        .init(
+          index: 0,
+          delta: .init(role: "assistant", content: ""),
+          finishReason: finishReason
+        )
+      ]
     )
   }
 }
@@ -274,7 +290,12 @@ struct ImageRequest: Codable, Sendable {
   let prompt: String
   let n: Int?
   let style: String?
-  let response_format: String?
+  let responseFormat: String?
+
+  enum CodingKeys: String, CodingKey {
+    case prompt, n, style
+    case responseFormat = "response_format"
+  }
 }
 
 struct ImageResponse: Codable, Sendable {
@@ -282,6 +303,10 @@ struct ImageResponse: Codable, Sendable {
   let data: [ImageData]
 
   struct ImageData: Codable, Sendable {
-    let b64_json: String
+    let b64Json: String
+
+    enum CodingKeys: String, CodingKey {
+      case b64Json = "b64_json"
+    }
   }
 }

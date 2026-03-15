@@ -1,4 +1,5 @@
 import SwiftUI
+
 #if os(iOS)
   import ClerkKitUI
 #endif
@@ -21,10 +22,12 @@ struct MainView: View {
         }
       #endif
     }
-    .sheet(isPresented: Binding(
-      get: { authManager.showAuthSheet },
-      set: { authManager.showAuthSheet = $0 }
-    )) {
+    .sheet(
+      isPresented: Binding(
+        get: { authManager.showAuthSheet },
+        set: { authManager.showAuthSheet = $0 }
+      )
+    ) {
       #if os(iOS)
         AuthView()
       #else
@@ -89,9 +92,9 @@ struct MainView: View {
     } detail: {
       NavigationStack {
         detailView(for: navigationState.selectedItem)
-        #if !os(macOS)
-          .navigationBarTitleDisplayMode(.inline)
-        #endif
+          #if !os(macOS)
+            .navigationBarTitleDisplayMode(.inline)
+          #endif
       }
       .id(navigationState.selectedItem)
     }

@@ -121,7 +121,8 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
         let success = await attemptConnect()
 
         if success {
-          Logger.success(.observer, attempt > 1 ? "Reconnected after \(attempt) attempts" : "Connected")
+          Logger.success(
+            .observer, attempt > 1 ? "Reconnected after \(attempt) attempts" : "Connected")
           break
         }
 
@@ -150,7 +151,7 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
     }
 
     guard var urlComponents = URLComponents(string: "\(Config.webSocketBaseURL)/observe"),
-          urlComponents.scheme == "ws" || urlComponents.scheme == "wss"
+      urlComponents.scheme == "ws" || urlComponents.scheme == "wss"
     else {
       Logger.error(.observer, "Invalid observer URL")
       return false
@@ -262,13 +263,13 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
 
       Task { @MainActor in
         switch result {
-        case let .success(message):
+        case .success(let message):
           self.processMessage(message)
           if self.status == .connected {
             self.receiveMessage()
           }
 
-        case let .failure(error):
+        case .failure(let error):
           let nsError = error as NSError
           // Ignore cancelled errors - expected during cleanup
           if nsError.domain == NSURLErrorDomain, nsError.code == -999 { return }
@@ -286,8 +287,8 @@ final class ObserverClient: NSObject, URLSessionWebSocketDelegate {
   }
 
   private func processMessage(_ message: URLSessionWebSocketTask.Message) {
-    guard case let .string(text) = message,
-          let data = text.data(using: .utf8)
+    guard case .string(let text) = message,
+      let data = text.data(using: .utf8)
     else { return }
 
     do {
