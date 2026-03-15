@@ -88,21 +88,32 @@ struct ChatsView: View {
   // MARK: - Empty State
 
   private var emptyState: some View {
-    ContentUnavailableView {
-      Label("No Conversations", systemImage: "apple.intelligence")
+    VStack(spacing: 24) {
+      Image(systemName: "apple.intelligence")
+        .font(.system(size: 52))
+        .foregroundStyle(.secondary)
         .symbolColorRenderingMode(.gradient)
-    } description: {
-      Text("Start a new chat with Apple Intelligence")
-    } actions: {
+
+      VStack(spacing: 6) {
+        Text("No Conversations")
+          .font(.title3.weight(.semibold))
+        Text("Start a new chat with Apple Intelligence")
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+      }
+
       Button {
         let conv = chatManager.createConversation()
         selectedConversationId = conv.id
       } label: {
         Label("New Chat", systemImage: "plus")
+          .frame(minWidth: 160)
       }
       .buttonStyle(.borderedProminent)
       .controlSize(.large)
+      .padding(.top, 4)
     }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
 }
 

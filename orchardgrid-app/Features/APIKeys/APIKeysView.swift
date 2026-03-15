@@ -12,38 +12,20 @@ struct APIKeysView: View {
   @State private var newlyCreatedKey: String?
 
   var body: some View {
-    ScrollView {
-      GlassEffectContainer(spacing: Constants.standardSpacing) {
-        VStack(alignment: .leading, spacing: Constants.standardSpacing) {
-          if authManager.isAuthenticated {
-            authenticatedContent
-          } else {
-            GuestFeaturePrompt(
-              icon: "key.fill",
-              title: "Get Your API Keys",
-              description:
-                "Sign in to create API keys and access OrchardGrid from your applications.",
-              benefits: [
-                "Standard Chat Completion API format",
-                "Works with popular AI tools",
-                "Manage multiple API keys",
-              ],
-              buttonTitle: "Sign In to Create API Key"
-            )
-          }
-        }
-        .padding(Constants.standardPadding)
+    Group {
+      if !authManager.isAuthenticated {
+        guestContent
+      } else if !manager.isInitialLoading, manager.apiKeys.isEmpty, manager.lastError == nil {
+        emptyState
+      } else {
+        keysContent
       }
-    }
-    .refreshable {
-      guard let token = await authManager.getToken() else { return }
-      await manager.loadAPIKeys(authToken: token, isManualRefresh: true)
     }
     .navigationTitle("API Keys")
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .contentToolbar {
-      if authManager.isAuthenticated {
+      if authManager.isAuthenticated, !manager.apiKeys.isEmpty {
         HStack(spacing: 12) {
           if manager.isRefreshing {
             ProgressView()
@@ -98,34 +80,64 @@ struct APIKeysView: View {
     }
   }
 
-  // MARK: - Authenticated Content
+  // MARK: - Guest Content
 
-  @ViewBuilder
-  private var authenticatedContent: some View {
-    HStack {
-      ConnectionStatusBadge(isConnected: observerClient.status == .connected)
-      Spacer()
-      if !manager.isInitialLoading {
-        LastUpdatedView(lastUpdatedText: manager.lastUpdatedText)
+  private var guestContent: some View {
+    ScrollView {
+      GlassEffectContainer(spacing: Constants.standardSpacing) {
+        GuestFeaturePrompt(
+          icon: "key.fill",
+          title: "Get Your API Keys",
+          description:
+            "Sign in to create API keys and access OrchardGrid from your applications.",
+          benefits: [
+            "Standard Chat Completion API format",
+            "Works with popular AI tools",
+            "Manage multiple API keys",
+          ],
+          buttonTitle: "Sign In to Create API Key"
+        )
+        .padding(Constants.standardPadding)
       }
     }
+  }
 
-    if manager.isInitialLoading {
-      ProgressView()
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 60)
-    } else if let error = manager.lastError {
-      ErrorBanner(message: error) {
-        Task {
-          guard let token = await authManager.getToken() else { return }
-          await manager.loadAPIKeys(authToken: token)
+  // MARK: - Keys Content
+
+  private var keysContent: some View {
+    ScrollView {
+      GlassEffectContainer(spacing: Constants.standardSpacing) {
+        VStack(alignment: .leading, spacing: Constants.standardSpacing) {
+          HStack {
+            ConnectionStatusBadge(isConnected: observerClient.status == .connected)
+            Spacer()
+            if !manager.isInitialLoading {
+              LastUpdatedView(lastUpdatedText: manager.lastUpdatedText)
+            }
+          }
+
+          if manager.isInitialLoading {
+            ProgressView()
+              .frame(maxWidth: .infinity)
+              .padding(.vertical, 60)
+          } else if let error = manager.lastError {
+            ErrorBanner(message: error) {
+              Task {
+                guard let token = await authManager.getToken() else { return }
+                await manager.loadAPIKeys(authToken: token)
+              }
+            }
+          } else {
+            apiReferenceCard
+            apiKeysSection
+          }
         }
+        .padding(Constants.standardPadding)
       }
-    } else if manager.apiKeys.isEmpty {
-      emptyState
-    } else {
-      apiReferenceCard
-      apiKeysSection
+    }
+    .refreshable {
+      guard let token = await authManager.getToken() else { return }
+      await manager.loadAPIKeys(authToken: token, isManualRefresh: true)
     }
   }
 
@@ -274,15 +286,30 @@ struct APIKeysView: View {
   }
 
   private var emptyState: some View {
-    ContentUnavailableView {
-      Label("No API Keys", systemImage: "key.fill")
-    } description: {
-      Text("Create an API key to get started")
-    } actions: {
-      Button("Create API Key") { createKey() }
-        .buttonStyle(.borderedProminent)
+    VStack(spacing: 24) {
+      Image(systemName: "key.fill")
+        .font(.system(size: 52))
+        .foregroundStyle(.secondary)
+
+      VStack(spacing: 6) {
+        Text("No API Keys")
+          .font(.title3.weight(.semibold))
+        Text("Create an API key to get started")
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+      }
+
+      Button {
+        createKey()
+      } label: {
+        Label("Create API Key", systemImage: "plus")
+          .frame(minWidth: 160)
+      }
+      .buttonStyle(.borderedProminent)
+      .controlSize(.large)
+      .padding(.top, 4)
     }
-    .frame(maxWidth: .infinity)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
 
   // MARK: - Helpers
