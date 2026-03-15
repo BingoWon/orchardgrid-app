@@ -11,12 +11,34 @@ struct AccountView: View {
   @State private var showFinalConfirmation = false
   @State private var isDeleting = false
 
+  private let repoURL = URL(string: "https://github.com/BingoWon/orchardgrid-app")!
+
   var body: some View {
-    Group {
-      if authManager.isAuthenticated {
-        authenticatedContent
-      } else {
-        guestContent
+    ScrollView {
+      GlassEffectContainer(spacing: Constants.standardSpacing) {
+        VStack(alignment: .leading, spacing: Constants.standardSpacing) {
+          if authManager.isAuthenticated {
+            profileCard
+            sourceCodeRow
+            signOutButton
+            deleteAccountButton
+          } else {
+            GuestFeaturePrompt(
+              icon: "person.circle",
+              title: "Sign In to Your Account",
+              description:
+                "Sign in to unlock all features and track your contributions across devices.",
+              benefits: [
+                "Manage your profile",
+                "Track all your devices",
+                "Access API keys and logs",
+              ],
+              buttonTitle: "Sign In"
+            )
+            sourceCodeRow
+          }
+        }
+        .padding(Constants.standardPadding)
       }
     }
     .navigationTitle("Account")
@@ -40,88 +62,107 @@ struct AccountView: View {
         Task { await deleteAccount() }
       }
     } message: {
-      Text("This action cannot be undone. All your devices, API keys, and tasks will be deleted.")
+      Text(
+        "This action cannot be undone. All your devices, API keys, and tasks will be deleted."
+      )
     }
   }
 
-  // MARK: - Guest Content
+  // MARK: - Profile Card
 
-  private var guestContent: some View {
-    ScrollView {
-      VStack(spacing: 24) {
-        GuestFeaturePrompt(
-          icon: "person.circle",
-          title: "Sign In to Your Account",
-          description:
-            "Sign in to unlock all features and track your contributions across devices.",
-          benefits: [
-            "Manage your profile",
-            "Track all your devices",
-            "Access API keys and logs",
-          ],
-          buttonTitle: "Sign In"
-        )
+  private var profileCard: some View {
+    HStack(spacing: 12) {
+      #if os(iOS)
+        UserButton()
+          .frame(width: 40, height: 40)
+      #endif
 
-        OpenSourceCard()
-      }
-      .padding()
-    }
-  }
+      if let user = Clerk.shared.user {
+        let displayName =
+          [user.firstName, user.lastName]
+          .compactMap { $0 }
+          .joined(separator: " ")
 
-  // MARK: - Authenticated Content
-
-  private var authenticatedContent: some View {
-    Form {
-      Section("Profile") {
-        HStack {
-          #if os(iOS)
-            UserButton()
-              .frame(width: 36, height: 36)
-          #endif
-
-          if let user = Clerk.shared.user {
-            let displayName = [user.firstName, user.lastName]
-              .compactMap { $0 }.joined(separator: " ")
-
-            VStack(alignment: .leading, spacing: 2) {
-              Text(displayName.isEmpty ? "User" : displayName)
-                .font(.headline)
-              if let email = user.primaryEmailAddress?.emailAddress {
-                Text(email)
-                  .font(.caption)
-                  .foregroundStyle(.secondary)
-              }
-            }
+        VStack(alignment: .leading, spacing: 2) {
+          Text(displayName.isEmpty ? "User" : displayName)
+            .font(.headline)
+          if let email = user.primaryEmailAddress?.emailAddress {
+            Text(email)
+              .font(.caption)
+              .foregroundStyle(.secondary)
           }
-
-          Spacer()
-        }
-        .padding(.vertical, 4)
-      }
-
-      Section("Open Source") {
-        OpenSourceCard(style: .form)
-      }
-
-      Section("Session") {
-        Button("Sign Out", role: .destructive) {
-          Task { await authManager.signOut() }
         }
       }
 
-      Section {
-        Button("Delete Account", role: .destructive) {
-          showDeleteConfirmation = true
-        }
-        .disabled(isDeleting)
-      } footer: {
-        Text(
-          "This will permanently delete your account and all associated data including devices, API keys, and tasks. This action cannot be undone."
-        )
-        .font(.caption)
-      }
+      Spacer()
     }
-    .formStyle(.grouped)
+    .padding(Constants.standardPadding)
+    .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
+  }
+
+  // MARK: - Source Code
+
+  private var sourceCodeRow: some View {
+    Link(destination: repoURL) {
+      HStack(spacing: 12) {
+        Image("GitHubLogo")
+          .resizable()
+          .scaledToFit()
+          .frame(width: 20, height: 20)
+
+        VStack(alignment: .leading, spacing: 2) {
+          Text("Source Code")
+            .font(.subheadline.weight(.medium))
+          Text("BingoWon/orchardgrid-app")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+
+        Spacer()
+
+        Image(systemName: "arrow.up.right")
+          .font(.caption2.weight(.semibold))
+          .foregroundStyle(.tertiary)
+      }
+      .padding(Constants.standardPadding)
+      .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
+    }
+    .buttonStyle(.plain)
+  }
+
+  // MARK: - Actions
+
+  private var signOutButton: some View {
+    Button {
+      Task { await authManager.signOut() }
+    } label: {
+      Text("Sign Out")
+        .font(.subheadline)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+    }
+    .buttonStyle(.glass)
+  }
+
+  private var deleteAccountButton: some View {
+    VStack(spacing: 8) {
+      Button(role: .destructive) {
+        showDeleteConfirmation = true
+      } label: {
+        Text("Delete Account")
+          .font(.caption)
+      }
+      .buttonStyle(.plain)
+      .foregroundStyle(.red.opacity(0.6))
+      .disabled(isDeleting)
+
+      Text("Permanently removes your account, devices, API keys, and all tasks.")
+        .font(.caption2)
+        .foregroundStyle(.quaternary)
+        .multilineTextAlignment(.center)
+    }
+    .frame(maxWidth: .infinity)
+    .padding(.top, 8)
   }
 
   private func deleteAccount() async {
@@ -131,64 +172,6 @@ struct AccountView: View {
       try await authManager.deleteAccount()
     } catch {
       Logger.error(.auth, "Failed to delete account: \(error.localizedDescription)")
-    }
-  }
-}
-
-// MARK: - Open Source Card
-
-struct OpenSourceCard: View {
-  enum Style { case standalone, form }
-
-  var style: Style = .standalone
-
-  private let repoURL = URL(string: "https://github.com/BingoWon/orchardgrid-app")!
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      if style == .standalone {
-        Text("Open Source")
-          .font(.headline)
-      }
-
-      Text("The OrchardGrid app is open source. Explore and contribute on GitHub.")
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-
-      HStack(spacing: 12) {
-        Image("GitHubLogo")
-          .resizable()
-          .scaledToFit()
-          .frame(width: 24, height: 24)
-
-        Text(repoURL.absoluteString)
-          .font(.subheadline)
-          .foregroundStyle(.primary)
-          .textSelection(.enabled)
-
-        Spacer()
-
-        Link("Open", destination: repoURL)
-          .buttonStyle(.borderedProminent)
-      }
-    }
-    .modifier(OpenSourceCardStyle(style: style))
-  }
-}
-
-private struct OpenSourceCardStyle: ViewModifier {
-  let style: OpenSourceCard.Style
-
-  func body(content: Content) -> some View {
-    switch style {
-    case .standalone:
-      content
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
-    case .form:
-      content
-        .padding(.vertical, 4)
     }
   }
 }
