@@ -15,6 +15,6 @@ struct StatCard: View {
     }
     .frame(maxWidth: .infinity)
     .padding(.vertical, 12)
-    .background(.fill.quaternary, in: .rect(cornerRadius: 10))
+    .background(.ultraThinMaterial, in: .rect(cornerRadius: 10))
   }
 }

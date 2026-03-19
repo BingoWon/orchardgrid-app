@@ -343,7 +343,7 @@ private struct TaskCard: View {
       }
     }
     .padding(12)
-    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 12, style: .continuous))
+    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
   }
 
   private var statusColor: Color {

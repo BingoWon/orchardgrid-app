@@ -260,7 +260,7 @@ private struct DeviceCard: View {
       .frame(minWidth: 50)
     }
     .padding(12)
-    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 12, style: .continuous))
+    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
   }
 
   private var statusColor: Color {

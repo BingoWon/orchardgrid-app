@@ -41,9 +41,7 @@ struct LocalDeviceQuickControl: View {
       }
     }
     .padding(Constants.standardPadding)
-    .glassEffect(
-      .regular.interactive(), in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous)
-    )
+    .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
     .contentShape(Rectangle())
     .onTapGesture { navigateToDetails() }
     #if !os(macOS)
@@ -85,7 +83,7 @@ struct LocalDeviceQuickControl: View {
       Spacer()
     }
     .padding(12)
-    .background(.fill.quaternary, in: .rect(cornerRadius: 10))
+    .background(.ultraThinMaterial, in: .rect(cornerRadius: 10))
   }
 
   private var statusIcon: String {
@@ -216,7 +214,7 @@ private struct ToggleRow: View {
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 10)
-    .background(.fill.quaternary, in: .rect(cornerRadius: 10))
+    .background(.ultraThinMaterial, in: .rect(cornerRadius: 10))
   }
 }
 
