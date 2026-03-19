@@ -85,7 +85,7 @@ struct LocalDeviceQuickControl: View {
       Spacer()
     }
     .padding(12)
-    .background(statusColor.opacity(0.08), in: .rect(cornerRadius: 10))
+    .background(.fill.quaternary, in: .rect(cornerRadius: 10))
   }
 
   private var statusIcon: String {
@@ -135,7 +135,7 @@ struct LocalDeviceQuickControl: View {
   }
 
   private var togglesRow: some View {
-    VStack(spacing: 0) {
+    VStack(spacing: 8) {
       ToggleRow(
         title: "Share to Cloud",
         isOn: Binding(
@@ -144,8 +144,6 @@ struct LocalDeviceQuickControl: View {
         ),
         statusText: cloudStatusText
       )
-
-      Divider().padding(.horizontal, 12)
 
       ToggleRow(
         title: "Share Locally",
@@ -157,7 +155,6 @@ struct LocalDeviceQuickControl: View {
         isLoading: isLocalStarting
       )
     }
-    .background(.primary.opacity(0.04), in: .rect(cornerRadius: 10))
   }
 
   // MARK: - Status Text
@@ -219,6 +216,7 @@ private struct ToggleRow: View {
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 10)
+    .background(.fill.quaternary, in: .rect(cornerRadius: 10))
   }
 }
 

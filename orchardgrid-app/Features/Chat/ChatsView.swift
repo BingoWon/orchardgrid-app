@@ -154,7 +154,7 @@ private struct ConversationRow: View {
     .padding(.horizontal, 12)
     .padding(.vertical, 10)
     .frame(maxWidth: .infinity, alignment: .leading)
-    .background(.fill.quaternary, in: .rect(cornerRadius: 10, style: .continuous))
+    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 10, style: .continuous))
   }
 }
 
