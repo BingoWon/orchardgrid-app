@@ -154,7 +154,7 @@ private struct ConversationRow: View {
     .padding(.horizontal, 12)
     .padding(.vertical, 10)
     .frame(maxWidth: .infinity, alignment: .leading)
-    .glassEffect(in: .rect(cornerRadius: 10, style: .continuous))
+    .background(.ultraThinMaterial, in: .rect(cornerRadius: 10, style: .continuous))
   }
 }
 
