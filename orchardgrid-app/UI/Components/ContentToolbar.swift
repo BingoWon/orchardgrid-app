@@ -16,8 +16,8 @@ struct ContentToolbar<TrailingContent: View>: ViewModifier {
 
 extension View {
   func contentToolbar(
-    @ViewBuilder leadingContent: () -> some View
+    @ViewBuilder trailingContent: () -> some View
   ) -> some View {
-    modifier(ContentToolbar(trailingContent: leadingContent()))
+    modifier(ContentToolbar(trailingContent: trailingContent()))
   }
 }

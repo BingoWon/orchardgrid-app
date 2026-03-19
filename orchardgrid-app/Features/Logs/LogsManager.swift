@@ -10,7 +10,7 @@ final class LogsManager: Refreshable {
   private(set) var providingTotal = 0
   private(set) var isInitialLoading = true
   private(set) var isRefreshing = false
-  private(set) var errorMessage: String?
+  private(set) var lastError: String?
   private(set) var lastUpdated: Date?
 
   private let apiURL = Config.apiBaseURL
@@ -77,7 +77,7 @@ final class LogsManager: Refreshable {
     } else if isManualRefresh {
       isRefreshing = true
     }
-    errorMessage = nil
+    lastError = nil
 
     do {
       var components = URLComponents(string: "\(apiURL)\(endpoint)")!
@@ -131,7 +131,7 @@ final class LogsManager: Refreshable {
     } catch let error as URLError where error.code == .cancelled {
       return
     } catch {
-      errorMessage = error.localizedDescription
+      lastError = error.localizedDescription
       Logger.error(.app, "Load tasks error: \(error)")
     }
 

@@ -61,7 +61,9 @@ private final class SoundResultObserver: NSObject, SNResultsObserving, @unchecke
     }
   }
 
-  func request(_: SNRequest, didFailWithError _: Error) {}
+  func request(_: SNRequest, didFailWithError error: Error) {
+    print("[SoundProcessor] Analysis failed: \(error.localizedDescription)")
+  }
   func requestDidComplete(_: SNRequest) {}
 
   func topResults(limit: Int) -> [SoundProcessor.Classification] {

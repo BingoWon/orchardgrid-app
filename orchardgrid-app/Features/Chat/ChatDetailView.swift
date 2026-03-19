@@ -316,7 +316,6 @@ struct ChatDetailView: View {
 
 private struct MessageBubble: View {
   let message: Message
-  @State private var showCopied = false
 
   var body: some View {
     HStack(alignment: .bottom, spacing: 4) {
@@ -375,19 +374,8 @@ private struct MessageBubble: View {
   }
 
   private var copyButton: some View {
-    Button {
-      Clipboard.copy(message.content)
-      withAnimation(.easeInOut(duration: 0.2)) { showCopied = true }
-      Task {
-        try? await Task.sleep(for: .seconds(1.5))
-        withAnimation(.easeInOut(duration: 0.2)) { showCopied = false }
-      }
-    } label: {
-      Image(systemName: showCopied ? "checkmark" : "doc.on.doc")
-        .font(.caption2)
-        .foregroundStyle(showCopied ? Color.green : Color.secondary.opacity(0.5))
-    }
-    .buttonStyle(.plain)
+    CopyButton(text: message.content, showLabel: false)
+      .font(.caption2)
   }
 }
 

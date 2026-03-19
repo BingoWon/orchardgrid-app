@@ -396,15 +396,15 @@ private struct APIKeyCard: View {
 
       HStack {
         Text(
-          "Created: \(timestampDate(key.createdAt).formatted(date: .abbreviated, time: .shortened))"
+          "Created: \(key.createdDate.formatted(date: .abbreviated, time: .shortened))"
         )
         .font(.caption)
         .foregroundStyle(.secondary)
 
         Spacer()
 
-        if let lastUsed = key.lastUsedAt {
-          Text("Last used: \(timestampDate(lastUsed).formatted(.relative(presentation: .named)))")
+        if let lastUsedDate = key.lastUsedDate {
+          Text("Last used: \(lastUsedDate.formatted(.relative(presentation: .named)))")
             .font(.caption)
             .foregroundStyle(.secondary)
         } else {
@@ -416,10 +416,6 @@ private struct APIKeyCard: View {
     }
     .padding(12)
     .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
-  }
-
-  private func timestampDate(_ ms: Int) -> Date {
-    Date(timeIntervalSince1970: TimeInterval(ms) / 1000)
   }
 }
 

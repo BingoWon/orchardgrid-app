@@ -1,4 +1,6 @@
 import Foundation
+import FoundationModels
+import SwiftUI
 
 // MARK: - Capabilities
 
@@ -55,7 +57,7 @@ struct JSONSchemaProperty: Codable, Sendable {
   }
 }
 
-struct AnyCodable: Codable, Sendable {
+struct AnyCodable: Codable, @unchecked Sendable {
   let value: Any
 
   init(_ value: Any) {
@@ -317,6 +319,47 @@ struct ImageResponse: Codable, Sendable {
 
     enum CodingKeys: String, CodingKey {
       case b64Json = "b64_json"
+    }
+  }
+}
+
+// MARK: - AI Availability Helpers
+
+extension SystemLanguageModel.Availability {
+  var statusIcon: String {
+    switch self {
+    case .available:
+      "checkmark.circle.fill"
+    case .unavailable(.modelNotReady):
+      "arrow.down.circle"
+    default:
+      "exclamationmark.triangle.fill"
+    }
+  }
+
+  var statusColor: Color {
+    switch self {
+    case .available:
+      .green
+    case .unavailable(.modelNotReady):
+      .blue
+    default:
+      .orange
+    }
+  }
+
+  var statusTitle: String {
+    switch self {
+    case .available:
+      "Apple Intelligence Ready"
+    case .unavailable(.deviceNotEligible):
+      "Device Not Supported"
+    case .unavailable(.appleIntelligenceNotEnabled):
+      "Apple Intelligence Not Enabled"
+    case .unavailable(.modelNotReady):
+      "Downloading Model..."
+    case .unavailable:
+      "Apple Intelligence Unavailable"
     }
   }
 }

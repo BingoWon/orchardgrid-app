@@ -9,6 +9,14 @@ struct APIKey: Identifiable, Codable, Sendable {
 
   var id: String { keyHint }
 
+  var createdDate: Date {
+    Date(timeIntervalSince1970: TimeInterval(createdAt) / 1000)
+  }
+
+  var lastUsedDate: Date? {
+    lastUsedAt.map { Date(timeIntervalSince1970: TimeInterval($0) / 1000) }
+  }
+
   enum CodingKeys: String, CodingKey {
     case key
     case keyHint = "key_hint"

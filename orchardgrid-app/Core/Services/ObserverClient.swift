@@ -26,10 +26,7 @@ enum ObserverEvent: Decodable {
     let lastHeartbeat: Int
 
     enum CodingKeys: String, CodingKey {
-      case id, platform
-      case deviceName
-      case isOnline
-      case lastHeartbeat
+      case id, platform, deviceName, isOnline, lastHeartbeat
     }
   }
 

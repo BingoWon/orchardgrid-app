@@ -9,15 +9,7 @@ import SwiftUI
 
 struct LocalDeviceView: View {
   @Environment(SharingManager.self) private var sharing
-  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-
-  private var isWideLayout: Bool {
-    #if os(macOS)
-      return true
-    #else
-      return horizontalSizeClass == .regular
-    #endif
-  }
+  @Environment(\.isWideLayout) private var isWideLayout
 
   var body: some View {
     ScrollView {
@@ -119,8 +111,9 @@ struct LocalDeviceView: View {
       Divider()
 
       HStack(spacing: 40) {
-        StatView(title: "Tasks Processed", value: "\(sharing.cloudTasksProcessed)")
-        StatView(title: "Hardware ID", value: String(DeviceInfo.hardwareID.prefix(8)))
+        StatCard(title: "Tasks Processed", value: "\(sharing.cloudTasksProcessed)", compact: true)
+        StatCard(
+          title: "Hardware ID", value: String(DeviceInfo.hardwareID.prefix(8)), compact: true)
       }
 
     case .reconnecting(let attempt, let nextRetryIn):
@@ -225,7 +218,7 @@ struct LocalDeviceView: View {
           Divider()
 
           HStack(spacing: 40) {
-            StatView(title: "Requests Served", value: "\(sharing.localRequestCount)")
+            StatCard(title: "Requests Served", value: "\(sharing.localRequestCount)", compact: true)
           }
         }
       }
@@ -480,42 +473,9 @@ struct AIStatusCard: View {
     .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
   }
 
-  private var headerIcon: String {
-    switch availability {
-    case .available:
-      "checkmark.circle.fill"
-    case .unavailable(.modelNotReady):
-      "arrow.down.circle"
-    default:
-      "exclamationmark.triangle.fill"
-    }
-  }
-
-  private var headerColor: Color {
-    switch availability {
-    case .available:
-      .green
-    case .unavailable(.modelNotReady):
-      .blue
-    default:
-      .orange
-    }
-  }
-
-  private var headerTitle: String {
-    switch availability {
-    case .available:
-      "Apple Intelligence Ready"
-    case .unavailable(.deviceNotEligible):
-      "Device Not Supported"
-    case .unavailable(.appleIntelligenceNotEnabled):
-      "Apple Intelligence Not Enabled"
-    case .unavailable(.modelNotReady):
-      "Downloading Model..."
-    case .unavailable:
-      "Apple Intelligence Unavailable"
-    }
-  }
+  private var headerIcon: String { availability.statusIcon }
+  private var headerColor: Color { availability.statusColor }
+  private var headerTitle: String { availability.statusTitle }
 
   @ViewBuilder
   private var statusContent: some View {
@@ -603,7 +563,7 @@ struct AIStatusCard: View {
 
 // MARK: - Supporting Views
 
-struct StatusRow: View {
+private struct StatusRow: View {
   var icon: String?
   var iconColor: Color = .secondary
   var isLoading: Bool = false
@@ -634,7 +594,7 @@ struct StatusRow: View {
   }
 }
 
-struct InfoRow: View {
+private struct InfoRow: View {
   let label: String
   let value: String
 
@@ -655,7 +615,7 @@ struct InfoRow: View {
   }
 }
 
-struct EndpointRow: View {
+private struct EndpointRow: View {
   let label: String
   let url: String
 
@@ -684,21 +644,6 @@ struct EndpointRow: View {
       }
       .buttonStyle(.plain)
       .help("Copy URL")
-    }
-  }
-}
-
-struct StatView: View {
-  let title: String
-  let value: String
-
-  var body: some View {
-    VStack(spacing: 4) {
-      Text(value)
-        .font(.title3.bold())
-      Text(title)
-        .font(.caption)
-        .foregroundStyle(.secondary)
     }
   }
 }

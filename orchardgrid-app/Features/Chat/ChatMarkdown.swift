@@ -144,7 +144,6 @@ struct ChatMarkdownView: View {
 private struct CodeBlockView: View {
   let language: String?
   let code: String
-  @State private var copied = false
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
@@ -175,23 +174,7 @@ private struct CodeBlockView: View {
 
       Spacer()
 
-      Button {
-        Clipboard.copy(code)
-        copied = true
-        Task {
-          try? await Task.sleep(for: .seconds(2))
-          copied = false
-        }
-      } label: {
-        HStack(spacing: 4) {
-          Image(systemName: copied ? "checkmark" : "doc.on.doc")
-          Text(copied ? "Copied" : "Copy")
-        }
-        .font(.caption2)
-        .foregroundStyle(copied ? .green : .secondary)
-        .animation(.easeInOut(duration: 0.2), value: copied)
-      }
-      .buttonStyle(.plain)
+      CopyButton(text: code)
     }
     .padding(.horizontal, 12)
     .padding(.top, 8)

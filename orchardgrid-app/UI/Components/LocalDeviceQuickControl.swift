@@ -5,16 +5,8 @@ import SwiftUI
 struct LocalDeviceQuickControl: View {
   @Environment(SharingManager.self) private var sharing
   @Environment(NavigationState.self) private var navigationState
-  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @State private var showDeviceSheet = false
-
-  private var isWideLayout: Bool {
-    #if os(macOS)
-      return true
-    #else
-      return horizontalSizeClass == .regular
-    #endif
-  }
+  @Environment(\.isWideLayout) private var isWideLayout
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
@@ -86,36 +78,9 @@ struct LocalDeviceQuickControl: View {
     .background(.ultraThinMaterial, in: .rect(cornerRadius: 10))
   }
 
-  private var statusIcon: String {
-    switch sharing.modelAvailability {
-    case .unavailable(.modelNotReady):
-      "arrow.down.circle"
-    default:
-      "exclamationmark.triangle.fill"
-    }
-  }
-
-  private var statusColor: Color {
-    switch sharing.modelAvailability {
-    case .unavailable(.modelNotReady):
-      .blue
-    default:
-      .orange
-    }
-  }
-
-  private var statusTitle: String {
-    switch sharing.modelAvailability {
-    case .unavailable(.deviceNotEligible):
-      "Device Not Supported"
-    case .unavailable(.appleIntelligenceNotEnabled):
-      "Apple Intelligence Disabled"
-    case .unavailable(.modelNotReady):
-      "Downloading Model..."
-    default:
-      "Apple Intelligence Unavailable"
-    }
-  }
+  private var statusIcon: String { sharing.modelAvailability.statusIcon }
+  private var statusColor: Color { sharing.modelAvailability.statusColor }
+  private var statusTitle: String { sharing.modelAvailability.statusTitle }
 
   private func navigateToDetails() {
     if isWideLayout {

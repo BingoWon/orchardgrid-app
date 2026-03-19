@@ -3,18 +3,24 @@ import SwiftUI
 struct StatCard: View {
   let title: String
   let value: String
+  var compact = false
 
   var body: some View {
     VStack(spacing: 4) {
       Text(value)
-        .font(.title2.bold())
+        .font(compact ? .title3.bold() : .title2.bold())
 
       Text(title)
         .font(.caption)
         .foregroundStyle(.secondary)
     }
     .frame(maxWidth: .infinity)
-    .padding(.vertical, 12)
-    .background(.ultraThinMaterial, in: .rect(cornerRadius: 10))
+    .padding(.vertical, compact ? 8 : 12)
+    .background {
+      if !compact {
+        RoundedRectangle(cornerRadius: 10)
+          .fill(.ultraThinMaterial)
+      }
+    }
   }
 }

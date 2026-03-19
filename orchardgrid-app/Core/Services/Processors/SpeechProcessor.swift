@@ -109,10 +109,14 @@ enum SpeechProcessor {
 
     do {
       return try await withCheckedThrowingContinuation { cont in
+        var resumed = false
         recognizer.recognitionTask(with: sfRequest) { result, error in
+          guard !resumed else { return }
           if let error {
+            resumed = true
             cont.resume(throwing: error)
           } else if let result, result.isFinal {
+            resumed = true
             cont.resume(returning: result)
           }
         }

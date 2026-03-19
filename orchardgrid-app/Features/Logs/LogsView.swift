@@ -73,7 +73,7 @@ struct LogsView: View {
       ProgressView()
         .frame(maxWidth: .infinity)
         .padding(.vertical, 60)
-    } else if let error = manager.errorMessage {
+    } else if let error = manager.lastError {
       ErrorBanner(message: error) {
         Task { await loadData(isManualRefresh: true) }
       }

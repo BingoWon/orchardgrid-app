@@ -4,15 +4,7 @@ struct AllDevicesView: View {
   @Environment(DevicesManager.self) private var devicesManager
   @Environment(AuthManager.self) private var authManager
   @Environment(ObserverClient.self) private var observerClient
-  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-
-  private var isWideLayout: Bool {
-    #if os(macOS)
-      return true
-    #else
-      return horizontalSizeClass == .regular
-    #endif
-  }
+  @Environment(\.isWideLayout) private var isWideLayout
 
   var body: some View {
     ScrollView {

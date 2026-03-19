@@ -28,3 +28,15 @@ enum Constants {
     static let editingBackgroundStyle = Material.ultraThickMaterial
   #endif
 }
+
+// MARK: - Layout Helpers
+
+extension EnvironmentValues {
+  var isWideLayout: Bool {
+    #if os(macOS)
+      return true
+    #else
+      return horizontalSizeClass == .regular
+    #endif
+  }
+}
