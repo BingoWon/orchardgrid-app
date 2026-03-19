@@ -15,5 +15,6 @@ struct StatCard: View {
     }
     .frame(maxWidth: .infinity)
     .padding(.vertical, 12)
+    .background(.primary.opacity(0.04), in: .rect(cornerRadius: 10))
   }
 }
