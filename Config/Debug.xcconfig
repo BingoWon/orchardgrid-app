@@ -21,6 +21,10 @@ INFOPLIST_FILE = Config/Info.plist
 CODE_SIGN_STYLE = Automatic
 DEVELOPMENT_TEAM = 5C4299VVGU
 
-// Sandbox - MUST be YES if entitlements contain com.apple.security.app-sandbox
-ENABLE_APP_SANDBOX = YES
-CODE_SIGN_ENTITLEMENTS = orchardgrid-app/orchardgrid-app-debug.entitlements
+// Sandbox (macOS only)
+ENABLE_APP_SANDBOX = NO
+ENABLE_APP_SANDBOX[sdk=macosx*] = YES
+
+// Entitlements (platform-specific: iOS excludes macOS sandbox keys)
+CODE_SIGN_ENTITLEMENTS = orchardgrid-app/orchardgrid-app-ios-debug.entitlements
+CODE_SIGN_ENTITLEMENTS[sdk=macosx*] = orchardgrid-app/orchardgrid-app-debug.entitlements
