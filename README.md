@@ -31,6 +31,20 @@
 
 Apple Intelligence runs exclusively on Apple's Neural Engine — it cannot be deployed on traditional cloud servers. OrchardGrid bridges this gap by organizing Apple devices worldwide into a **unified, programmable AI compute pool**, exposing their capabilities through a standard API that any OpenAI-compatible client can call directly.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/ios-devices.png" width="200" alt="Devices overview on iOS" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/ios-device-detail.png" width="200" alt="Device detail on iOS" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/ios-api-keys.png" width="200" alt="API Keys on iOS" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/macos-devices.png" width="700" alt="Devices overview on macOS" />
+</p>
+
 ## Architecture
 
 ```mermaid

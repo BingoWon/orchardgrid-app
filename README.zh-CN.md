@@ -31,6 +31,20 @@
 
 Apple Intelligence 只能在 Apple Neural Engine 上运行，无法部署到传统云服务器。OrchardGrid 把分散在各地的 Apple 设备组织成**统一的、可编程调用的 AI 算力池**，对外暴露标准 API，任何兼容 OpenAI 的客户端都能直接调用。
 
+## 截图
+
+<p align="center">
+  <img src="docs/screenshots/ios-devices.png" width="200" alt="iOS 设备列表" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/ios-device-detail.png" width="200" alt="iOS 设备详情" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/ios-api-keys.png" width="200" alt="iOS API 密钥" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/macos-devices.png" width="700" alt="macOS 设备概览" />
+</p>
+
 ## 架构
 
 ```mermaid
