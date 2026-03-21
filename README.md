@@ -146,9 +146,15 @@ Clone the repo, open `orchardgrid-app.xcodeproj` in Xcode, and build. Requires X
 - **No telemetry** — no personal data or AI queries are collected
 - **Open source** — full transparency, audit the code yourself
 
-## License
+## 🤝 Contributing
 
-[BSL 1.1](LICENSE) — free to self-host and use. Commercial hosting as a competing service requires a separate license. Converts to Apache 2.0 after four years.
+Contributions are welcome! Whether it's a bug fix, a new feature, or a documentation improvement — we'd love your help.
+
+1. Fork the repo and create your branch from `main`
+2. Make your changes and test them on a real device
+3. Open a pull request with a clear description of what you changed and why
+
+If you're unsure where to start, check out the [open issues](https://github.com/BingoWon/orchardgrid-app/issues) — or just open one to start a conversation.
 
 ---
 
