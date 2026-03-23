@@ -24,6 +24,7 @@ DEVELOPMENT_TEAM = 5C4299VVGU
 // Sandbox (macOS only)
 ENABLE_APP_SANDBOX = NO
 ENABLE_APP_SANDBOX[sdk=macosx*] = YES
+ENABLE_USER_SELECTED_FILES[sdk=macosx*] = readonly
 
 // Entitlements (platform-specific: iOS excludes macOS sandbox keys)
 CODE_SIGN_ENTITLEMENTS = orchardgrid-app/orchardgrid-app-ios-debug.entitlements
