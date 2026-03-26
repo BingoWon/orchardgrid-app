@@ -161,13 +161,27 @@ struct ResponseFormat: Codable, Sendable {
   }
 }
 
+// MARK: - Usage Types
+
+struct TokenUsage: Codable, Sendable {
+  let promptTokens: Int
+  let completionTokens: Int
+  let totalTokens: Int
+
+  enum CodingKeys: String, CodingKey {
+    case promptTokens = "prompt_tokens"
+    case completionTokens = "completion_tokens"
+    case totalTokens = "total_tokens"
+  }
+}
+
 struct ChatResponse: Codable, Sendable {
   let id: String
   let object: String
   let created: Int
   let model: String
   let choices: [Choice]
-  let usage: Usage
+  let usage: TokenUsage
 
   struct Choice: Codable, Sendable {
     let index: Int
@@ -180,17 +194,7 @@ struct ChatResponse: Codable, Sendable {
     }
   }
 
-  struct Usage: Codable, Sendable {
-    let promptTokens: Int
-    let completionTokens: Int
-    let totalTokens: Int
 
-    enum CodingKeys: String, CodingKey {
-      case promptTokens = "prompt_tokens"
-      case completionTokens = "completion_tokens"
-      case totalTokens = "total_tokens"
-    }
-  }
 
   static func create(
     content: String,
@@ -224,7 +228,7 @@ struct StreamChunk: Codable, Sendable {
   let created: Int
   let model: String
   let choices: [Choice]
-  let usage: Usage?
+  let usage: TokenUsage?
 
   struct Choice: Codable, Sendable {
     let index: Int
@@ -237,17 +241,7 @@ struct StreamChunk: Codable, Sendable {
     }
   }
 
-  struct Usage: Codable, Sendable {
-    let promptTokens: Int
-    let completionTokens: Int
-    let totalTokens: Int
 
-    enum CodingKeys: String, CodingKey {
-      case promptTokens = "prompt_tokens"
-      case completionTokens = "completion_tokens"
-      case totalTokens = "total_tokens"
-    }
-  }
 
   static func delta(_ id: String, content: String) -> StreamChunk {
     StreamChunk(
@@ -269,7 +263,7 @@ struct StreamChunk: Codable, Sendable {
   static func end(
     _ id: String,
     finishReason: String = "stop",
-    usage: Usage? = nil
+    usage: TokenUsage? = nil
   ) -> StreamChunk {
     StreamChunk(
       id: id,

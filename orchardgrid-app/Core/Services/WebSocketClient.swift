@@ -462,10 +462,17 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     let start = Date()
     do {
       let req = try JSONDecoder().decode(ChatRequest.self, from: payload)
-      _ = try await processChat(req) { [weak self] delta in
+      let result = try await processChat(req) { [weak self] delta in
         Task { await self?.sendStreamDelta(id: id, delta: delta) }
       }
-      await sendStreamEnd(id: id)
+      
+      let usage = TokenUsage(
+        promptTokens: result.promptTokens,
+        completionTokens: result.completionTokens,
+        totalTokens: result.totalTokens
+      )
+      
+      await sendStreamEnd(id: id, usage: usage)
       tasksProcessed += 1
       let duration = Date().timeIntervalSince(start)
       Logger.success(
@@ -552,8 +559,18 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     await sendJSON(["id": id, "type": "stream", "delta": delta])
   }
 
-  private func sendStreamEnd(id: String) async {
-    await sendJSON(["id": id, "type": "stream_end"])
+  private func sendStreamEnd(id: String, usage: TokenUsage? = nil) async {
+    var payload: [String: Any] = ["id": id, "type": "stream_end"]
+    
+    if let usage {
+      payload["usage"] = [
+        "prompt_tokens": usage.promptTokens,
+        "completion_tokens": usage.completionTokens,
+        "total_tokens": usage.totalTokens
+      ]
+    }
+    
+    await sendJSON(payload)
   }
 
   private func sendError(id: String, error: String) async {

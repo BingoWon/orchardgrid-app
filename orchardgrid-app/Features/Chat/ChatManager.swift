@@ -227,6 +227,7 @@ final class ChatManager {
     }
 
     let tool = ImageGenerationTool(collector: imageCollector)
+    let processor = LLMProcessor()
 
     guard let conversation = conversation(for: conversationId), !conversation.messages.isEmpty
     else {
@@ -236,7 +237,7 @@ final class ChatManager {
     }
 
     // Measure baseline: system prompt + tool definitions
-    let baselineTokens = await LLMProcessor().measureInstructions(
+    let baselineTokens = await processor.measureInstructions(
       Self.systemPrompt, tools: [tool])
     let historyBudget = contextSize - baselineTokens - Self.tokenReserve
     var messages = Array(conversation.messages)
@@ -245,7 +246,7 @@ final class ChatManager {
     while !messages.isEmpty {
       let history = Self.formatHistory(messages)
       let instructions = "\(Self.systemPrompt)\n\nPrevious conversation:\n\(history)"
-      let instructionTokens = await LLMProcessor().measureInstructions(
+      let instructionTokens = await processor.measureInstructions(
         instructions, tools: [tool])
 
       if instructionTokens <= contextSize - Self.tokenReserve {

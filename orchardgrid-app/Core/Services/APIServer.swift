@@ -485,7 +485,7 @@ final class APIServer {
         }
       }
 
-      let usage = StreamChunk.Usage(
+      let usage = TokenUsage(
         promptTokens: result.promptTokens,
         completionTokens: result.completionTokens,
         totalTokens: result.totalTokens
