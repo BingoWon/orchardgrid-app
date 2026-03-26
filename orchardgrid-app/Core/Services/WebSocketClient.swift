@@ -465,13 +465,13 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       let result = try await processChat(req) { [weak self] delta in
         Task { await self?.sendStreamDelta(id: id, delta: delta) }
       }
-      
+
       let usage = TokenUsage(
         promptTokens: result.promptTokens,
         completionTokens: result.completionTokens,
         totalTokens: result.totalTokens
       )
-      
+
       await sendStreamEnd(id: id, usage: usage)
       tasksProcessed += 1
       let duration = Date().timeIntervalSince(start)
@@ -561,15 +561,15 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
   private func sendStreamEnd(id: String, usage: TokenUsage? = nil) async {
     var payload: [String: Any] = ["id": id, "type": "stream_end"]
-    
+
     if let usage {
       payload["usage"] = [
         "prompt_tokens": usage.promptTokens,
         "completion_tokens": usage.completionTokens,
-        "total_tokens": usage.totalTokens
+        "total_tokens": usage.totalTokens,
       ]
     }
-    
+
     await sendJSON(payload)
   }
 

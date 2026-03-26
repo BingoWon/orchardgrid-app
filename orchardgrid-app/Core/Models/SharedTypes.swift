@@ -194,8 +194,6 @@ struct ChatResponse: Codable, Sendable {
     }
   }
 
-
-
   static func create(
     content: String,
     promptTokens: Int = 0,
@@ -240,8 +238,6 @@ struct StreamChunk: Codable, Sendable {
       case finishReason = "finish_reason"
     }
   }
-
-
 
   static func delta(_ id: String, content: String) -> StreamChunk {
     StreamChunk(
