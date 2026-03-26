@@ -224,6 +224,7 @@ struct StreamChunk: Codable, Sendable {
   let created: Int
   let model: String
   let choices: [Choice]
+  let usage: Usage?
 
   struct Choice: Codable, Sendable {
     let index: Int
@@ -233,6 +234,18 @@ struct StreamChunk: Codable, Sendable {
     enum CodingKeys: String, CodingKey {
       case index, delta
       case finishReason = "finish_reason"
+    }
+  }
+
+  struct Usage: Codable, Sendable {
+    let promptTokens: Int
+    let completionTokens: Int
+    let totalTokens: Int
+
+    enum CodingKeys: String, CodingKey {
+      case promptTokens = "prompt_tokens"
+      case completionTokens = "completion_tokens"
+      case totalTokens = "total_tokens"
     }
   }
 
@@ -248,11 +261,16 @@ struct StreamChunk: Codable, Sendable {
           delta: .init(role: "assistant", content: content),
           finishReason: nil
         )
-      ]
+      ],
+      usage: nil
     )
   }
 
-  static func end(_ id: String, finishReason: String = "stop") -> StreamChunk {
+  static func end(
+    _ id: String,
+    finishReason: String = "stop",
+    usage: Usage? = nil
+  ) -> StreamChunk {
     StreamChunk(
       id: id,
       object: "chat.completion.chunk",
@@ -264,7 +282,8 @@ struct StreamChunk: Codable, Sendable {
           delta: .init(role: "assistant", content: ""),
           finishReason: finishReason
         )
-      ]
+      ],
+      usage: usage
     )
   }
 }
@@ -361,5 +380,19 @@ extension SystemLanguageModel.Availability {
     case .unavailable:
       "Apple Intelligence Unavailable"
     }
+  }
+}
+
+// MARK: - Token Usage Helpers
+
+extension SystemLanguageModel.TokenUsage {
+  func percent(ofContextSize contextSize: Int) -> Float {
+    guard contextSize > 0 else { return 0 }
+    return Float(tokenCount) / Float(contextSize)
+  }
+
+  func formattedPercent(ofContextSize contextSize: Int) -> String {
+    percent(ofContextSize: contextSize)
+      .formatted(.percent.precision(.fractionLength(0)).rounded(rule: .down))
   }
 }

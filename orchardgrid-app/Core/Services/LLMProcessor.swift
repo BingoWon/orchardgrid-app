@@ -1,6 +1,17 @@
 import Foundation
 @preconcurrency import FoundationModels
 
+// MARK: - LLM Result
+
+struct LLMResult: Sendable {
+  let content: String
+  let promptTokens: Int
+  let completionTokens: Int
+  var totalTokens: Int { promptTokens + completionTokens }
+}
+
+// MARK: - LLM Processor
+
 @MainActor
 final class LLMProcessor {
   private let model = SystemLanguageModel.default
@@ -14,13 +25,19 @@ final class LLMProcessor {
     return false
   }
 
+  var contextSize: Int {
+    get async {
+      (try? await model.contextSize) ?? 4096
+    }
+  }
+
   /// Unified request handler — pass `onChunk` for streaming, omit for single response.
   func processRequest(
     messages: [ChatMessage],
     systemPrompt: String,
     responseFormat: ResponseFormat? = nil,
     onChunk: ((String) -> Void)? = nil
-  ) async throws -> String {
+  ) async throws -> LLMResult {
     guard case .available = model.availability else {
       throw LLMError.modelUnavailable
     }
@@ -32,21 +49,56 @@ final class LLMProcessor {
     let session = LanguageModelSession(transcript: transcript)
     let prompt = lastMessage.content
 
+    let content: String
+
     if let responseFormat, responseFormat.type == "json_schema",
       let jsonSchema = responseFormat.jsonSchema
     {
       let schema = try SchemaConverter().convert(jsonSchema)
       if let onChunk {
-        return try await streamJSON(
+        content = try await streamJSON(
           session: session, prompt: prompt, schema: schema, onChunk: onChunk)
+      } else {
+        content = try await session.respond(to: prompt, schema: schema).content.jsonString
       }
-      return try await session.respond(to: prompt, schema: schema).content.jsonString
+    } else if let onChunk {
+      content = try await streamText(session: session, prompt: prompt, onChunk: onChunk)
+    } else {
+      content = try await session.respond(to: prompt).content
     }
 
-    if let onChunk {
-      return try await streamText(session: session, prompt: prompt, onChunk: onChunk)
+    return await measureUsage(content: content, session: session)
+  }
+
+  // MARK: - Token Measurement
+
+  private func measureUsage(content: String, session: LanguageModelSession) async -> LLMResult {
+    let totalTokens = (try? await model.tokenUsage(for: session.transcript).tokenCount) ?? 0
+    let completionTokens = (try? await model.tokenUsage(for: Prompt(content)).tokenCount) ?? 0
+    let promptTokens = max(0, totalTokens - completionTokens)
+
+    return LLMResult(
+      content: content,
+      promptTokens: promptTokens,
+      completionTokens: completionTokens
+    )
+  }
+
+  /// Measure token usage for instructions with optional tools.
+  func measureInstructions(
+    _ text: String,
+    tools: [any Tool] = []
+  ) async -> Int {
+    let instructions = Instructions(text)
+    if tools.isEmpty {
+      return (try? await model.tokenUsage(for: instructions).tokenCount) ?? 0
     }
-    return try await session.respond(to: prompt).content
+    return (try? await model.tokenUsage(for: instructions, tools: tools).tokenCount) ?? 0
+  }
+
+  /// Measure token usage for a prompt string.
+  func measurePrompt(_ text: String) async -> Int {
+    (try? await model.tokenUsage(for: Prompt(text)).tokenCount) ?? 0
   }
 
   // MARK: - Stream Helpers

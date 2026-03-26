@@ -33,6 +33,7 @@ struct ChatDetailView: View {
     VStack(spacing: 0) {
       messageList
       Divider()
+      tokenUsageBadge
       inputBar
     }
     .navigationTitle(conversation?.title ?? "Chat")
@@ -105,6 +106,34 @@ struct ChatDetailView: View {
     }
     .frame(maxWidth: .infinity)
     .padding(.vertical, 60)
+  }
+
+  // MARK: - Token Usage Badge
+
+  @ViewBuilder
+  private var tokenUsageBadge: some View {
+    if let info = chatManager.tokenUsageInfo(for: conversationId) {
+      let percent = Float(info.tokens) / Float(info.contextSize)
+      let color: Color = percent > 0.85 ? .red : percent > 0.6 ? .orange : .secondary
+
+      HStack(spacing: 4) {
+        Image(systemName: "gauge.with.dots.needle.33percent")
+          .font(.caption2)
+        Text(
+          "\(info.tokens.formatted()) / \(info.contextSize.formatted())"
+        )
+        .monospacedDigit()
+        Text("·")
+        Text(
+          percent.formatted(.percent.precision(.fractionLength(0)))
+        )
+      }
+      .font(.caption2)
+      .foregroundStyle(color)
+      .padding(.horizontal, 10)
+      .padding(.vertical, 4)
+      .frame(maxWidth: .infinity, alignment: .trailing)
+    }
   }
 
   // MARK: - Input Bar

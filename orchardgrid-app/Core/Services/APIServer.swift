@@ -444,13 +444,20 @@ final class APIServer {
     connection: NWConnection
   ) async {
     do {
-      let content = try await llmProcessor.processRequest(
+      let result = try await llmProcessor.processRequest(
         messages: messages,
         systemPrompt: systemPrompt,
         responseFormat: responseFormat
       )
 
-      await sendJSON(ChatResponse.create(content: content), to: connection)
+      await sendJSON(
+        ChatResponse.create(
+          content: result.content,
+          promptTokens: result.promptTokens,
+          completionTokens: result.completionTokens
+        ),
+        to: connection
+      )
     } catch {
       await sendLLMError(error, to: connection)
     }
@@ -468,7 +475,7 @@ final class APIServer {
     await sendSSE(StreamChunk.delta(id, content: ""), to: connection)
 
     do {
-      _ = try await llmProcessor.processRequest(
+      let result = try await llmProcessor.processRequest(
         messages: messages,
         systemPrompt: systemPrompt,
         responseFormat: responseFormat
@@ -478,7 +485,12 @@ final class APIServer {
         }
       }
 
-      await sendSSE(StreamChunk.end(id), to: connection)
+      let usage = StreamChunk.Usage(
+        promptTokens: result.promptTokens,
+        completionTokens: result.completionTokens,
+        totalTokens: result.totalTokens
+      )
+      await sendSSE(StreamChunk.end(id, usage: usage), to: connection)
       await send("data: [DONE]\n\n", to: connection, closeAfter: false)
     } catch {
       await sendSSE(StreamChunk.end(id, finishReason: "error"), to: connection)

@@ -8,6 +8,8 @@ final class ChatManager {
   private(set) var isResponding = false
   private(set) var streamingText = ""
   private(set) var respondingConversationId: UUID?
+  private(set) var contextSize = 4096
+  private(set) var conversationTokenCounts: [UUID: Int] = [:]
 
   private var responseTask: Task<Void, Never>?
   private var sessions: [UUID: LanguageModelSession] = [:]
@@ -25,6 +27,9 @@ final class ChatManager {
     Reply with ONLY the title, no quotes, no line breaks.
     """
 
+  /// Reserve tokens for the user's next prompt and the model's response.
+  private static let tokenReserve = 512
+
   var modelAvailability: SystemLanguageModel.Availability {
     model.availability
   }
@@ -36,6 +41,14 @@ final class ChatManager {
 
   init() {
     loadConversations()
+    Task { contextSize = (try? await model.contextSize) ?? 4096 }
+  }
+
+  // MARK: - Token Usage Info
+
+  func tokenUsageInfo(for conversationId: UUID) -> (tokens: Int, contextSize: Int)? {
+    guard let count = conversationTokenCounts[conversationId] else { return nil }
+    return (count, contextSize)
   }
 
   // MARK: - Conversation Management
@@ -54,6 +67,7 @@ final class ChatManager {
     }
     conversations.removeAll { $0.id == id }
     sessions.removeValue(forKey: id)
+    conversationTokenCounts.removeValue(forKey: id)
     save()
   }
 
@@ -61,6 +75,7 @@ final class ChatManager {
     try? FileManager.default.removeItem(at: ChatImages.directory)
     conversations.removeAll()
     sessions.removeAll()
+    conversationTokenCounts.removeAll()
     save()
   }
 
@@ -98,7 +113,7 @@ final class ChatManager {
       }
 
       do {
-        let session = getOrCreateSession(for: conversationId)
+        let session = await buildSession(for: conversationId)
         let stream = session.streamResponse(to: content)
         var fullContent = ""
 
@@ -106,6 +121,11 @@ final class ChatManager {
           try Task.checkCancellation()
           fullContent = snapshot.content
           streamingText = fullContent
+        }
+
+        // Measure transcript token usage after response
+        if let usage = try? await model.tokenUsage(for: session.transcript) {
+          conversationTokenCounts[conversationId] = usage.tokenCount
         }
 
         let images = await imageCollector.flush()
@@ -197,33 +217,58 @@ final class ChatManager {
     save()
   }
 
-  // MARK: - Session Management
+  // MARK: - Smart Session Builder
 
-  private func getOrCreateSession(for conversationId: UUID) -> LanguageModelSession {
+  /// Builds a `LanguageModelSession` with as much conversation history as fits
+  /// within the context window, prioritizing the most recent messages.
+  private func buildSession(for conversationId: UUID) async -> LanguageModelSession {
     if let session = sessions[conversationId] {
       return session
     }
 
     let tool = ImageGenerationTool(collector: imageCollector)
-    let session: LanguageModelSession
 
-    if let conversation = conversation(for: conversationId), !conversation.messages.isEmpty {
-      let history = conversation.messages.prefix(20)
-        .map { "\($0.role == .user ? "User" : "Assistant"): \(String($0.content.prefix(500)))" }
-        .joined(separator: "\n")
-      let instructions = """
-        \(Self.systemPrompt)
-
-        Previous conversation:
-        \(history)
-        """
-      session = LanguageModelSession(tools: [tool], instructions: instructions)
-    } else {
-      session = LanguageModelSession(tools: [tool], instructions: Self.systemPrompt)
+    guard let conversation = conversation(for: conversationId), !conversation.messages.isEmpty
+    else {
+      let session = LanguageModelSession(tools: [tool], instructions: Self.systemPrompt)
+      sessions[conversationId] = session
+      return session
     }
 
+    // Measure baseline: system prompt + tool definitions
+    let baselineTokens = await LLMProcessor().measureInstructions(
+      Self.systemPrompt, tools: [tool])
+    let historyBudget = contextSize - baselineTokens - Self.tokenReserve
+    var messages = Array(conversation.messages)
+
+    // Iteratively trim until history fits within budget
+    while !messages.isEmpty {
+      let history = Self.formatHistory(messages)
+      let instructions = "\(Self.systemPrompt)\n\nPrevious conversation:\n\(history)"
+      let instructionTokens = await LLMProcessor().measureInstructions(
+        instructions, tools: [tool])
+
+      if instructionTokens <= contextSize - Self.tokenReserve {
+        let session = LanguageModelSession(tools: [tool], instructions: instructions)
+        sessions[conversationId] = session
+        return session
+      }
+
+      // Remove oldest quarter of messages
+      let removeCount = max(1, messages.count / 4)
+      messages = Array(messages.dropFirst(removeCount))
+    }
+
+    // Fallback: no history
+    let session = LanguageModelSession(tools: [tool], instructions: Self.systemPrompt)
     sessions[conversationId] = session
     return session
+  }
+
+  private static func formatHistory(_ messages: [Message]) -> String {
+    messages
+      .map { "\($0.role == .user ? "User" : "Assistant"): \($0.content)" }
+      .joined(separator: "\n")
   }
 
   // MARK: - Private Helpers

@@ -113,9 +113,14 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       handlers[.chat] = { [weak self] data in
         guard let self else { throw CapabilityError.unavailable }
         let req = try JSONDecoder().decode(ChatRequest.self, from: data)
-        let content = try await self.processChat(req)
-        let tokens = self.estimateTokens(req.messages)
-        return try JSONEncoder().encode(ChatResponse.create(content: content, promptTokens: tokens))
+        let result = try await self.processChat(req)
+        return try JSONEncoder().encode(
+          ChatResponse.create(
+            content: result.content,
+            promptTokens: result.promptTokens,
+            completionTokens: result.completionTokens
+          )
+        )
       }
     }
 
@@ -476,17 +481,13 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   private func processChat(
     _ request: ChatRequest,
     onChunk: ((String) -> Void)? = nil
-  ) async throws -> String {
-    return try await llmProcessor.processRequest(
+  ) async throws -> LLMResult {
+    try await llmProcessor.processRequest(
       messages: request.nonSystemMessages,
       systemPrompt: request.systemPrompt,
       responseFormat: request.responseFormat,
       onChunk: onChunk
     )
-  }
-
-  private func estimateTokens(_ messages: [ChatMessage]) -> Int {
-    max(1, messages.reduce(0) { $0 + $1.content.count } / 4)
   }
 
   // MARK: - Heartbeat
