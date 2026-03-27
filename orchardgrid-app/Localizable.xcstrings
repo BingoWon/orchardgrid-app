@@ -55,9 +55,6 @@
     "Access API keys and logs" : {
 
     },
-    "Account" : {
-
-    },
     "After enabling, restart this app." : {
 
     },
@@ -215,6 +212,9 @@
     "Enable Apple Intelligence in Settings to use this app." : {
 
     },
+    "English" : {
+
+    },
     "Enter code" : {
 
     },
@@ -252,6 +252,9 @@
 
     },
     "iPhone 15 Pro or later" : {
+
+    },
+    "Language" : {
 
     },
     "Last name" : {
@@ -326,6 +329,9 @@
     "Offline" : {
 
     },
+    "OK" : {
+
+    },
     "Online" : {
 
     },
@@ -342,6 +348,9 @@
 
     },
     "Permanently removes your account, devices, API keys, and all tasks." : {
+
+    },
+    "Please restart the app to apply the language change." : {
 
     },
     "Please try again later or contact support if the issue persists." : {
@@ -377,6 +386,9 @@
     "Requests Served" : {
 
     },
+    "Restart Required" : {
+
+    },
     "Retry" : {
 
     },
@@ -393,6 +405,9 @@
 
     },
     "See All Your Devices" : {
+
+    },
+    "Settings" : {
 
     },
     "Share Locally" : {
@@ -416,7 +431,10 @@
     "Sign in to see your complete task history with detailed logs." : {
 
     },
-    "Sign in to unlock all features and track your contributions across devices." : {
+    "Sign in to track your contributions across devices and access all settings." : {
+
+    },
+    "Sign In to Unlock All Features" : {
 
     },
     "Sign in to view and manage devices across all your Apple devices." : {
@@ -426,9 +444,6 @@
 
     },
     "Sign In to View Logs" : {
-
-    },
-    "Sign In to Your Account" : {
 
     },
     "Sign Out" : {
@@ -459,6 +474,9 @@
 
     },
     "Summary" : {
+
+    },
+    "System Default" : {
 
     },
     "Tap Details for more information" : {
@@ -546,6 +564,9 @@
 
     },
     "Your API Keys" : {
+
+    },
+    "中文" : {
 
     }
   },

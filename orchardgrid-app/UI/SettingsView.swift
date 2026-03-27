@@ -7,6 +7,7 @@ import SwiftUI
 
 struct SettingsView: View {
   @Environment(AuthManager.self) private var authManager
+  @Environment(SharingManager.self) private var sharing
   @State private var showDeleteConfirmation = false
   @State private var showFinalConfirmation = false
   @State private var isDeleting = false
@@ -19,16 +20,24 @@ struct SettingsView: View {
     ScrollView {
       GlassEffectContainer(spacing: Constants.standardSpacing) {
         VStack(alignment: .leading, spacing: Constants.standardSpacing) {
+          // Profile (auth only)
           if authManager.isAuthenticated {
             profileCard
           }
 
+          // Shared Capabilities
+          capabilitiesSection
+
+          // Preferences
           languageSection
+
+          // About
           sourceCodeRow
 
+          // Auth actions
           if authManager.isAuthenticated {
             signOutButton
-            deleteAccountButton
+            dangerZone
           } else {
             GuestFeaturePrompt(
               icon: "person.circle",
@@ -75,6 +84,48 @@ struct SettingsView: View {
     }
   }
 
+  // MARK: - Shared Capabilities
+
+  private var capabilitiesSection: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Label {
+        VStack(alignment: .leading, spacing: 2) {
+          Text(String(localized: "Shared Capabilities"))
+            .font(.subheadline.weight(.medium))
+          Text(String(localized: "Choose which AI features this device shares"))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+      } icon: {
+        Image(systemName: "cpu")
+          .foregroundStyle(.primary)
+      }
+
+      Divider()
+
+      VStack(spacing: 0) {
+        ForEach(Capability.allCases, id: \.self) { capability in
+          CapabilityRow(
+            capability: capability,
+            isEnabled: sharing.isCapabilityEnabled(capability),
+            isAvailable: sharing.isCapabilityAvailable(capability),
+            unavailabilityReason: sharing.capabilityUnavailabilityReason(capability),
+            needsSettingsRedirect: sharing.capabilityNeedsSettingsRedirect(capability)
+          ) { enabled in
+            sharing.setCapabilityEnabled(capability, enabled: enabled)
+          }
+
+          if capability != Capability.allCases.last {
+            Divider()
+              .padding(.leading, 40)
+          }
+        }
+      }
+    }
+    .padding(Constants.standardPadding)
+    .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
+  }
+
   // MARK: - Language
 
   private var languageSection: some View {
@@ -101,7 +152,7 @@ struct SettingsView: View {
     .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
   }
 
-  // MARK: - Profile Card
+  // MARK: - Profile
 
   private var profileCard: some View {
     HStack(spacing: 12) {
@@ -133,7 +184,7 @@ struct SettingsView: View {
     .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
   }
 
-  // MARK: - Source Code
+  // MARK: - About
 
   private var sourceCodeRow: some View {
     Link(destination: repoURL) {
@@ -177,7 +228,7 @@ struct SettingsView: View {
     .buttonStyle(.glass)
   }
 
-  private var deleteAccountButton: some View {
+  private var dangerZone: some View {
     VStack(spacing: 8) {
       Button(role: .destructive) {
         showDeleteConfirmation = true
@@ -212,4 +263,5 @@ struct SettingsView: View {
 #Preview {
   SettingsView()
     .environment(AuthManager())
+    .environment(SharingManager())
 }
