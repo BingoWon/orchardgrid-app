@@ -1,571 +1,1831 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-    "" : {
-
-    },
-    " · " : {
-
-    },
-    " %@" : {
-
-    },
-    " %lld GB" : {
-
-    },
-    "·" : {
-
-    },
-    "%@ / %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ / %2$@"
+  "sourceLanguage": "en",
+  "strings": {
+    "": {},
+    " · ": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " · "
           }
         }
       }
     },
-    "%lld" : {
-
-    },
-    "%lld GB" : {
-
-    },
-    "%lld-%lld of %lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld-%2$lld of %3$lld"
+    " %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " %@"
           }
         }
       }
     },
-    "%lld/%lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld/%2$lld"
+    " %lld GB": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " %lld GB"
           }
         }
       }
     },
-    "After enabling, restart this app." : {
-
-    },
-    "All Devices" : {
-
-    },
-    "API Key Created" : {
-
-    },
-    "API Keys" : {
-
-    },
-    "API Reference" : {
-
-    },
-    "Appearance" : {
-
-    },
-    "Apple Intelligence" : {
-
-    },
-    "Apple Intelligence Not Enabled" : {
-
-    },
-    "Apple Intelligence Ready" : {
-
-    },
-    "Apple Intelligence Unavailable" : {
-
-    },
-    "Apply" : {
-
-    },
-    "Are you absolutely sure?" : {
-
-    },
-    "Are you sure you want to delete \"%@\"?" : {
-
-    },
-    "Attempt %lld, next retry in %llds" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Attempt %1$lld, next retry in %2$llds"
+    "·": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "·"
           }
         }
       }
     },
-    "BingoWon/orchardgrid-app" : {
-
-    },
-    "Both sharing modes require Apple Intelligence to function." : {
-
-    },
-    "Cancel" : {
-
-    },
-    "Chat" : {
-
-    },
-    "Chat, create images, and more — entirely on-device." : {
-
-    },
-    "Chats" : {
-
-    },
-    "Chip" : {
-
-    },
-    "Choose which AI features this device shares" : {
-
-    },
-    "Cloud" : {
-
-    },
-    "Connect a device to get started" : {
-
-    },
-    "Connected" : {
-
-    },
-    "Connecting..." : {
-
-    },
-    "Connection Failed" : {
-
-    },
-    "Consuming" : {
-
-    },
-    "Continue" : {
-
-    },
-    "Contribute computing power to OrchardGrid" : {
-
-    },
-    "Copied" : {
-
-    },
-    "Copy Key" : {
-
-    },
-    "Copy URL" : {
-
-    },
-    "Create" : {
-
-    },
-    "Create an API key to get started" : {
-
-    },
-    "Create API Key" : {
-
-    },
-    "Created: %@" : {
-
-    },
-    "Dark" : {
-
-    },
-    "Delete" : {
-
-    },
-    "Delete Account" : {
-
-    },
-    "Delete Account?" : {
-
-    },
-    "Delete All" : {
-
-    },
-    "Delete All Conversations?" : {
-
-    },
-    "Delete API Key?" : {
-
-    },
-    "Details" : {
-
-    },
-    "Device" : {
-
-    },
-    "Device Not Supported" : {
-
-    },
-    "Devices" : {
-
-    },
-    "Disconnected" : {
-
-    },
-    "Done" : {
-
-    },
-    "Downloading Model..." : {
-
-    },
-    "Enable Apple Intelligence in Settings to use this app." : {
-
-    },
-    "English" : {
-
-    },
-    "Enter code" : {
-
-    },
-    "Enter your email address" : {
-
-    },
-    "Enter your password" : {
-
-    },
-    "Establishing connection" : {
-
-    },
-    "Failed to Start" : {
-
-    },
-    "Filter by status" : {
-
-    },
-    "First name" : {
-
-    },
-    "Get Your API Keys" : {
-
-    },
-    "Hardware ID" : {
-
-    },
-    "Image Generation" : {
-
-    },
-    "Image Preview" : {
-
-    },
-    "iPad with M1 chip or later" : {
-
-    },
-    "iPhone 15 Pro or later" : {
-
-    },
-    "Language" : {
-
-    },
-    "Last name" : {
-
-    },
-    "Last used: %@" : {
-
-    },
-    "Learn More" : {
-
-    },
-    "Light" : {
-
-    },
-    "Live" : {
-
-    },
-    "Loading..." : {
-
-    },
-    "Loading…" : {
-
-    },
-    "Local" : {
-
-    },
-    "Logs" : {
-
-    },
-    "Mac with Apple Silicon" : {
-
-    },
-    "Manage multiple API keys" : {
-
-    },
-    "Memory" : {
-
-    },
-    "Message" : {
-
-    },
-    "Model" : {
-
-    },
-    "Name" : {
-
-    },
-    "Network" : {
-
-    },
-    "Never" : {
-
-    },
-    "Never used" : {
-
-    },
-    "New Chat" : {
-
-    },
-    "No API Keys" : {
-
-    },
-    "No Conversations" : {
-
-    },
-    "No Devices" : {
-
-    },
-    "No Tasks Found" : {
-
-    },
-    "Offline" : {
-
-    },
-    "OK" : {
-
-    },
-    "Online" : {
-
-    },
-    "Open Settings" : {
-
-    },
-    "Optional" : {
-
-    },
-    "or" : {
-
-    },
-    "OrchardGrid" : {
-
-    },
-    "Permanently removes your account, devices, API keys, and all tasks." : {
-
-    },
-    "Please restart the app to apply the language change." : {
-
-    },
-    "Please try again later or contact support if the issue persists." : {
-
-    },
-    "Port" : {
-
-    },
-    "Port %u" : {
-
-    },
-    "Port %u is already in use" : {
-
-    },
-    "Port Conflict" : {
-
-    },
-    "Providing" : {
-
-    },
-    "Ready to process tasks" : {
-
-    },
-    "Real-time status updates" : {
-
-    },
-    "Reconnecting..." : {
-
-    },
-    "Reference photo" : {
-
-    },
-    "Requests Served" : {
-
-    },
-    "Restart Required" : {
-
-    },
-    "Retry" : {
-
-    },
-    "Retry Now" : {
-
-    },
-    "Running" : {
-
-    },
-    "Save" : {
-
-    },
-    "Save this key now — it won't be shown again:\n\n%@" : {
-
-    },
-    "See All Your Devices" : {
-
-    },
-    "Settings" : {
-
-    },
-    "Share Locally" : {
-
-    },
-    "Share to Cloud" : {
-
-    },
-    "Shared Capabilities" : {
-
-    },
-    "Sign In" : {
-
-    },
-    "Sign In to Create API Key" : {
-
-    },
-    "Sign in to create API keys and access OrchardGrid from your applications." : {
-
-    },
-    "Sign in to manage your profile, track devices, and access API keys." : {
-
-    },
-    "Sign in to see your complete task history with detailed logs." : {
-
-    },
-    "Sign in to view and manage devices across all your Apple devices." : {
-
-    },
-    "Sign In to View Devices" : {
-
-    },
-    "Sign In to View Logs" : {
-
-    },
-    "Sign Out" : {
-
-    },
-    "Sound Classification" : {
-
-    },
-    "Source Code" : {
-
-    },
-    "Speech Recognition" : {
-
-    },
-    "Standard Chat Completion API for local apps" : {
-
-    },
-    "Standard Chat Completion API format" : {
-
-    },
-    "Start a new chat with Apple Intelligence" : {
-
-    },
-    "Starting..." : {
-
-    },
-    "Status" : {
-
-    },
-    "Summary" : {
-
-    },
-    "System" : {
-
-    },
-    "Tap Details for more information" : {
-
-    },
-    "tasks" : {
-
-    },
-    "Tasks" : {
-
-    },
-    "Tasks Processed" : {
-
-    },
-    "Tasks will appear here once processed" : {
-
-    },
-    "Text Analysis" : {
-
-    },
-    "The on-device model is being downloaded." : {
-
-    },
-    "The on-device model is currently unavailable." : {
-
-    },
-    "This action cannot be undone. All your devices, API keys, and tasks will be deleted." : {
-
-    },
-    "This device doesn't support Apple Intelligence. Compatible devices include:" : {
-
-    },
-    "This iPad" : {
-
-    },
-    "This iPhone" : {
-
-    },
-    "This may take a while. Sharing modes will be available once the download completes." : {
-
-    },
-    "This will permanently delete all conversations. This action cannot be undone." : {
-
-    },
-    "This will permanently delete your account and all associated data." : {
-
-    },
-    "Total" : {
-
-    },
-    "Track contributions from each device" : {
-
-    },
-    "Track task duration and performance" : {
-
-    },
-    "Unavailable" : {
-
-    },
-    "Updated %@" : {
-
-    },
-    "View consuming and providing tasks" : {
-
-    },
-    "View processing statistics" : {
-
-    },
-    "View Task History" : {
-
-    },
-    "Vision" : {
-
-    },
-    "Waiting for network..." : {
-
-    },
-    "Will be used for image generation" : {
-
-    },
-    "Works with popular AI tools" : {
-
-    },
-    "Your API Keys" : {
-
-    },
-    "中文" : {
-
+    "%@ / %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ / %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ / %2$@"
+          }
+        }
+      }
+    },
+    "%lld": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld"
+          }
+        }
+      }
+    },
+    "%lld GB": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld GB"
+          }
+        }
+      }
+    },
+    "%lld-%lld of %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld-%2$lld of %3$lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld-%2$lld / %3$lld"
+          }
+        }
+      }
+    },
+    "%lld/%lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld/%2$lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld/%2$lld"
+          }
+        }
+      }
+    },
+    "After enabling, restart this app.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开启后，请重启 App。"
+          }
+        }
+      }
+    },
+    "All Devices": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所有设备"
+          }
+        }
+      }
+    },
+    "API Key Created": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API 密钥已创建"
+          }
+        }
+      }
+    },
+    "API Keys": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API 密钥"
+          }
+        }
+      }
+    },
+    "API Reference": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API 参考"
+          }
+        }
+      }
+    },
+    "Appearance": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "外观"
+          }
+        }
+      }
+    },
+    "Apple Intelligence": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence"
+          }
+        }
+      }
+    },
+    "Apple Intelligence Not Enabled": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence 未开启"
+          }
+        }
+      }
+    },
+    "Apple Intelligence Ready": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence 就绪"
+          }
+        }
+      }
+    },
+    "Apple Intelligence Unavailable": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence 不可用"
+          }
+        }
+      }
+    },
+    "Apply": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用"
+          }
+        }
+      }
+    },
+    "Are you absolutely sure?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你确定要删除吗？"
+          }
+        }
+      }
+    },
+    "Are you sure you want to delete \"%@\"?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "确定要删除\"%@\"吗？"
+          }
+        }
+      }
+    },
+    "Attempt %lld, next retry in %llds": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Attempt %1$lld, next retry in %2$llds"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第 %1$lld 次尝试，%2$lld 秒后重试"
+          }
+        }
+      }
+    },
+    "BingoWon/orchardgrid-app": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "BingoWon/orchardgrid-app"
+          }
+        }
+      }
+    },
+    "Both sharing modes require Apple Intelligence to function.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "两种共享模式都需要 Apple Intelligence 才能运作。"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消"
+          }
+        }
+      }
+    },
+    "Chat": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对话"
+          }
+        }
+      }
+    },
+    "Chat, create images, and more — entirely on-device.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对话、生成图片等——完全在设备上运行。"
+          }
+        }
+      }
+    },
+    "Chats": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对话"
+          }
+        }
+      }
+    },
+    "Chip": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "芯片"
+          }
+        }
+      }
+    },
+    "Choose which AI features this device shares": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择此设备共享哪些 AI 功能"
+          }
+        }
+      }
+    },
+    "Cloud": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "云端"
+          }
+        }
+      }
+    },
+    "Connect a device to get started": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接设备以开始使用"
+          }
+        }
+      }
+    },
+    "Connected": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已连接"
+          }
+        }
+      }
+    },
+    "Connecting...": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接中…"
+          }
+        }
+      }
+    },
+    "Connection Failed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接失败"
+          }
+        }
+      }
+    },
+    "Consuming": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "调用"
+          }
+        }
+      }
+    },
+    "Continue": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "继续"
+          }
+        }
+      }
+    },
+    "Contribute computing power to OrchardGrid": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "向 OrchardGrid 贡献算力"
+          }
+        }
+      }
+    },
+    "Copied": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已复制"
+          }
+        }
+      }
+    },
+    "Copy Key": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制密钥"
+          }
+        }
+      }
+    },
+    "Copy URL": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制链接"
+          }
+        }
+      }
+    },
+    "Create": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建"
+          }
+        }
+      }
+    },
+    "Create an API key to get started": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建 API 密钥以开始使用"
+          }
+        }
+      }
+    },
+    "Create API Key": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建 API 密钥"
+          }
+        }
+      }
+    },
+    "Created: %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建于：%@"
+          }
+        }
+      }
+    },
+    "Dark": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "深色"
+          }
+        }
+      }
+    },
+    "Delete": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除"
+          }
+        }
+      }
+    },
+    "Delete Account": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除账户"
+          }
+        }
+      }
+    },
+    "Delete Account?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除账户？"
+          }
+        }
+      }
+    },
+    "Delete All": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部删除"
+          }
+        }
+      }
+    },
+    "Delete All Conversations?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除所有对话？"
+          }
+        }
+      }
+    },
+    "Delete API Key?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除 API 密钥？"
+          }
+        }
+      }
+    },
+    "Details": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "详情"
+          }
+        }
+      }
+    },
+    "Device": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设备"
+          }
+        }
+      }
+    },
+    "Device Not Supported": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设备不受支持"
+          }
+        }
+      }
+    },
+    "Devices": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设备"
+          }
+        }
+      }
+    },
+    "Disconnected": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已断开"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成"
+          }
+        }
+      }
+    },
+    "Downloading Model...": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在下载模型…"
+          }
+        }
+      }
+    },
+    "Enable Apple Intelligence in Settings to use this app.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请在设置中开启 Apple Intelligence 以使用此 App。"
+          }
+        }
+      }
+    },
+    "English": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "English"
+          }
+        }
+      }
+    },
+    "Enter code": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入验证码"
+          }
+        }
+      }
+    },
+    "Enter your email address": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入邮箱地址"
+          }
+        }
+      }
+    },
+    "Enter your password": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入密码"
+          }
+        }
+      }
+    },
+    "Establishing connection": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在建立连接"
+          }
+        }
+      }
+    },
+    "Failed to Start": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "启动失败"
+          }
+        }
+      }
+    },
+    "Filter by status": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按状态筛选"
+          }
+        }
+      }
+    },
+    "First name": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名"
+          }
+        }
+      }
+    },
+    "Get Your API Keys": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "获取 API 密钥"
+          }
+        }
+      }
+    },
+    "Hardware ID": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "硬件 ID"
+          }
+        }
+      }
+    },
+    "Image Generation": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "图片生成"
+          }
+        }
+      }
+    },
+    "Image Preview": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "图片预览"
+          }
+        }
+      }
+    },
+    "iPad with M1 chip or later": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配备 M1 芯片及更新的 iPad"
+          }
+        }
+      }
+    },
+    "iPhone 15 Pro or later": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 15 Pro 及更新机型"
+          }
+        }
+      }
+    },
+    "Language": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语言"
+          }
+        }
+      }
+    },
+    "Language Changed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语言已更改"
+          }
+        }
+      }
+    },
+    "Last name": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "姓"
+          }
+        }
+      }
+    },
+    "Last used: %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最后使用：%@"
+          }
+        }
+      }
+    },
+    "Later": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "稍后"
+          }
+        }
+      }
+    },
+    "Learn More": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "了解更多"
+          }
+        }
+      }
+    },
+    "Light": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "浅色"
+          }
+        }
+      }
+    },
+    "Live": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实时"
+          }
+        }
+      }
+    },
+    "Loading...": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加载中…"
+          }
+        }
+      }
+    },
+    "Loading…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加载中…"
+          }
+        }
+      }
+    },
+    "Local": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本地"
+          }
+        }
+      }
+    },
+    "Logs": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日志"
+          }
+        }
+      }
+    },
+    "Mac with Apple Silicon": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配备 Apple 芯片的 Mac"
+          }
+        }
+      }
+    },
+    "Manage multiple API keys": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "管理多个 API 密钥"
+          }
+        }
+      }
+    },
+    "Manage your profile, devices, and API keys": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "管理你的个人资料、设备和 API 密钥"
+          }
+        }
+      }
+    },
+    "Memory": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内存"
+          }
+        }
+      }
+    },
+    "Message": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "消息"
+          }
+        }
+      }
+    },
+    "Model": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型"
+          }
+        }
+      }
+    },
+    "Name": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名称"
+          }
+        }
+      }
+    },
+    "Network": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "网络"
+          }
+        }
+      }
+    },
+    "Never": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从未"
+          }
+        }
+      }
+    },
+    "Never used": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从未使用"
+          }
+        }
+      }
+    },
+    "New Chat": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新对话"
+          }
+        }
+      }
+    },
+    "No API Keys": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无 API 密钥"
+          }
+        }
+      }
+    },
+    "No Conversations": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无对话"
+          }
+        }
+      }
+    },
+    "No Devices": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无设备"
+          }
+        }
+      }
+    },
+    "No Tasks Found": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无任务"
+          }
+        }
+      }
+    },
+    "Offline": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "离线"
+          }
+        }
+      }
+    },
+    "OK": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "好的"
+          }
+        }
+      }
+    },
+    "Online": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在线"
+          }
+        }
+      }
+    },
+    "Open Settings": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开设置"
+          }
+        }
+      }
+    },
+    "Optional": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可选"
+          }
+        }
+      }
+    },
+    "or": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "或"
+          }
+        }
+      }
+    },
+    "OrchardGrid": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OrchardGrid"
+          }
+        }
+      }
+    },
+    "Permanently removes your account, devices, API keys, and all tasks.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将永久删除你的账户、设备、API 密钥和所有任务记录。"
+          }
+        }
+      }
+    },
+    "Please try again later or contact support if the issue persists.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请稍后再试，如果问题持续存在，请联系支持。"
+          }
+        }
+      }
+    },
+    "Port": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "端口"
+          }
+        }
+      }
+    },
+    "Port %u": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "端口 %u"
+          }
+        }
+      }
+    },
+    "Port %u is already in use": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "端口 %u 已被占用"
+          }
+        }
+      }
+    },
+    "Port Conflict": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "端口冲突"
+          }
+        }
+      }
+    },
+    "Providing": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "共享"
+          }
+        }
+      }
+    },
+    "Ready to process tasks": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "准备处理任务"
+          }
+        }
+      }
+    },
+    "Real-time status updates": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实时状态更新"
+          }
+        }
+      }
+    },
+    "Reconnecting...": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在重连…"
+          }
+        }
+      }
+    },
+    "Reference photo": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "参考图片"
+          }
+        }
+      }
+    },
+    "Requests Served": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已处理请求"
+          }
+        }
+      }
+    },
+    "Restart Now": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立即重启"
+          }
+        }
+      }
+    },
+    "Retry": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重试"
+          }
+        }
+      }
+    },
+    "Retry Now": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立即重试"
+          }
+        }
+      }
+    },
+    "Running": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "运行中"
+          }
+        }
+      }
+    },
+    "Save": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存"
+          }
+        }
+      }
+    },
+    "Save this key now — it won't be shown again:\n\n%@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请立即保存此密钥——之后将无法再次查看：\n\n%@"
+          }
+        }
+      }
+    },
+    "See All Your Devices": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看你的所有设备"
+          }
+        }
+      }
+    },
+    "Settings": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置"
+          }
+        }
+      }
+    },
+    "Share Locally": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本地共享"
+          }
+        }
+      }
+    },
+    "Share to Cloud": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "共享到云端"
+          }
+        }
+      }
+    },
+    "Shared Capabilities": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "共享功能"
+          }
+        }
+      }
+    },
+    "Sign In": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录"
+          }
+        }
+      }
+    },
+    "Sign In to Create API Key": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录以创建 API 密钥"
+          }
+        }
+      }
+    },
+    "Sign in to create API keys and access OrchardGrid from your applications.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录以创建 API 密钥，通过你的应用访问 OrchardGrid。"
+          }
+        }
+      }
+    },
+    "Sign in to see your complete task history with detailed logs.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录以查看完整的任务记录和详细日志。"
+          }
+        }
+      }
+    },
+    "Sign in to view and manage devices across all your Apple devices.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录以查看和管理你所有 Apple 设备。"
+          }
+        }
+      }
+    },
+    "Sign In to View Devices": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录以查看设备"
+          }
+        }
+      }
+    },
+    "Sign In to View Logs": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录以查看日志"
+          }
+        }
+      }
+    },
+    "Sign Out": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出登录"
+          }
+        }
+      }
+    },
+    "Sound Classification": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "声音识别"
+          }
+        }
+      }
+    },
+    "Source Code": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "源代码"
+          }
+        }
+      }
+    },
+    "Speech Recognition": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语音识别"
+          }
+        }
+      }
+    },
+    "Standard Chat Completion API for local apps": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用于本地应用的标准对话补全 API"
+          }
+        }
+      }
+    },
+    "Standard Chat Completion API format": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标准对话补全 API 格式"
+          }
+        }
+      }
+    },
+    "Start a new chat with Apple Intelligence": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开始一段新的 Apple Intelligence 对话"
+          }
+        }
+      }
+    },
+    "Starting...": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "启动中…"
+          }
+        }
+      }
+    },
+    "Status": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "状态"
+          }
+        }
+      }
+    },
+    "Summary": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "摘要"
+          }
+        }
+      }
+    },
+    "System": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "跟随系统"
+          }
+        }
+      }
+    },
+    "Tap Details for more information": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点击\"详情\"了解更多"
+          }
+        }
+      }
+    },
+    "tasks": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "任务"
+          }
+        }
+      }
+    },
+    "Tasks": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "任务"
+          }
+        }
+      }
+    },
+    "Tasks Processed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已处理任务"
+          }
+        }
+      }
+    },
+    "Tasks will appear here once processed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "任务处理后将显示在此"
+          }
+        }
+      }
+    },
+    "Text Analysis": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文本分析"
+          }
+        }
+      }
+    },
+    "The app needs to restart to apply the new language.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要重启 App 以应用新的语言设置。"
+          }
+        }
+      }
+    },
+    "The on-device model is being downloaded.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在下载设备端模型。"
+          }
+        }
+      }
+    },
+    "The on-device model is currently unavailable.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设备端模型暂时不可用。"
+          }
+        }
+      }
+    },
+    "This action cannot be undone. All your devices, API keys, and tasks will be deleted.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此操作不可撤销。你的所有设备、API 密钥和任务记录都将被删除。"
+          }
+        }
+      }
+    },
+    "This device doesn't support Apple Intelligence. Compatible devices include:": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此设备不支持 Apple Intelligence。兼容的设备包括："
+          }
+        }
+      }
+    },
+    "This iPad": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此 iPad"
+          }
+        }
+      }
+    },
+    "This iPhone": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此 iPhone"
+          }
+        }
+      }
+    },
+    "This may take a while. Sharing modes will be available once the download completes.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这可能需要一些时间。下载完成后即可使用共享模式。"
+          }
+        }
+      }
+    },
+    "This will permanently delete all conversations. This action cannot be undone.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将永久删除所有对话，此操作不可撤销。"
+          }
+        }
+      }
+    },
+    "This will permanently delete your account and all associated data.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将永久删除你的账户和所有关联数据。"
+          }
+        }
+      }
+    },
+    "Total": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "总计"
+          }
+        }
+      }
+    },
+    "Track contributions from each device": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追踪每台设备的贡献"
+          }
+        }
+      }
+    },
+    "Track task duration and performance": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追踪任务时长和性能"
+          }
+        }
+      }
+    },
+    "Unavailable": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不可用"
+          }
+        }
+      }
+    },
+    "Updated %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新于 %@"
+          }
+        }
+      }
+    },
+    "View consuming and providing tasks": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看调用和共享任务"
+          }
+        }
+      }
+    },
+    "View processing statistics": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看处理统计"
+          }
+        }
+      }
+    },
+    "View Task History": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看任务记录"
+          }
+        }
+      }
+    },
+    "Vision": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "视觉"
+          }
+        }
+      }
+    },
+    "Waiting for network...": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "等待网络…"
+          }
+        }
+      }
+    },
+    "Will be used for image generation": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将用于图片生成"
+          }
+        }
+      }
+    },
+    "Works with popular AI tools": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "兼容主流 AI 工具"
+          }
+        }
+      }
+    },
+    "Your API Keys": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的 API 密钥"
+          }
+        }
+      }
+    },
+    "中文": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "中文"
+          }
+        }
+      }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }
