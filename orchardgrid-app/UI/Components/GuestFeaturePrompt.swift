@@ -2,10 +2,10 @@ import SwiftUI
 
 struct GuestFeaturePrompt: View {
   let icon: String
-  let title: String
-  let description: String
-  let benefits: [String]
-  let buttonTitle: String
+  let title: LocalizedStringResource
+  let description: LocalizedStringResource
+  let benefits: [LocalizedStringResource]
+  let buttonTitle: LocalizedStringResource
 
   @Environment(AuthManager.self) private var authManager
 
@@ -26,7 +26,7 @@ struct GuestFeaturePrompt: View {
         .multilineTextAlignment(.center)
 
       VStack(alignment: .leading, spacing: 8) {
-        ForEach(benefits, id: \.self) { benefit in
+        ForEach(benefits, id: \.key) { benefit in
           HStack(spacing: 8) {
             Image(systemName: "checkmark.circle.fill")
               .foregroundStyle(.green)

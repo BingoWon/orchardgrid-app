@@ -1,31 +1,35 @@
 import SwiftUI
 
 enum NavigationItem: String, CaseIterable, Identifiable {
-  case localDevice = "Local Device"
-  case allDevices = "Devices"
-  case chats = "Chats"
-  case apiKeys = "API Keys"
-  case logs = "Logs"
-  case account = "Account"
+  case localDevice, allDevices, chats, apiKeys, logs, account
 
   var id: String { rawValue }
 
-  /// Display title for Tab/Sidebar
+  /// Localized display title for Tab/Sidebar
   var title: String {
     switch self {
     case .localDevice:
       Self.localDeviceTitle
-    default:
-      rawValue
+    case .allDevices:
+      String(localized: "Devices")
+    case .chats:
+      String(localized: "Chats")
+    case .apiKeys:
+      String(localized: "API Keys")
+    case .logs:
+      String(localized: "Logs")
+    case .account:
+      String(localized: "Account")
     }
   }
 
-  /// Platform-specific title for local device
+  /// Platform-specific localized title for local device
   static var localDeviceTitle: String {
     #if os(macOS)
-      return "This Mac"
+      return String(localized: "This Mac")
     #else
-      return UIDevice.current.userInterfaceIdiom == .pad ? "This iPad" : "This iPhone"
+      return UIDevice.current.userInterfaceIdiom == .pad
+        ? String(localized: "This iPad") : String(localized: "This iPhone")
     #endif
   }
 

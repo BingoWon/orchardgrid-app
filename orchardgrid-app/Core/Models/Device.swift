@@ -56,7 +56,7 @@ struct Device: Codable, Identifiable, Sendable {
   }
 
   var statusText: String {
-    isOnline ? "Online" : "Offline"
+    isOnline ? String(localized: "Online") : String(localized: "Offline")
   }
 
   private static let lastSeenFormatter: RelativeDateTimeFormatter = {
@@ -66,7 +66,7 @@ struct Device: Codable, Identifiable, Sendable {
   }()
 
   var lastSeenText: String {
-    guard let heartbeat = lastHeartbeat else { return "Never" }
+    guard let heartbeat = lastHeartbeat else { return String(localized: "Never") }
     let date = Date(timeIntervalSince1970: TimeInterval(heartbeat) / 1000)
     return Self.lastSeenFormatter.localizedString(for: date, relativeTo: Date())
   }

@@ -9,12 +9,12 @@ enum Capability: String, Codable, Sendable, CaseIterable {
 
   var displayName: String {
     switch self {
-    case .chat: "Chat"
-    case .image: "Image Generation"
-    case .nlp: "Text Analysis"
-    case .vision: "Vision"
-    case .speech: "Speech Recognition"
-    case .sound: "Sound Classification"
+    case .chat: String(localized: "Chat")
+    case .image: String(localized: "Image Generation")
+    case .nlp: String(localized: "Text Analysis")
+    case .vision: String(localized: "Vision")
+    case .speech: String(localized: "Speech Recognition")
+    case .sound: String(localized: "Sound Classification")
     }
   }
 
@@ -360,15 +360,15 @@ extension SystemLanguageModel.Availability {
   var statusTitle: String {
     switch self {
     case .available:
-      "Apple Intelligence Ready"
+      String(localized: "Apple Intelligence Ready")
     case .unavailable(.deviceNotEligible):
-      "Device Not Supported"
+      String(localized: "Device Not Supported")
     case .unavailable(.appleIntelligenceNotEnabled):
-      "Apple Intelligence Not Enabled"
+      String(localized: "Apple Intelligence Not Enabled")
     case .unavailable(.modelNotReady):
-      "Downloading Model..."
+      String(localized: "Downloading Model...")
     case .unavailable:
-      "Apple Intelligence Unavailable"
+      String(localized: "Apple Intelligence Unavailable")
     }
   }
 }

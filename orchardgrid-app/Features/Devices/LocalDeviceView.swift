@@ -137,7 +137,7 @@ struct LocalDeviceView: View {
           icon: "exclamationmark.triangle.fill",
           iconColor: .orange,
           title: "Connection Failed",
-          subtitle: error
+          subtitle: LocalizedStringKey(error)
         )
 
         Button("Retry") {
@@ -261,7 +261,7 @@ struct LocalDeviceView: View {
         icon: "exclamationmark.triangle.fill",
         iconColor: .red,
         title: "Failed to Start",
-        subtitle: error
+        subtitle: LocalizedStringKey(error)
       )
     }
   }
@@ -567,8 +567,8 @@ private struct StatusRow: View {
   var icon: String?
   var iconColor: Color = .secondary
   var isLoading: Bool = false
-  let title: String
-  let subtitle: String
+  let title: LocalizedStringKey
+  let subtitle: LocalizedStringKey
 
   var body: some View {
     HStack {
@@ -595,7 +595,7 @@ private struct StatusRow: View {
 }
 
 private struct InfoRow: View {
-  let label: String
+  let label: LocalizedStringKey
   let value: String
 
   var body: some View {
@@ -616,7 +616,7 @@ private struct InfoRow: View {
 }
 
 private struct EndpointRow: View {
-  let label: String
+  let label: LocalizedStringKey
   let url: String
 
   var body: some View {
