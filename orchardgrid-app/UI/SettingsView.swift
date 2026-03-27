@@ -12,6 +12,7 @@ struct SettingsView: View {
   @State private var showFinalConfirmation = false
   @State private var isDeleting = false
   @AppStorage("AppLanguage") private var appLanguage = "system"
+  @AppStorage("AppAppearance") private var appAppearance = "system"
   @State private var showRestartAlert = false
 
   private let repoURL = URL(string: "https://github.com/BingoWon/orchardgrid-app")!
@@ -28,8 +29,8 @@ struct SettingsView: View {
           // Shared Capabilities
           capabilitiesSection
 
-          // Preferences
-          languageSection
+          // Preferences (Appearance + Language)
+          preferencesSection
 
           // About
           sourceCodeRow
@@ -39,18 +40,7 @@ struct SettingsView: View {
             signOutButton
             dangerZone
           } else {
-            GuestFeaturePrompt(
-              icon: "person.circle",
-              title: "Sign In to Unlock All Features",
-              description:
-                "Sign in to track your contributions across devices and access all settings.",
-              benefits: [
-                "Manage your profile",
-                "Track all your devices",
-                "Access API keys and logs",
-              ],
-              buttonTitle: "Sign In"
-            )
+            guestPrompt
           }
         }
         .padding(Constants.standardPadding)
@@ -126,29 +116,56 @@ struct SettingsView: View {
     .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
   }
 
-  // MARK: - Language
+  // MARK: - Preferences
 
-  private var languageSection: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      Label(String(localized: "Language"), systemImage: "globe")
-        .font(.subheadline.weight(.medium))
+  private var preferencesSection: some View {
+    VStack(spacing: 0) {
+      // Appearance
+      HStack {
+        Label(String(localized: "Appearance"), systemImage: "circle.lefthalf.filled")
+          .font(.subheadline.weight(.medium))
 
-      Picker(String(localized: "Language"), selection: $appLanguage) {
-        Text(String(localized: "System Default")).tag("system")
-        Text("English").tag("en")
-        Text("中文").tag("zh-Hans")
-      }
-      .pickerStyle(.segmented)
-      .onChange(of: appLanguage) {
-        if appLanguage == "system" {
-          UserDefaults.standard.removeObject(forKey: "AppleLanguages")
-        } else {
-          UserDefaults.standard.set([appLanguage], forKey: "AppleLanguages")
+        Spacer()
+
+        Picker(String(localized: "Appearance"), selection: $appAppearance) {
+          Text(String(localized: "System")).tag("system")
+          Text(String(localized: "Light")).tag("light")
+          Text(String(localized: "Dark")).tag("dark")
         }
-        showRestartAlert = true
+        .pickerStyle(.menu)
+        .labelsHidden()
       }
+      .padding(.vertical, 10)
+
+      Divider()
+
+      // Language
+      HStack {
+        Label(String(localized: "Language"), systemImage: "globe")
+          .font(.subheadline.weight(.medium))
+
+        Spacer()
+
+        Picker(String(localized: "Language"), selection: $appLanguage) {
+          Text(String(localized: "System")).tag("system")
+          Text("English").tag("en")
+          Text("中文").tag("zh-Hans")
+        }
+        .pickerStyle(.menu)
+        .labelsHidden()
+        .onChange(of: appLanguage) {
+          if appLanguage == "system" {
+            UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+          } else {
+            UserDefaults.standard.set([appLanguage], forKey: "AppleLanguages")
+          }
+          showRestartAlert = true
+        }
+      }
+      .padding(.vertical, 10)
     }
-    .padding(Constants.standardPadding)
+    .padding(.horizontal, Constants.standardPadding)
+    .padding(.vertical, 4)
     .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
   }
 
@@ -214,6 +231,27 @@ struct SettingsView: View {
     .buttonStyle(.plain)
   }
 
+  // MARK: - Guest Prompt
+
+  private var guestPrompt: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Label {
+        Text(String(localized: "Sign In"))
+          .font(.subheadline.weight(.medium))
+      } icon: {
+        Image(systemName: "person.circle")
+          .foregroundStyle(.secondary)
+      }
+
+      Text(String(localized: "Sign in to manage your profile, track devices, and access API keys."))
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+    .padding(Constants.standardPadding)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
+  }
+
   // MARK: - Actions
 
   private var signOutButton: some View {
@@ -256,6 +294,18 @@ struct SettingsView: View {
       try await authManager.deleteAccount()
     } catch {
       Logger.error(.auth, "Failed to delete account: \(error.localizedDescription)")
+    }
+  }
+}
+
+// MARK: - Appearance Helper
+
+extension SettingsView {
+  static func resolveColorScheme(_ value: String) -> ColorScheme? {
+    switch value {
+    case "light": .light
+    case "dark": .dark
+    default: nil
     }
   }
 }

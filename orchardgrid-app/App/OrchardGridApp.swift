@@ -48,6 +48,8 @@ struct OrchardGridApp: App {
     Logger.success(.app, "Initialization complete")
   }
 
+  @AppStorage("AppAppearance") private var appAppearance = "system"
+
   var body: some Scene {
     WindowGroup {
       Group {
@@ -73,6 +75,7 @@ struct OrchardGridApp: App {
           .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
       }
+      .preferredColorScheme(SettingsView.resolveColorScheme(appAppearance))
       .frame(minWidth: 375.0, minHeight: 375.0)
       .task(id: clerk.user?.id) {
         guard clerk.isLoaded else { return }
