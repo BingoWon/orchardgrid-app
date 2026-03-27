@@ -52,9 +52,6 @@
         }
       }
     },
-    "Access API keys and logs" : {
-
-    },
     "After enabling, restart this app." : {
 
     },
@@ -68,6 +65,9 @@
 
     },
     "API Reference" : {
+
+    },
+    "Appearance" : {
 
     },
     "Apple Intelligence" : {
@@ -170,6 +170,9 @@
     "Created: %@" : {
 
     },
+    "Dark" : {
+
+    },
     "Delete" : {
 
     },
@@ -266,6 +269,9 @@
     "Learn More" : {
 
     },
+    "Light" : {
+
+    },
     "Live" : {
 
     },
@@ -285,9 +291,6 @@
 
     },
     "Manage multiple API keys" : {
-
-    },
-    "Manage your profile" : {
 
     },
     "Memory" : {
@@ -428,13 +431,10 @@
     "Sign in to create API keys and access OrchardGrid from your applications." : {
 
     },
+    "Sign in to manage your profile, track devices, and access API keys." : {
+
+    },
     "Sign in to see your complete task history with detailed logs." : {
-
-    },
-    "Sign in to track your contributions across devices and access all settings." : {
-
-    },
-    "Sign In to Unlock All Features" : {
 
     },
     "Sign in to view and manage devices across all your Apple devices." : {
@@ -476,7 +476,7 @@
     "Summary" : {
 
     },
-    "System Default" : {
+    "System" : {
 
     },
     "Tap Details for more information" : {
@@ -525,9 +525,6 @@
 
     },
     "Total" : {
-
-    },
-    "Track all your devices" : {
 
     },
     "Track contributions from each device" : {

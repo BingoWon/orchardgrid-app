@@ -22,18 +22,21 @@ struct CapabilityRow: View {
           .foregroundStyle(isAvailable ? .primary : .tertiary)
           .frame(width: 24)
 
-        Text(capability.displayName)
-          .font(.subheadline)
-          .fontWeight(.medium)
-          .foregroundStyle(isAvailable ? .primary : .tertiary)
+        VStack(alignment: .leading, spacing: 2) {
+          Text(capability.displayName)
+            .font(.subheadline)
+            .fontWeight(.medium)
+            .foregroundStyle(isAvailable ? .primary : .tertiary)
+            .lineLimit(1)
+
+          if !isAvailable {
+            Text(String(localized: "Unavailable"))
+              .font(.caption2)
+              .foregroundStyle(.tertiary)
+          }
+        }
 
         Spacer()
-
-        if !isAvailable {
-          Text(String(localized: "Unavailable"))
-            .font(.caption)
-            .foregroundStyle(.tertiary)
-        }
 
         Toggle(
           "",

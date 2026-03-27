@@ -21,9 +21,11 @@ struct SettingsView: View {
     ScrollView {
       GlassEffectContainer(spacing: Constants.standardSpacing) {
         VStack(alignment: .leading, spacing: Constants.standardSpacing) {
-          // Profile (auth only)
+          // Account — always at top
           if authManager.isAuthenticated {
             profileCard
+          } else {
+            guestSignInCard
           }
 
           // Shared Capabilities
@@ -35,12 +37,10 @@ struct SettingsView: View {
           // About
           sourceCodeRow
 
-          // Auth actions
+          // Destructive actions (auth only, always at bottom)
           if authManager.isAuthenticated {
             signOutButton
             dangerZone
-          } else {
-            guestPrompt
           }
         }
         .padding(Constants.standardPadding)
@@ -67,10 +67,13 @@ struct SettingsView: View {
         "This action cannot be undone. All your devices, API keys, and tasks will be deleted."
       )
     }
-    .alert(String(localized: "Restart Required"), isPresented: $showRestartAlert) {
-      Button("OK") {}
+    .alert(String(localized: "Language Changed"), isPresented: $showRestartAlert) {
+      Button(String(localized: "Later"), role: .cancel) {}
+      Button(String(localized: "Restart Now")) {
+        exit(0)
+      }
     } message: {
-      Text("Please restart the app to apply the language change.")
+      Text("The app needs to restart to apply the new language.")
     }
   }
 
@@ -201,6 +204,35 @@ struct SettingsView: View {
     .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
   }
 
+  // MARK: - Guest Sign In
+
+  private var guestSignInCard: some View {
+    HStack(spacing: 12) {
+      Image(systemName: "person.circle.fill")
+        .font(.title2)
+        .foregroundStyle(.secondary)
+
+      VStack(alignment: .leading, spacing: 2) {
+        Text(String(localized: "Sign In"))
+          .font(.headline)
+        Text(String(localized: "Manage your profile, devices, and API keys"))
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+
+      Spacer()
+
+      Image(systemName: "chevron.right")
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(.tertiary)
+    }
+    .padding(Constants.standardPadding)
+    .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
+    .onTapGesture {
+      authManager.showAuthSheet = true
+    }
+  }
+
   // MARK: - About
 
   private var sourceCodeRow: some View {
@@ -229,27 +261,6 @@ struct SettingsView: View {
       .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
     }
     .buttonStyle(.plain)
-  }
-
-  // MARK: - Guest Prompt
-
-  private var guestPrompt: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      Label {
-        Text(String(localized: "Sign In"))
-          .font(.subheadline.weight(.medium))
-      } icon: {
-        Image(systemName: "person.circle")
-          .foregroundStyle(.secondary)
-      }
-
-      Text(String(localized: "Sign in to manage your profile, track devices, and access API keys."))
-        .font(.caption)
-        .foregroundStyle(.secondary)
-    }
-    .padding(Constants.standardPadding)
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
   }
 
   // MARK: - Actions
