@@ -11,9 +11,18 @@ struct SettingsView: View {
   @State private var showDeleteConfirmation = false
   @State private var showFinalConfirmation = false
   @State private var isDeleting = false
-  @AppStorage("AppLanguage") private var appLanguage = "system"
   @AppStorage("AppAppearance") private var appAppearance = "system"
   @State private var showRestartAlert = false
+
+  /// Reads the current effective language for the Picker's initial selection.
+  @State private var selectedLanguage: String = {
+    if let langs = UserDefaults.standard.array(forKey: "AppleLanguages") as? [String],
+      let first = langs.first
+    {
+      return first
+    }
+    return "system"
+  }()
 
   private let repoURL = URL(string: "https://github.com/BingoWon/orchardgrid-app")!
 
@@ -68,10 +77,7 @@ struct SettingsView: View {
       )
     }
     .alert(String(localized: "Language Changed"), isPresented: $showRestartAlert) {
-      Button(String(localized: "Later"), role: .cancel) {}
-      Button(String(localized: "Restart Now")) {
-        exit(0)
-      }
+      Button(String(localized: "OK")) {}
     } message: {
       Text("The app needs to restart to apply the new language.")
     }
@@ -153,7 +159,7 @@ struct SettingsView: View {
 
         Spacer()
 
-        Picker(String(localized: "Language"), selection: $appLanguage) {
+        Picker(String(localized: "Language"), selection: $selectedLanguage) {
           Text(String(localized: "System")).tag("system")
           Text("English").tag("en")
           Text("中文").tag("zh-Hans")
@@ -161,11 +167,11 @@ struct SettingsView: View {
         .pickerStyle(.menu)
         .labelsHidden()
         .font(.subheadline)
-        .onChange(of: appLanguage) {
-          if appLanguage == "system" {
+        .onChange(of: selectedLanguage) {
+          if selectedLanguage == "system" {
             UserDefaults.standard.removeObject(forKey: "AppleLanguages")
           } else {
-            UserDefaults.standard.set([appLanguage], forKey: "AppleLanguages")
+            UserDefaults.standard.set([selectedLanguage], forKey: "AppleLanguages")
           }
           showRestartAlert = true
         }
@@ -310,18 +316,6 @@ struct SettingsView: View {
       try await authManager.deleteAccount()
     } catch {
       Logger.error(.auth, "Failed to delete account: \(error.localizedDescription)")
-    }
-  }
-}
-
-// MARK: - Appearance Helper
-
-extension SettingsView {
-  static func resolveColorScheme(_ value: String) -> ColorScheme? {
-    switch value {
-    case "light": .light
-    case "dark": .dark
-    default: nil
     }
   }
 }

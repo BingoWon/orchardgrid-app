@@ -75,7 +75,7 @@ struct OrchardGridApp: App {
           .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
       }
-      .preferredColorScheme(SettingsView.resolveColorScheme(appAppearance))
+      .preferredColorScheme(AppAppearance.colorScheme(for: appAppearance))
       .frame(minWidth: 375.0, minHeight: 375.0)
       .task(id: clerk.user?.id) {
         guard clerk.isLoaded else { return }
