@@ -1865,6 +1865,46 @@
           }
         }
       }
+    },
+    "Apple Intelligence is not available.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence 不可用。"
+          }
+        }
+      }
+    },
+    "Text analysis is not available on this device.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此设备不支持文本分析。"
+          }
+        }
+      }
+    },
+    "Vision is not available on this device.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此设备不支持视觉功能。"
+          }
+        }
+      }
+    },
+    "Sound analysis is not available on this device.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此设备不支持声音分析。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

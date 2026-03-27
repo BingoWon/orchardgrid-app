@@ -36,13 +36,20 @@ final class SharingManager {
 
   func capabilityUnavailabilityReason(_ capability: Capability) -> String? {
     switch capability {
-    case .chat: isModelAvailable ? nil : "Apple Intelligence is not available."
+    case .chat:
+      isModelAvailable
+        ? nil : String(localized: "Apple Intelligence is not available.")
     case .image: ImageProcessor.unavailabilityReason
-    case .nlp: NLPProcessor.isAvailable ? nil : "Text analysis is not available on this device."
-    case .vision: VisionProcessor.isAvailable ? nil : "Vision is not available on this device."
+    case .nlp:
+      NLPProcessor.isAvailable
+        ? nil : String(localized: "Text analysis is not available on this device.")
+    case .vision:
+      VisionProcessor.isAvailable
+        ? nil : String(localized: "Vision is not available on this device.")
     case .speech: SpeechProcessor.unavailabilityReason
     case .sound:
-      SoundProcessor.isAvailable ? nil : "Sound analysis is not available on this device."
+      SoundProcessor.isAvailable
+        ? nil : String(localized: "Sound analysis is not available on this device.")
     }
   }
 
