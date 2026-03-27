@@ -1825,6 +1825,46 @@
           }
         }
       }
+    },
+    "Requires iPhone 15 Pro or later, iPad with M1+, or Mac with Apple Silicon.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要 iPhone 15 Pro 及更新机型、配备 M1 芯片及更新的 iPad 或配备 Apple 芯片的 Mac。"
+          }
+        }
+      }
+    },
+    "Permission denied. Enable in Settings → Privacy & Security → Speech Recognition.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "权限被拒绝。请在设置 → 隐私与安全 → 语音识别中开启。"
+          }
+        }
+      }
+    },
+    "Speech recognition is restricted on this device.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此设备的语音识别功能受限。"
+          }
+        }
+      }
+    },
+    "Speech recognition is not available on this device.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此设备不支持语音识别。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

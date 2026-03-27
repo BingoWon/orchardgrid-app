@@ -81,7 +81,13 @@ struct SettingsView: View {
 
   private var capabilitiesSection: some View {
     VStack(alignment: .leading, spacing: 12) {
-      Label {
+      HStack(alignment: .top, spacing: 10) {
+        Image(systemName: "cpu")
+          .font(.subheadline)
+          .foregroundStyle(.primary)
+          .frame(width: 20)
+          .padding(.top, 1)
+
         VStack(alignment: .leading, spacing: 2) {
           Text(String(localized: "Shared Capabilities"))
             .font(.subheadline.weight(.medium))
@@ -89,9 +95,6 @@ struct SettingsView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
         }
-      } icon: {
-        Image(systemName: "cpu")
-          .foregroundStyle(.primary)
       }
 
       Divider()
@@ -137,6 +140,7 @@ struct SettingsView: View {
         }
         .pickerStyle(.menu)
         .labelsHidden()
+        .font(.subheadline)
       }
       .padding(.vertical, 10)
 
@@ -156,6 +160,7 @@ struct SettingsView: View {
         }
         .pickerStyle(.menu)
         .labelsHidden()
+        .font(.subheadline)
         .onChange(of: appLanguage) {
           if appLanguage == "system" {
             UserDefaults.standard.removeObject(forKey: "AppleLanguages")

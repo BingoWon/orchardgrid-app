@@ -58,7 +58,9 @@ enum ImageProcessor {
 
   static var unavailabilityReason: String? {
     guard !isAvailable else { return nil }
-    return "Requires iPhone 15 Pro or later, iPad with M1+, or Mac with Apple Silicon."
+    return String(
+      localized: "Requires iPhone 15 Pro or later, iPad with M1+, or Mac with Apple Silicon."
+    )
   }
 
   // MARK: - Unified Handler

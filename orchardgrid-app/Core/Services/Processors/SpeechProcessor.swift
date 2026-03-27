@@ -28,13 +28,16 @@ enum SpeechProcessor {
   static var unavailabilityReason: String? {
     let status = SFSpeechRecognizer.authorizationStatus()
     if status == .denied {
-      return "Permission denied. Enable in Settings → Privacy & Security → Speech Recognition."
+      return String(
+        localized:
+          "Permission denied. Enable in Settings → Privacy & Security → Speech Recognition."
+      )
     }
     if status == .restricted {
-      return "Speech recognition is restricted on this device."
+      return String(localized: "Speech recognition is restricted on this device.")
     }
     if SFSpeechRecognizer()?.isAvailable != true {
-      return "Speech recognition is not available on this device."
+      return String(localized: "Speech recognition is not available on this device.")
     }
     return nil
   }
