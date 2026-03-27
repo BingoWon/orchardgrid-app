@@ -73,13 +73,17 @@ final class LLMProcessor {
   // MARK: - Token Measurement
 
   private func measureUsage(content: String, session: LanguageModelSession) async -> LLMResult {
-    let totalTokens = (try? await model.tokenUsage(for: session.transcript).tokenCount) ?? 0
-    let completionTokens = (try? await model.tokenUsage(for: Prompt(content)).tokenCount) ?? 0
-    let promptTokens = max(0, totalTokens - completionTokens)
+    var totalTokens = 0
+    var completionTokens = 0
+
+    if #available(iOS 26.4, macOS 26.4, *) {
+      totalTokens = (try? await model.tokenCount(for: session.transcript)) ?? 0
+      completionTokens = (try? await model.tokenCount(for: Prompt(content))) ?? 0
+    }
 
     return LLMResult(
       content: content,
-      promptTokens: promptTokens,
+      promptTokens: max(0, totalTokens - completionTokens),
       completionTokens: completionTokens
     )
   }
@@ -89,16 +93,11 @@ final class LLMProcessor {
     _ text: String,
     tools: [any Tool] = []
   ) async -> Int {
-    let instructions = Instructions(text)
-    if tools.isEmpty {
-      return (try? await model.tokenUsage(for: instructions).tokenCount) ?? 0
-    }
-    return (try? await model.tokenUsage(for: instructions, tools: tools).tokenCount) ?? 0
-  }
-
-  /// Measure token usage for a prompt string.
-  func measurePrompt(_ text: String) async -> Int {
-    (try? await model.tokenUsage(for: Prompt(text)).tokenCount) ?? 0
+    guard #available(iOS 26.4, macOS 26.4, *) else { return 0 }
+    let instructionTokens = (try? await model.tokenCount(for: Instructions(text))) ?? 0
+    if tools.isEmpty { return instructionTokens }
+    let toolTokens = (try? await model.tokenCount(for: tools)) ?? 0
+    return instructionTokens + toolTokens
   }
 
   // MARK: - Stream Helpers

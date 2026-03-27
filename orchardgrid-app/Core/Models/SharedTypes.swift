@@ -372,17 +372,3 @@ extension SystemLanguageModel.Availability {
     }
   }
 }
-
-// MARK: - Token Usage Helpers
-
-extension SystemLanguageModel.TokenUsage {
-  func percent(ofContextSize contextSize: Int) -> Float {
-    guard contextSize > 0 else { return 0 }
-    return Float(tokenCount) / Float(contextSize)
-  }
-
-  func formattedPercent(ofContextSize contextSize: Int) -> String {
-    percent(ofContextSize: contextSize)
-      .formatted(.percent.precision(.fractionLength(0)).rounded(rule: .down))
-  }
-}

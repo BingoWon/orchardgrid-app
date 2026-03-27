@@ -124,8 +124,10 @@ final class ChatManager {
         }
 
         // Measure transcript token usage after response
-        if let usage = try? await model.tokenUsage(for: session.transcript) {
-          conversationTokenCounts[conversationId] = usage.tokenCount
+        if #available(iOS 26.4, macOS 26.4, *),
+          let count = try? await model.tokenCount(for: session.transcript)
+        {
+          conversationTokenCounts[conversationId] = count
         }
 
         let images = await imageCollector.flush()
