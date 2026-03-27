@@ -111,8 +111,8 @@ struct MainView: View {
       APIKeysView()
     case .logs:
       LogsView()
-    case .account:
-      AccountView()
+    case .settings:
+      SettingsView()
     }
   }
 }

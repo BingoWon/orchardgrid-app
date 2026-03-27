@@ -5,11 +5,13 @@ import SwiftUI
   import ClerkKitUI
 #endif
 
-struct AccountView: View {
+struct SettingsView: View {
   @Environment(AuthManager.self) private var authManager
   @State private var showDeleteConfirmation = false
   @State private var showFinalConfirmation = false
   @State private var isDeleting = false
+  @AppStorage("AppLanguage") private var appLanguage = "system"
+  @State private var showRestartAlert = false
 
   private let repoURL = URL(string: "https://github.com/BingoWon/orchardgrid-app")!
 
@@ -19,15 +21,20 @@ struct AccountView: View {
         VStack(alignment: .leading, spacing: Constants.standardSpacing) {
           if authManager.isAuthenticated {
             profileCard
-            sourceCodeRow
+          }
+
+          languageSection
+          sourceCodeRow
+
+          if authManager.isAuthenticated {
             signOutButton
             deleteAccountButton
           } else {
             GuestFeaturePrompt(
               icon: "person.circle",
-              title: "Sign In to Your Account",
+              title: "Sign In to Unlock All Features",
               description:
-                "Sign in to unlock all features and track your contributions across devices.",
+                "Sign in to track your contributions across devices and access all settings.",
               benefits: [
                 "Manage your profile",
                 "Track all your devices",
@@ -35,26 +42,25 @@ struct AccountView: View {
               ],
               buttonTitle: "Sign In"
             )
-            sourceCodeRow
           }
         }
         .padding(Constants.standardPadding)
       }
     }
-    .navigationTitle("Account")
+    .navigationTitle(String(localized: "Settings"))
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
-    .alert("Delete Account?", isPresented: $showDeleteConfirmation) {
-      Button("Cancel", role: .cancel) {}
-      Button("Continue", role: .destructive) {
+    .alert(String(localized: "Delete Account?"), isPresented: $showDeleteConfirmation) {
+      Button(String(localized: "Cancel"), role: .cancel) {}
+      Button(String(localized: "Continue"), role: .destructive) {
         showFinalConfirmation = true
       }
     } message: {
       Text("This will permanently delete your account and all associated data.")
     }
-    .alert("Are you absolutely sure?", isPresented: $showFinalConfirmation) {
-      Button("Cancel", role: .cancel) {}
-      Button("Delete Account", role: .destructive) {
+    .alert(String(localized: "Are you absolutely sure?"), isPresented: $showFinalConfirmation) {
+      Button(String(localized: "Cancel"), role: .cancel) {}
+      Button(String(localized: "Delete Account"), role: .destructive) {
         Task { await deleteAccount() }
       }
     } message: {
@@ -62,6 +68,37 @@ struct AccountView: View {
         "This action cannot be undone. All your devices, API keys, and tasks will be deleted."
       )
     }
+    .alert(String(localized: "Restart Required"), isPresented: $showRestartAlert) {
+      Button("OK") {}
+    } message: {
+      Text("Please restart the app to apply the language change.")
+    }
+  }
+
+  // MARK: - Language
+
+  private var languageSection: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      Label(String(localized: "Language"), systemImage: "globe")
+        .font(.subheadline.weight(.medium))
+
+      Picker(String(localized: "Language"), selection: $appLanguage) {
+        Text(String(localized: "System Default")).tag("system")
+        Text("English").tag("en")
+        Text("中文").tag("zh-Hans")
+      }
+      .pickerStyle(.segmented)
+      .onChange(of: appLanguage) {
+        if appLanguage == "system" {
+          UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+        } else {
+          UserDefaults.standard.set([appLanguage], forKey: "AppleLanguages")
+        }
+        showRestartAlert = true
+      }
+    }
+    .padding(Constants.standardPadding)
+    .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
   }
 
   // MARK: - Profile Card
@@ -107,7 +144,7 @@ struct AccountView: View {
           .frame(width: 20, height: 20)
 
         VStack(alignment: .leading, spacing: 2) {
-          Text("Source Code")
+          Text(String(localized: "Source Code"))
             .font(.subheadline.weight(.medium))
           Text("BingoWon/orchardgrid-app")
             .font(.caption)
@@ -132,7 +169,7 @@ struct AccountView: View {
     Button {
       Task { await authManager.signOut() }
     } label: {
-      Text("Sign Out")
+      Text(String(localized: "Sign Out"))
         .font(.subheadline)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
@@ -145,7 +182,7 @@ struct AccountView: View {
       Button(role: .destructive) {
         showDeleteConfirmation = true
       } label: {
-        Text("Delete Account")
+        Text(String(localized: "Delete Account"))
           .font(.caption)
       }
       .buttonStyle(.plain)
@@ -173,6 +210,6 @@ struct AccountView: View {
 }
 
 #Preview {
-  AccountView()
+  SettingsView()
     .environment(AuthManager())
 }

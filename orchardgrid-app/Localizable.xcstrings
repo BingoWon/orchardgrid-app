@@ -1,7 +1,553 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "" : {
 
+    },
+    " · " : {
+
+    },
+    " %@" : {
+
+    },
+    " %lld GB" : {
+
+    },
+    "·" : {
+
+    },
+    "%@ / %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ / %2$@"
+          }
+        }
+      }
+    },
+    "%lld" : {
+
+    },
+    "%lld GB" : {
+
+    },
+    "%lld-%lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld-%2$lld of %3$lld"
+          }
+        }
+      }
+    },
+    "%lld/%lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld/%2$lld"
+          }
+        }
+      }
+    },
+    "Access API keys and logs" : {
+
+    },
+    "Account" : {
+
+    },
+    "After enabling, restart this app." : {
+
+    },
+    "All Devices" : {
+
+    },
+    "API Key Created" : {
+
+    },
+    "API Keys" : {
+
+    },
+    "API Reference" : {
+
+    },
+    "Apple Intelligence" : {
+
+    },
+    "Apple Intelligence Not Enabled" : {
+
+    },
+    "Apple Intelligence Ready" : {
+
+    },
+    "Apple Intelligence Unavailable" : {
+
+    },
+    "Apply" : {
+
+    },
+    "Are you absolutely sure?" : {
+
+    },
+    "Are you sure you want to delete \"%@\"?" : {
+
+    },
+    "Attempt %lld, next retry in %llds" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Attempt %1$lld, next retry in %2$llds"
+          }
+        }
+      }
+    },
+    "BingoWon/orchardgrid-app" : {
+
+    },
+    "Both sharing modes require Apple Intelligence to function." : {
+
+    },
+    "Cancel" : {
+
+    },
+    "Chat" : {
+
+    },
+    "Chat, create images, and more — entirely on-device." : {
+
+    },
+    "Chats" : {
+
+    },
+    "Chip" : {
+
+    },
+    "Choose which AI features this device shares" : {
+
+    },
+    "Cloud" : {
+
+    },
+    "Connect a device to get started" : {
+
+    },
+    "Connected" : {
+
+    },
+    "Connecting..." : {
+
+    },
+    "Connection Failed" : {
+
+    },
+    "Consuming" : {
+
+    },
+    "Continue" : {
+
+    },
+    "Contribute computing power to OrchardGrid" : {
+
+    },
+    "Copied" : {
+
+    },
+    "Copy Key" : {
+
+    },
+    "Copy URL" : {
+
+    },
+    "Create" : {
+
+    },
+    "Create an API key to get started" : {
+
+    },
+    "Create API Key" : {
+
+    },
+    "Created: %@" : {
+
+    },
+    "Delete" : {
+
+    },
+    "Delete Account" : {
+
+    },
+    "Delete Account?" : {
+
+    },
+    "Delete All" : {
+
+    },
+    "Delete All Conversations?" : {
+
+    },
+    "Delete API Key?" : {
+
+    },
+    "Details" : {
+
+    },
+    "Device" : {
+
+    },
+    "Device Not Supported" : {
+
+    },
+    "Devices" : {
+
+    },
+    "Disconnected" : {
+
+    },
+    "Done" : {
+
+    },
+    "Downloading Model..." : {
+
+    },
+    "Enable Apple Intelligence in Settings to use this app." : {
+
+    },
+    "Enter code" : {
+
+    },
+    "Enter your email address" : {
+
+    },
+    "Enter your password" : {
+
+    },
+    "Establishing connection" : {
+
+    },
+    "Failed to Start" : {
+
+    },
+    "Filter by status" : {
+
+    },
+    "First name" : {
+
+    },
+    "Get Your API Keys" : {
+
+    },
+    "Hardware ID" : {
+
+    },
+    "Image Generation" : {
+
+    },
+    "Image Preview" : {
+
+    },
+    "iPad with M1 chip or later" : {
+
+    },
+    "iPhone 15 Pro or later" : {
+
+    },
+    "Last name" : {
+
+    },
+    "Last used: %@" : {
+
+    },
+    "Learn More" : {
+
+    },
+    "Live" : {
+
+    },
+    "Loading..." : {
+
+    },
+    "Loading…" : {
+
+    },
+    "Local" : {
+
+    },
+    "Logs" : {
+
+    },
+    "Mac with Apple Silicon" : {
+
+    },
+    "Manage multiple API keys" : {
+
+    },
+    "Manage your profile" : {
+
+    },
+    "Memory" : {
+
+    },
+    "Message" : {
+
+    },
+    "Model" : {
+
+    },
+    "Name" : {
+
+    },
+    "Network" : {
+
+    },
+    "Never" : {
+
+    },
+    "Never used" : {
+
+    },
+    "New Chat" : {
+
+    },
+    "No API Keys" : {
+
+    },
+    "No Conversations" : {
+
+    },
+    "No Devices" : {
+
+    },
+    "No Tasks Found" : {
+
+    },
+    "Offline" : {
+
+    },
+    "Online" : {
+
+    },
+    "Open Settings" : {
+
+    },
+    "Optional" : {
+
+    },
+    "or" : {
+
+    },
+    "OrchardGrid" : {
+
+    },
+    "Permanently removes your account, devices, API keys, and all tasks." : {
+
+    },
+    "Please try again later or contact support if the issue persists." : {
+
+    },
+    "Port" : {
+
+    },
+    "Port %u" : {
+
+    },
+    "Port %u is already in use" : {
+
+    },
+    "Port Conflict" : {
+
+    },
+    "Providing" : {
+
+    },
+    "Ready to process tasks" : {
+
+    },
+    "Real-time status updates" : {
+
+    },
+    "Reconnecting..." : {
+
+    },
+    "Reference photo" : {
+
+    },
+    "Requests Served" : {
+
+    },
+    "Retry" : {
+
+    },
+    "Retry Now" : {
+
+    },
+    "Running" : {
+
+    },
+    "Save" : {
+
+    },
+    "Save this key now — it won't be shown again:\n\n%@" : {
+
+    },
+    "See All Your Devices" : {
+
+    },
+    "Share Locally" : {
+
+    },
+    "Share to Cloud" : {
+
+    },
+    "Shared Capabilities" : {
+
+    },
+    "Sign In" : {
+
+    },
+    "Sign In to Create API Key" : {
+
+    },
+    "Sign in to create API keys and access OrchardGrid from your applications." : {
+
+    },
+    "Sign in to see your complete task history with detailed logs." : {
+
+    },
+    "Sign in to unlock all features and track your contributions across devices." : {
+
+    },
+    "Sign in to view and manage devices across all your Apple devices." : {
+
+    },
+    "Sign In to View Devices" : {
+
+    },
+    "Sign In to View Logs" : {
+
+    },
+    "Sign In to Your Account" : {
+
+    },
+    "Sign Out" : {
+
+    },
+    "Sound Classification" : {
+
+    },
+    "Source Code" : {
+
+    },
+    "Speech Recognition" : {
+
+    },
+    "Standard Chat Completion API for local apps" : {
+
+    },
+    "Standard Chat Completion API format" : {
+
+    },
+    "Start a new chat with Apple Intelligence" : {
+
+    },
+    "Starting..." : {
+
+    },
+    "Status" : {
+
+    },
+    "Summary" : {
+
+    },
+    "Tap Details for more information" : {
+
+    },
+    "tasks" : {
+
+    },
+    "Tasks" : {
+
+    },
+    "Tasks Processed" : {
+
+    },
+    "Tasks will appear here once processed" : {
+
+    },
+    "Text Analysis" : {
+
+    },
+    "The on-device model is being downloaded." : {
+
+    },
+    "The on-device model is currently unavailable." : {
+
+    },
+    "This action cannot be undone. All your devices, API keys, and tasks will be deleted." : {
+
+    },
+    "This device doesn't support Apple Intelligence. Compatible devices include:" : {
+
+    },
+    "This iPad" : {
+
+    },
+    "This iPhone" : {
+
+    },
+    "This may take a while. Sharing modes will be available once the download completes." : {
+
+    },
+    "This will permanently delete all conversations. This action cannot be undone." : {
+
+    },
+    "This will permanently delete your account and all associated data." : {
+
+    },
+    "Total" : {
+
+    },
+    "Track all your devices" : {
+
+    },
+    "Track contributions from each device" : {
+
+    },
+    "Track task duration and performance" : {
+
+    },
+    "Unavailable" : {
+
+    },
+    "Updated %@" : {
+
+    },
+    "View consuming and providing tasks" : {
+
+    },
+    "View processing statistics" : {
+
+    },
+    "View Task History" : {
+
+    },
+    "Vision" : {
+
+    },
+    "Waiting for network..." : {
+
+    },
+    "Will be used for image generation" : {
+
+    },
+    "Works with popular AI tools" : {
+
+    },
+    "Your API Keys" : {
+
+    }
   },
   "version" : "1.0"
 }
