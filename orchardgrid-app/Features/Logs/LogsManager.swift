@@ -4,7 +4,7 @@ import Observation
 @MainActor
 @Observable
 final class LogsManager: Refreshable {
-  private(set) var logs: [ComputeTask] = []
+  private(set) var logs: [LogEntry] = []
   private(set) var total = 0
   private(set) var isInitialLoading = true
   private(set) var isRefreshing = false
@@ -79,8 +79,8 @@ final class LogsManager: Refreshable {
         )
       }
 
-      let result = try JSONDecoder().decode(TasksResponse.self, from: data)
-      logs = result.tasks
+      let result = try JSONDecoder().decode(LogsResponse.self, from: data)
+      logs = result.logs
       total = result.total
       lastUpdated = Date()
     } catch is CancellationError {

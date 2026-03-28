@@ -66,7 +66,7 @@ struct LocalDeviceAccessory: View {
         .font(.subheadline)
 
       if sharing.wantsCloudSharing {
-        Text("\(sharing.cloudTasksProcessed)")
+        Text("\(sharing.cloudLogsProcessed)")
           .font(.subheadline)
           .foregroundStyle(.secondary)
           .monospacedDigit()

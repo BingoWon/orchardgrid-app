@@ -61,8 +61,8 @@ struct DeviceTableView: View {
         }
         .width(min: 80, ideal: 100)
 
-        TableColumn("Tasks") { device in
-          Text("\(device.tasksProcessed)")
+        TableColumn("Logs") { device in
+          Text("\(device.logsProcessed)")
             .fontWeight(.semibold)
         }
         .width(min: 50, ideal: 60)
@@ -80,7 +80,7 @@ struct DeviceTableView: View {
             tableHeader("Hardware", width: 140)
             tableHeader("Status", width: 100)
             tableHeader("Last Seen", width: 100)
-            tableHeader("Tasks", width: 60)
+            tableHeader("Logs", width: 60)
           }
           .padding(.vertical, 8)
           .background(Color(uiColor: .secondarySystemBackground))
@@ -143,8 +143,8 @@ struct DeviceTableView: View {
                 .frame(width: 100, alignment: .leading)
                 .padding(.horizontal, 8)
 
-              // Tasks
-              Text("\(device.tasksProcessed)")
+              // Logs
+              Text("\(device.logsProcessed)")
                 .fontWeight(.semibold)
                 .frame(width: 60, alignment: .trailing)
                 .padding(.horizontal, 8)
@@ -164,7 +164,7 @@ struct DeviceTableView: View {
         .font(.caption)
         .fontWeight(.semibold)
         .foregroundStyle(.secondary)
-        .frame(width: width, alignment: title == "Tasks" ? .trailing : .leading)
+        .frame(width: width, alignment: title == "Logs" ? .trailing : .leading)
         .padding(.horizontal, 8)
     }
   #endif

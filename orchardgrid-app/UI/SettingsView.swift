@@ -19,6 +19,11 @@ struct SettingsView: View {
     if let langs = UserDefaults.standard.array(forKey: "AppleLanguages") as? [String],
       let first = langs.first
     {
+      // Normalize: "en-US" → "en", "zh-Hans-US" → "zh-Hans"
+      if first.hasPrefix("zh-Hans") { return "zh-Hans" }
+      if first.hasPrefix("zh") { return "zh-Hans" }
+      let base = first.components(separatedBy: "-").first ?? first
+      if base == "en" { return "en" }
       return first
     }
     return "system"
@@ -73,7 +78,7 @@ struct SettingsView: View {
       }
     } message: {
       Text(
-        "This action cannot be undone. All your devices, API keys, and tasks will be deleted."
+        "This action cannot be undone. All your devices, API keys, and logs will be deleted."
       )
     }
     .alert(String(localized: "Language Changed"), isPresented: $showRestartAlert) {
@@ -300,7 +305,7 @@ struct SettingsView: View {
       .foregroundStyle(.red.opacity(0.6))
       .disabled(isDeleting)
 
-      Text("Permanently removes your account, devices, API keys, and all tasks.")
+      Text("Permanently removes your account, devices, API keys, and all logs.")
         .font(.caption2)
         .foregroundStyle(.quaternary)
         .multilineTextAlignment(.center)

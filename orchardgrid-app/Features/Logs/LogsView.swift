@@ -10,7 +10,6 @@ struct LogsView: View {
   @State private var page = 1
 
   private let statusOptions = ["all", "completed", "failed", "processing", "pending"]
-  private let roleOptions = ["all", "sent", "served", "local"]
 
   var body: some View {
     ScrollView {
@@ -24,7 +23,7 @@ struct LogsView: View {
               title: "View Logs",
               description: "Sign in to see your complete activity log.",
               benefits: [
-                "Track requests sent, served, and local",
+                "Track consumer, provider, and self requests",
                 "Filter by status and role",
                 "Monitor token usage and performance",
               ],
@@ -99,7 +98,7 @@ struct LogsView: View {
       }
       .labelsHidden()
       #if os(macOS)
-        .frame(width: 110)
+        .frame(width: 130)
       #endif
 
       Spacer()
@@ -167,7 +166,7 @@ struct LogsView: View {
 
       ForEach(manager.logs) { log in
         GridRow {
-          statusBadge(log.status)
+          statusBadge(log)
           roleBadge(log.role)
           Text(log.capability ?? "—")
             .font(.caption)
@@ -203,12 +202,12 @@ struct LogsView: View {
 
   // MARK: - Badges
 
-  private func statusBadge(_ status: String) -> some View {
+  private func statusBadge(_ log: LogEntry) -> some View {
     HStack(spacing: 4) {
       Circle()
-        .fill(statusColor(status))
+        .fill(Color(log.statusColor))
         .frame(width: 7, height: 7)
-      Text(status.capitalized)
+      Text(log.status.capitalized)
         .font(.caption)
     }
   }
@@ -220,8 +219,8 @@ struct LogsView: View {
           .font(.caption)
           .padding(.horizontal, 6)
           .padding(.vertical, 2)
-          .background(roleColor(role).opacity(0.15), in: Capsule())
-          .foregroundStyle(roleColor(role))
+          .background(Color(role.color).opacity(0.15), in: Capsule())
+          .foregroundStyle(Color(role.color))
       } else {
         Text("—").font(.caption)
       }
@@ -284,24 +283,6 @@ struct LogsView: View {
     max(1, Int(ceil(Double(manager.total) / Double(pageSize))))
   }
 
-  private func statusColor(_ status: String) -> Color {
-    switch status {
-    case "completed": .green
-    case "failed": .red
-    case "processing": .orange
-    case "pending": .gray
-    default: .gray
-    }
-  }
-
-  private func roleColor(_ role: LogRole) -> Color {
-    switch role {
-    case .sent: .blue
-    case .served: .purple
-    case .local: .green
-    }
-  }
-
   private func loadData(isManualRefresh: Bool = false) async {
     guard let token = await authManager.getToken() else { return }
     let offset = (page - 1) * pageSize
@@ -319,7 +300,7 @@ struct LogsView: View {
 // MARK: - Log Card (iPhone)
 
 private struct LogCard: View {
-  let log: ComputeTask
+  let log: LogEntry
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
@@ -327,7 +308,7 @@ private struct LogCard: View {
       HStack {
         HStack(spacing: 4) {
           Circle()
-            .fill(statusColor)
+            .fill(Color(log.statusColor))
             .frame(width: 8, height: 8)
           Text(log.status.capitalized)
             .font(.subheadline.weight(.medium))
@@ -338,8 +319,8 @@ private struct LogCard: View {
             .font(.caption)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(roleColor.opacity(0.15), in: Capsule())
-            .foregroundStyle(roleColor)
+            .background(Color(role.color).opacity(0.15), in: Capsule())
+            .foregroundStyle(Color(role.color))
         }
 
         Spacer()
@@ -371,25 +352,6 @@ private struct LogCard: View {
     }
     .padding(12)
     .background(.ultraThinMaterial, in: .rect(cornerRadius: 12, style: .continuous))
-  }
-
-  private var statusColor: Color {
-    switch log.status {
-    case "completed": .green
-    case "failed": .red
-    case "processing": .orange
-    case "pending": .gray
-    default: .gray
-    }
-  }
-
-  private var roleColor: Color {
-    guard let role = log.role else { return .gray }
-    switch role {
-    case .sent: return .blue
-    case .served: return .purple
-    case .local: return .green
-    }
   }
 }
 

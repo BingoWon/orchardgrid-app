@@ -96,7 +96,7 @@ struct LocalDeviceView: View {
         icon: "checkmark.circle.fill",
         iconColor: .green,
         title: "Connected",
-        subtitle: "Ready to process tasks"
+        subtitle: "Ready to process requests"
       )
 
       Divider()
@@ -110,7 +110,7 @@ struct LocalDeviceView: View {
       Divider()
 
       HStack(spacing: 40) {
-        StatCard(title: "Tasks Processed", value: "\(sharing.cloudTasksProcessed)", compact: true)
+        StatCard(title: "Logs Processed", value: "\(sharing.cloudLogsProcessed)", compact: true)
         StatCard(
           title: "Hardware ID", value: String(DeviceInfo.hardwareID.prefix(8)), compact: true)
       }

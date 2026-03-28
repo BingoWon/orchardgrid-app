@@ -65,7 +65,7 @@ final class DevicesManager: Refreshable {
     devices.filter { !$0.isOnline }
   }
 
-  var totalTasksProcessed: Int {
-    devices.reduce(0) { $0 + $1.tasksProcessed }
+  var totalLogsProcessed: Int {
+    devices.reduce(0) { $0 + $1.logsProcessed }
   }
 }

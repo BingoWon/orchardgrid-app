@@ -1,18 +1,26 @@
 import Foundation
 
 enum LogRole: String, Codable, Sendable, CaseIterable {
-  case sent, served, local
+  case consumer, provider, `self`
 
   var label: String {
     switch self {
-    case .sent: String(localized: "Sent")
-    case .served: String(localized: "Served")
-    case .local: String(localized: "Local")
+    case .consumer: String(localized: "Consumer")
+    case .provider: String(localized: "Provider")
+    case .`self`: String(localized: "Self")
+    }
+  }
+
+  var color: String {
+    switch self {
+    case .consumer: "blue"
+    case .provider: "purple"
+    case .`self`: "green"
     }
   }
 }
 
-struct ComputeTask: Identifiable, Codable, Sendable {
+struct LogEntry: Identifiable, Codable, Sendable {
   let id: String
   let userId: String
   let deviceId: String?
@@ -63,10 +71,20 @@ struct ComputeTask: Identifiable, Codable, Sendable {
     guard let p = promptTokens, let c = completionTokens else { return "—" }
     return "\(p) + \(c) = \(p + c)"
   }
+
+  var statusColor: String {
+    switch status {
+    case "completed": "green"
+    case "failed": "red"
+    case "processing": "orange"
+    case "pending": "gray"
+    default: "gray"
+    }
+  }
 }
 
-struct TasksResponse: Codable, Sendable {
-  let tasks: [ComputeTask]
+struct LogsResponse: Codable, Sendable {
+  let logs: [LogEntry]
   let total: Int
   let limit: Int
   let offset: Int

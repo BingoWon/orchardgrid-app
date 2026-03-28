@@ -12,7 +12,7 @@ struct Device: Codable, Identifiable, Sendable {
   let countryCode: String?
   let isOnline: Bool
   let lastHeartbeat: Int?
-  let tasksProcessed: Int
+  let logsProcessed: Int
   let failureCount: Int
   let createdAt: Int
   let updatedAt: Int
@@ -29,7 +29,7 @@ struct Device: Codable, Identifiable, Sendable {
     case countryCode = "country_code"
     case isOnline = "is_online"
     case lastHeartbeat = "last_heartbeat"
-    case tasksProcessed = "tasks_processed"
+    case logsProcessed = "logs_processed"
     case failureCount = "failure_count"
     case createdAt = "created_at"
     case updatedAt = "updated_at"

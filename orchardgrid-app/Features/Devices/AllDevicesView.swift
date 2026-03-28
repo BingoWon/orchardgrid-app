@@ -104,7 +104,7 @@ struct AllDevicesView: View {
       HStack(spacing: 16) {
         StatCard(title: "Total", value: "\(devicesManager.devices.count)")
         StatCard(title: "Online", value: "\(devicesManager.onlineDevices.count)")
-        StatCard(title: "Tasks", value: "\(devicesManager.totalTasksProcessed)")
+        StatCard(title: "Logs", value: "\(devicesManager.totalLogsProcessed)")
       }
     }
     .padding(Constants.standardPadding)
@@ -242,10 +242,10 @@ private struct DeviceCard: View {
 
       // Tasks count - centered
       VStack(spacing: 2) {
-        Text("\(device.tasksProcessed)")
+        Text("\(device.logsProcessed)")
           .font(.title3)
           .fontWeight(.semibold)
-        Text("tasks")
+        Text("logs")
           .font(.caption2)
           .foregroundStyle(.secondary)
       }

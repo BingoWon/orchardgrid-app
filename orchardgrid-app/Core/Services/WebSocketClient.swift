@@ -22,7 +22,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   }
 
   private(set) var connectionState: ConnectionState = .disconnected
-  private(set) var tasksProcessed = 0
+  private(set) var logsProcessed = 0
 
   var isConnected: Bool {
     if case .connected = connectionState { return true }
@@ -446,7 +446,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     do {
       let result = try await handler(payload)
       await sendResponse(id: id, payload: result)
-      tasksProcessed += 1
+      logsProcessed += 1
       let duration = Date().timeIntervalSince(start)
       Logger.success(
         .websocket,
@@ -473,7 +473,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       )
 
       await sendStreamEnd(id: id, usage: usage)
-      tasksProcessed += 1
+      logsProcessed += 1
       let duration = Date().timeIntervalSince(start)
       Logger.success(
         .websocket, "chat stream \(id.prefix(8)) completed in \(String(format: "%.2f", duration))s")
