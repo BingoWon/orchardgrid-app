@@ -4,10 +4,8 @@ import Observation
 @MainActor
 @Observable
 final class LogsManager: Refreshable {
-  private(set) var consumingTasks: [ComputeTask] = []
-  private(set) var providingTasks: [ComputeTask] = []
-  private(set) var consumingTotal = 0
-  private(set) var providingTotal = 0
+  private(set) var logs: [ComputeTask] = []
+  private(set) var total = 0
   private(set) var isInitialLoading = true
   private(set) var isRefreshing = false
   private(set) var lastError: String?
@@ -16,63 +14,19 @@ final class LogsManager: Refreshable {
   private let apiURL = Config.apiBaseURL
   private let urlSession = Config.urlSession
 
-  /// Quick reload for real-time updates (uses default pagination)
   func reload(authToken: String, isManualRefresh: Bool = false) async {
-    await loadConsumingTasks(authToken: authToken, isManualRefresh: isManualRefresh)
-    await loadProvidingTasks(authToken: authToken, isManualRefresh: isManualRefresh)
+    await loadLogs(authToken: authToken, isManualRefresh: isManualRefresh)
   }
 
-  func loadConsumingTasks(
+  func loadLogs(
     limit: Int = 50,
     offset: Int = 0,
     status: String? = nil,
+    role: String? = nil,
     authToken: String,
     isManualRefresh: Bool = false
   ) async {
-    await loadTasks(
-      endpoint: "/tasks",
-      limit: limit,
-      offset: offset,
-      status: status,
-      authToken: authToken,
-      isManualRefresh: isManualRefresh
-    ) { result in
-      consumingTasks = result.tasks
-      consumingTotal = result.total
-    }
-  }
-
-  func loadProvidingTasks(
-    limit: Int = 50,
-    offset: Int = 0,
-    status: String? = nil,
-    authToken: String,
-    isManualRefresh: Bool = false
-  ) async {
-    await loadTasks(
-      endpoint: "/tasks/providing",
-      limit: limit,
-      offset: offset,
-      status: status,
-      authToken: authToken,
-      isManualRefresh: isManualRefresh
-    ) { result in
-      providingTasks = result.tasks
-      providingTotal = result.total
-    }
-  }
-
-  private func loadTasks(
-    endpoint: String,
-    limit: Int,
-    offset: Int,
-    status: String?,
-    authToken: String,
-    isManualRefresh: Bool,
-    onSuccess: (TasksResponse) -> Void
-  ) async {
-    // Only show loading indicator for initial load
-    if consumingTasks.isEmpty, providingTasks.isEmpty {
+    if logs.isEmpty {
       isInitialLoading = true
     } else if isManualRefresh {
       isRefreshing = true
@@ -80,13 +34,16 @@ final class LogsManager: Refreshable {
     lastError = nil
 
     do {
-      var components = URLComponents(string: "\(apiURL)\(endpoint)")!
+      var components = URLComponents(string: "\(apiURL)/logs")!
       components.queryItems = [
         URLQueryItem(name: "limit", value: "\(limit)"),
         URLQueryItem(name: "offset", value: "\(offset)"),
       ]
       if let status, status != "all" {
         components.queryItems?.append(URLQueryItem(name: "status", value: status))
+      }
+      if let role, role != "all" {
+        components.queryItems?.append(URLQueryItem(name: "role", value: role))
       }
 
       var request = URLRequest(url: components.url!)
@@ -103,7 +60,6 @@ final class LogsManager: Refreshable {
       }
 
       guard httpResponse.statusCode == 200 else {
-        // Try to parse error message from response
         let errorMessage: String =
           if let errorData = try? JSONDecoder().decode(
             [String: String].self,
@@ -124,7 +80,8 @@ final class LogsManager: Refreshable {
       }
 
       let result = try JSONDecoder().decode(TasksResponse.self, from: data)
-      onSuccess(result)
+      logs = result.tasks
+      total = result.total
       lastUpdated = Date()
     } catch is CancellationError {
       return
@@ -132,7 +89,7 @@ final class LogsManager: Refreshable {
       return
     } catch {
       lastError = error.localizedDescription
-      Logger.error(.app, "Load tasks error: \(error)")
+      Logger.error(.app, "Load logs error: \(error)")
     }
 
     isInitialLoading = false

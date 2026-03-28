@@ -1,22 +1,16 @@
 import SwiftUI
 
-private enum LogTab: Int {
-  case consuming, providing
-}
-
 struct LogsView: View {
   @Environment(AuthManager.self) private var authManager
   @Environment(LogsManager.self) private var manager
   @Environment(ObserverClient.self) private var observerClient
-  @State private var selectedTab = LogTab.consuming
-  @State private var consumingStatus = "all"
-  @State private var providingStatus = "all"
-  @State private var consumingPageSize = 50
-  @State private var providingPageSize = 50
-  @State private var consumingPage = 1
-  @State private var providingPage = 1
+  @State private var statusFilter = "all"
+  @State private var roleFilter = "all"
+  @State private var pageSize = 50
+  @State private var page = 1
 
   private let statusOptions = ["all", "completed", "failed", "processing", "pending"]
+  private let roleOptions = ["all", "sent", "served", "local"]
 
   var body: some View {
     ScrollView {
@@ -27,14 +21,14 @@ struct LogsView: View {
           } else {
             GuestFeaturePrompt(
               icon: "list.bullet.rectangle",
-              title: "View Task History",
-              description: "Sign in to see your complete task history with detailed logs.",
+              title: String(localized: "View Logs"),
+              description: String(localized: "Sign in to see your complete activity log."),
               benefits: [
-                "View consuming and providing tasks",
-                "Filter by status",
-                "Track task duration and performance",
+                String(localized: "Track requests sent, served, and local"),
+                String(localized: "Filter by status and role"),
+                String(localized: "Monitor token usage and performance"),
               ],
-              buttonTitle: "Sign In to View Logs"
+              buttonTitle: String(localized: "Sign In to View Logs")
             )
           }
         }
@@ -44,7 +38,7 @@ struct LogsView: View {
     .refreshable {
       await loadData(isManualRefresh: true)
     }
-    .navigationTitle("Logs")
+    .navigationTitle(String(localized: "Logs"))
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .contentToolbar {
@@ -78,136 +72,167 @@ struct LogsView: View {
         Task { await loadData(isManualRefresh: true) }
       }
     } else {
-      summaryCard
-      tabSelector
-
-      if selectedTab == .consuming {
-        taskSection(
-          title: "Consuming Tasks",
-          tasks: manager.consumingTasks,
-          total: manager.consumingTotal,
-          status: $consumingStatus,
-          page: $consumingPage,
-          pageSize: consumingPageSize,
-          totalPages: consumingTotalPages,
-          onReload: { Task { await loadConsumingTasks() } }
-        )
-      } else {
-        taskSection(
-          title: "Providing Tasks",
-          tasks: manager.providingTasks,
-          total: manager.providingTotal,
-          status: $providingStatus,
-          page: $providingPage,
-          pageSize: providingPageSize,
-          totalPages: providingTotalPages,
-          onReload: { Task { await loadProvidingTasks() } }
-        )
-      }
+      filtersBar
+      logsList
     }
   }
 
-  // MARK: - Summary Card
+  // MARK: - Filters
 
-  private var summaryCard: some View {
-    VStack(alignment: .leading, spacing: Constants.summaryCardSpacing) {
-      Text("Summary")
-        .font(.headline)
+  private var filtersBar: some View {
+    HStack(spacing: 12) {
+      Picker(String(localized: "Status"), selection: $statusFilter) {
+        ForEach(statusOptions, id: \.self) { s in
+          Text(s == "all" ? String(localized: "All Status") : s.capitalized).tag(s)
+        }
+      }
+      .labelsHidden()
+      #if os(macOS)
+        .frame(width: 130)
+      #endif
+
+      Picker(String(localized: "Role"), selection: $roleFilter) {
+        Text(String(localized: "All Roles")).tag("all")
+        ForEach(LogRole.allCases, id: \.self) { r in
+          Text(r.label).tag(r.rawValue)
+        }
+      }
+      .labelsHidden()
+      #if os(macOS)
+        .frame(width: 110)
+      #endif
+
+      Spacer()
+
+      Text("\(manager.total) logs")
+        .font(.caption)
         .foregroundStyle(.secondary)
+        .monospacedDigit()
+    }
+    .onChange(of: statusFilter) {
+      page = 1
+      Task { await loadData() }
+    }
+    .onChange(of: roleFilter) {
+      page = 1
+      Task { await loadData() }
+    }
+  }
 
-      HStack(spacing: 16) {
-        StatCard(title: "Consuming", value: "\(manager.consumingTotal)")
-        StatCard(title: "Providing", value: "\(manager.providingTotal)")
-        StatCard(
-          title: "Total",
-          value: "\(manager.consumingTotal + manager.providingTotal)"
-        )
+  // MARK: - Logs List
+
+  @ViewBuilder
+  private var logsList: some View {
+    if manager.logs.isEmpty {
+      ContentUnavailableView(
+        String(localized: "No Logs Found"),
+        systemImage: "tray",
+        description: Text(String(localized: "Logs will appear here once activity is recorded"))
+      )
+      .frame(maxWidth: .infinity)
+    } else {
+      #if os(macOS)
+        logsTable
+      #else
+        if UIDevice.current.userInterfaceIdiom == .pad {
+          logsTable
+        } else {
+          logsCards
+        }
+      #endif
+
+      paginationBar
+    }
+  }
+
+  // MARK: - Table (macOS + iPad)
+
+  private var logsTable: some View {
+    Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 0) {
+      // Header
+      GridRow {
+        Text(String(localized: "Status")).fontWeight(.medium)
+        Text(String(localized: "Role")).fontWeight(.medium)
+        Text(String(localized: "Capability")).fontWeight(.medium)
+        Text(String(localized: "Device")).fontWeight(.medium)
+        Text(String(localized: "Duration")).fontWeight(.medium)
+        Text(String(localized: "Tokens")).fontWeight(.medium)
+        Text(String(localized: "Time")).fontWeight(.medium)
+      }
+      .font(.caption)
+      .foregroundStyle(.secondary)
+      .padding(.vertical, 8)
+
+      Divider()
+
+      ForEach(manager.logs) { log in
+        GridRow {
+          statusBadge(log.status)
+          roleBadge(log.role)
+          Text(log.capability ?? "—")
+            .font(.caption)
+          Text(log.deviceId.map { String($0.prefix(8)) + "…" } ?? "—")
+            .font(.caption)
+            .monospaced()
+          Text(log.durationText)
+            .font(.caption)
+            .monospaced()
+          Text(log.tokensText)
+            .font(.caption)
+            .monospaced()
+          Text(log.createdDate, format: .dateTime.month().day().hour().minute())
+            .font(.caption)
+        }
+        .padding(.vertical, 6)
+
+        Divider()
       }
     }
     .padding(Constants.standardPadding)
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
+    .background(.ultraThinMaterial, in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
   }
 
-  // MARK: - Tab Selector
+  // MARK: - Cards (iPhone)
 
-  private var tabSelector: some View {
-    Picker("", selection: $selectedTab) {
-      Text("Consuming").tag(LogTab.consuming)
-      Text("Providing").tag(LogTab.providing)
+  private var logsCards: some View {
+    ForEach(manager.logs) { log in
+      LogCard(log: log)
     }
-    .pickerStyle(.segmented)
   }
 
-  // MARK: - Task Section
+  // MARK: - Badges
 
-  @ViewBuilder
-  private func taskSection(
-    title: String,
-    tasks: [ComputeTask],
-    total: Int,
-    status: Binding<String>,
-    page: Binding<Int>,
-    pageSize: Int,
-    totalPages: Int,
-    onReload: @escaping () -> Void
-  ) -> some View {
-    VStack(alignment: .leading, spacing: Constants.summaryCardSpacing) {
-      // Header with Filter
-      HStack {
-        Text(title)
-          .font(.headline)
-          .foregroundStyle(.secondary)
+  private func statusBadge(_ status: String) -> some View {
+    HStack(spacing: 4) {
+      Circle()
+        .fill(statusColor(status))
+        .frame(width: 7, height: 7)
+      Text(status.capitalized)
+        .font(.caption)
+    }
+  }
 
-        Spacer()
-
-        Picker("Status", selection: status) {
-          ForEach(statusOptions, id: \.self) { s in
-            Text(s.capitalized).tag(s)
-          }
-        }
-        .labelsHidden()
-        .frame(width: 120)
-        .onChange(of: status.wrappedValue) {
-          page.wrappedValue = 1
-          onReload()
-        }
-      }
-
-      // Tasks
-      if tasks.isEmpty {
-        emptyTasksState
+  private func roleBadge(_ role: LogRole?) -> some View {
+    Group {
+      if let role {
+        Text(role.label)
+          .font(.caption)
+          .padding(.horizontal, 6)
+          .padding(.vertical, 2)
+          .background(roleColor(role).opacity(0.15), in: Capsule())
+          .foregroundStyle(roleColor(role))
       } else {
-        ForEach(tasks) { task in
-          TaskCard(task: task)
-        }
-
-        // Pagination
-        paginationBar(
-          page: page,
-          pageSize: pageSize,
-          total: total,
-          totalPages: totalPages,
-          onReload: onReload
-        )
+        Text("—").font(.caption)
       }
     }
   }
-
-  // MARK: - Task Card
 
   // MARK: - Pagination
 
-  private func paginationBar(
-    page: Binding<Int>,
-    pageSize: Int,
-    total: Int,
-    totalPages: Int,
-    onReload: @escaping () -> Void
-  ) -> some View {
+  private var paginationBar: some View {
     HStack {
       Text(
-        "\((page.wrappedValue - 1) * pageSize + 1)-\(min(page.wrappedValue * pageSize, total)) of \(total)"
+        "\((page - 1) * pageSize + 1)-\(min(page * pageSize, manager.total)) of \(manager.total)"
       )
       .font(.caption)
       .foregroundStyle(.secondary)
@@ -216,42 +241,31 @@ struct LogsView: View {
 
       HStack(spacing: 8) {
         Button {
-          page.wrappedValue = max(1, page.wrappedValue - 1)
-          onReload()
+          page = max(1, page - 1)
+          Task { await loadData() }
         } label: {
           Image(systemName: "chevron.left")
         }
-        .disabled(page.wrappedValue == 1)
+        .disabled(page == 1)
 
-        Text("\(page.wrappedValue)/\(totalPages)")
+        Text("\(page)/\(totalPages)")
           .font(.caption)
           .monospacedDigit()
 
         Button {
-          page.wrappedValue = min(totalPages, page.wrappedValue + 1)
-          onReload()
+          page = min(totalPages, page + 1)
+          Task { await loadData() }
         } label: {
           Image(systemName: "chevron.right")
         }
-        .disabled(page.wrappedValue >= totalPages)
+        .disabled(page >= totalPages)
       }
       .buttonStyle(.plain)
     }
     .padding(.top, 8)
   }
 
-  // MARK: - States
-
-  private var emptyTasksState: some View {
-    ContentUnavailableView(
-      "No Tasks Found",
-      systemImage: "tray",
-      description: Text("Tasks will appear here once processed")
-    )
-    .frame(maxWidth: .infinity)
-  }
-
-  // MARK: - Refresh Button
+  // MARK: - Refresh
 
   private var refreshButton: some View {
     Button {
@@ -263,83 +277,95 @@ struct LogsView: View {
     .disabled(manager.isRefreshing)
   }
 
-  // MARK: - Computed Properties
+  // MARK: - Helpers
 
-  private var consumingTotalPages: Int {
-    max(1, Int(ceil(Double(manager.consumingTotal) / Double(consumingPageSize))))
+  private var totalPages: Int {
+    max(1, Int(ceil(Double(manager.total) / Double(pageSize))))
   }
 
-  private var providingTotalPages: Int {
-    max(1, Int(ceil(Double(manager.providingTotal) / Double(providingPageSize))))
+  private func statusColor(_ status: String) -> Color {
+    switch status {
+    case "completed": .green
+    case "failed": .red
+    case "processing": .orange
+    case "pending": .gray
+    default: .gray
+    }
   }
 
-  // MARK: - Data Loading
+  private func roleColor(_ role: LogRole) -> Color {
+    switch role {
+    case .sent: .blue
+    case .served: .purple
+    case .local: .green
+    }
+  }
 
   private func loadData(isManualRefresh: Bool = false) async {
-    await loadConsumingTasks(isManualRefresh: isManualRefresh)
-    await loadProvidingTasks(isManualRefresh: isManualRefresh)
-  }
-
-  private func loadConsumingTasks(isManualRefresh: Bool = false) async {
     guard let token = await authManager.getToken() else { return }
-    let offset = (consumingPage - 1) * consumingPageSize
-    await manager.loadConsumingTasks(
-      limit: consumingPageSize,
+    let offset = (page - 1) * pageSize
+    await manager.loadLogs(
+      limit: pageSize,
       offset: offset,
-      status: consumingStatus == "all" ? nil : consumingStatus,
-      authToken: token,
-      isManualRefresh: isManualRefresh
-    )
-  }
-
-  private func loadProvidingTasks(isManualRefresh: Bool = false) async {
-    guard let token = await authManager.getToken() else { return }
-    let offset = (providingPage - 1) * providingPageSize
-    await manager.loadProvidingTasks(
-      limit: providingPageSize,
-      offset: offset,
-      status: providingStatus == "all" ? nil : providingStatus,
+      status: statusFilter == "all" ? nil : statusFilter,
+      role: roleFilter == "all" ? nil : roleFilter,
       authToken: token,
       isManualRefresh: isManualRefresh
     )
   }
 }
 
-// MARK: - Task Card
+// MARK: - Log Card (iPhone)
 
-private struct TaskCard: View {
-  let task: ComputeTask
+private struct LogCard: View {
+  let log: ComputeTask
 
   var body: some View {
-    HStack(spacing: 12) {
-      // Status Indicator
-      Circle()
-        .fill(statusColor)
-        .frame(width: 10, height: 10)
+    VStack(alignment: .leading, spacing: 8) {
+      // Top row: Status + Role + Time
+      HStack {
+        HStack(spacing: 4) {
+          Circle()
+            .fill(statusColor)
+            .frame(width: 8, height: 8)
+          Text(log.status.capitalized)
+            .font(.subheadline.weight(.medium))
+        }
 
-      // Info
-      VStack(alignment: .leading, spacing: 4) {
-        HStack {
-          Text(task.status.capitalized)
-            .font(.subheadline)
-            .fontWeight(.medium)
-
-          Spacer()
-
-          Text(task.createdDate, format: .dateTime.month().day().hour().minute())
+        if let role = log.role {
+          Text(role.label)
             .font(.caption)
-            .foregroundStyle(.secondary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(roleColor.opacity(0.15), in: Capsule())
+            .foregroundStyle(roleColor)
         }
 
-        HStack(spacing: 16) {
-          Label(task.id.prefix(8) + "...", systemImage: "number")
-          if let deviceId = task.deviceId {
-            Label(deviceId.prefix(8) + "...", systemImage: "desktopcomputer")
-          }
-          Label(task.durationText, systemImage: "clock")
+        Spacer()
+
+        Text(log.createdDate, format: .dateTime.month().day().hour().minute())
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+
+      // Detail row
+      HStack(spacing: 12) {
+        if let cap = log.capability {
+          Label(cap, systemImage: "cpu")
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
+        if let deviceId = log.deviceId {
+          Label(String(deviceId.prefix(8)) + "…", systemImage: "desktopcomputer")
+        }
+        Label(log.durationText, systemImage: "clock")
+      }
+      .font(.caption)
+      .foregroundStyle(.secondary)
+
+      // Tokens row
+      if log.promptTokens != nil || log.completionTokens != nil {
+        Label(log.tokensText, systemImage: "number")
+          .font(.caption)
+          .foregroundStyle(.secondary)
       }
     }
     .padding(12)
@@ -347,12 +373,21 @@ private struct TaskCard: View {
   }
 
   private var statusColor: Color {
-    switch task.status {
+    switch log.status {
     case "completed": .green
     case "failed": .red
     case "processing": .orange
     case "pending": .gray
     default: .gray
+    }
+  }
+
+  private var roleColor: Color {
+    guard let role = log.role else { return .gray }
+    switch role {
+    case .sent: return .blue
+    case .served: return .purple
+    case .local: return .green
     }
   }
 }
