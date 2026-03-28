@@ -21,14 +21,14 @@ struct LogsView: View {
           } else {
             GuestFeaturePrompt(
               icon: "list.bullet.rectangle",
-              title: String(localized: "View Logs"),
-              description: String(localized: "Sign in to see your complete activity log."),
+              title: "View Logs",
+              description: "Sign in to see your complete activity log.",
               benefits: [
-                String(localized: "Track requests sent, served, and local"),
-                String(localized: "Filter by status and role"),
-                String(localized: "Monitor token usage and performance"),
+                "Track requests sent, served, and local",
+                "Filter by status and role",
+                "Monitor token usage and performance",
               ],
-              buttonTitle: String(localized: "Sign In to View Logs")
+              buttonTitle: "Sign In to View Logs"
             )
           }
         }
@@ -189,7 +189,8 @@ struct LogsView: View {
       }
     }
     .padding(Constants.standardPadding)
-    .background(.ultraThinMaterial, in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
+    .background(
+      .ultraThinMaterial, in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
   }
 
   // MARK: - Cards (iPhone)
