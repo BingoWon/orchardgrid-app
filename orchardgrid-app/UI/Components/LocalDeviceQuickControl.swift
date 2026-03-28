@@ -18,7 +18,7 @@ struct LocalDeviceQuickControl: View {
         Spacer()
 
         HStack(spacing: 4) {
-          Text("Details")
+          Text(String(localized: "Details"))
             .font(.subheadline)
           Image(systemName: "chevron.right")
             .font(.caption)
@@ -67,7 +67,7 @@ struct LocalDeviceQuickControl: View {
         Text(statusTitle)
           .font(.subheadline)
           .fontWeight(.medium)
-        Text("Tap Details for more information")
+        Text(String(localized: "Tap Details for more information"))
           .font(.caption)
           .foregroundStyle(.secondary)
       }
@@ -100,7 +100,7 @@ struct LocalDeviceQuickControl: View {
   private var togglesRow: some View {
     VStack(spacing: 8) {
       ToggleRow(
-        title: "Share to Cloud",
+        title: String(localized: "Share to Cloud"),
         isOn: Binding(
           get: { sharing.wantsCloudSharing },
           set: { sharing.setCloudSharing($0) }
@@ -109,7 +109,7 @@ struct LocalDeviceQuickControl: View {
       )
 
       ToggleRow(
-        title: "Share Locally",
+        title: String(localized: "Share Locally"),
         isOn: Binding(
           get: { sharing.isLocalActive },
           set: { sharing.setLocalSharing($0) }
@@ -126,13 +126,13 @@ struct LocalDeviceQuickControl: View {
     guard sharing.wantsCloudSharing else { return nil }
     switch sharing.cloudConnectionState {
     case .connecting:
-      return "Connecting..."
+      return String(localized: "Connecting...")
     case .reconnecting:
-      return "Reconnecting..."
+      return String(localized: "Reconnecting...")
     case .failed:
-      return "Failed"
+      return String(localized: "Failed")
     case .connected:
-      return "Connected"
+      return String(localized: "Connected")
     default:
       return nil
     }
@@ -140,9 +140,9 @@ struct LocalDeviceQuickControl: View {
 
   private var localStatusText: String? {
     guard sharing.wantsLocalSharing else { return nil }
-    if sharing.localPortConflict { return "Port conflict" }
-    if sharing.isLocalActive { return "Running" }
-    return "Starting..."
+    if sharing.localPortConflict { return String(localized: "Port conflict") }
+    if sharing.isLocalActive { return String(localized: "Running") }
+    return String(localized: "Starting...")
   }
 }
 

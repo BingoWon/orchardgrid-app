@@ -76,4 +76,10 @@ struct Device: Codable, Identifiable, Sendable {
     guard let match = v.firstMatch(of: /Version\s+([\d.]+)/) else { return v }
     return String(match.1)
   }
+
+  /// Chip model with "Apple " prefix stripped for display
+  var displayChipModel: String? {
+    guard let chip = chipModel else { return nil }
+    return chip.hasPrefix("Apple ") ? String(chip.dropFirst(6)) : chip
+  }
 }

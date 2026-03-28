@@ -44,9 +44,9 @@ struct LocalDeviceView: View {
     VStack(alignment: .leading, spacing: 16) {
       HStack {
         VStack(alignment: .leading, spacing: 4) {
-          Text("Share to Cloud")
+          Text(String(localized: "Share to Cloud"))
             .font(.headline)
-          Text("Contribute computing power to OrchardGrid")
+          Text(String(localized: "Contribute computing power to OrchardGrid"))
             .font(.caption)
             .foregroundStyle(.secondary)
         }
@@ -110,9 +110,12 @@ struct LocalDeviceView: View {
       Divider()
 
       HStack(spacing: 40) {
-        StatCard(title: "Logs Processed", value: "\(sharing.cloudLogsProcessed)", compact: true)
         StatCard(
-          title: "Hardware ID", value: String(DeviceInfo.hardwareID.prefix(8)), compact: true)
+          title: "Logs Processed", value: "\(sharing.cloudLogsProcessed)",
+          compact: true)
+        StatCard(
+          title: "Hardware ID", value: String(DeviceInfo.hardwareID.prefix(8)),
+          compact: true)
       }
 
     case .reconnecting(let attempt, let nextRetryIn):
@@ -123,7 +126,7 @@ struct LocalDeviceView: View {
           subtitle: "Attempt \(attempt), next retry in \(Int(nextRetryIn))s"
         )
 
-        Button("Retry Now") {
+        Button(String(localized: "Retry Now")) {
           sharing.retryCloudConnection()
         }
         .buttonStyle(.bordered)
@@ -139,7 +142,7 @@ struct LocalDeviceView: View {
           subtitle: LocalizedStringKey(error)
         )
 
-        Button("Retry") {
+        Button(String(localized: "Retry")) {
           sharing.retryCloudConnection()
         }
         .buttonStyle(.borderedProminent)
@@ -166,9 +169,9 @@ struct LocalDeviceView: View {
     VStack(alignment: .leading, spacing: 16) {
       HStack {
         VStack(alignment: .leading, spacing: 4) {
-          Text("Share Locally")
+          Text(String(localized: "Share Locally"))
             .font(.headline)
-          Text("Standard Chat Completion API for local apps")
+          Text(String(localized: "Standard Chat Completion API for local apps"))
             .font(.caption)
             .foregroundStyle(.secondary)
         }
@@ -217,7 +220,9 @@ struct LocalDeviceView: View {
           Divider()
 
           HStack(spacing: 40) {
-            StatCard(title: "Requests Served", value: "\(sharing.localRequestCount)", compact: true)
+            StatCard(
+              title: "Requests Served", value: "\(sharing.localRequestCount)",
+              compact: true)
           }
         }
       }
@@ -267,7 +272,7 @@ struct LocalDeviceView: View {
 
   private var portConfigRow: some View {
     HStack(spacing: 8) {
-      Text("Port")
+      Text(String(localized: "Port"))
         .font(.caption)
         .foregroundStyle(.secondary)
 
@@ -297,7 +302,7 @@ struct LocalDeviceView: View {
       Spacer()
 
       if portNeedsApply {
-        Button("Apply") {
+        Button(String(localized: "Apply")) {
           guard let port = UInt16(portText) else { return }
           sharing.setLocalPort(port)
         }

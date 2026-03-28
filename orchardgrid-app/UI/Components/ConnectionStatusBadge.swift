@@ -8,7 +8,7 @@ struct ConnectionStatusBadge: View {
       Circle()
         .fill(isConnected ? .green : .gray)
         .frame(width: 6, height: 6)
-      Text(isConnected ? "Live" : "Offline")
+      Text(isConnected ? String(localized: "Live") : String(localized: "Offline"))
         .font(.caption)
         .foregroundStyle(.secondary)
     }

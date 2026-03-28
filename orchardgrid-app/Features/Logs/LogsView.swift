@@ -79,34 +79,41 @@ struct LogsView: View {
   // MARK: - Filters
 
   private var filtersBar: some View {
-    HStack(spacing: 12) {
+    HStack(spacing: 8) {
       Picker(String(localized: "Status"), selection: $statusFilter) {
         ForEach(statusOptions, id: \.self) { s in
-          Text(s == "all" ? String(localized: "All Status") : s.capitalized).tag(s)
+          Text(s == "all" ? String(localized: "All") : s.capitalized).tag(s)
         }
       }
       .labelsHidden()
+      .fixedSize()
       #if os(macOS)
-        .frame(width: 130)
+        .frame(width: 120)
       #endif
 
       Picker(String(localized: "Role"), selection: $roleFilter) {
-        Text(String(localized: "All Roles")).tag("all")
+        Text(String(localized: "All")).tag("all")
         ForEach(LogRole.allCases, id: \.self) { r in
           Text(r.label).tag(r.rawValue)
         }
       }
       .labelsHidden()
+      .fixedSize()
       #if os(macOS)
-        .frame(width: 130)
+        .frame(width: 120)
       #endif
 
       Spacer()
 
-      Text("\(manager.total) logs")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .monospacedDigit()
+      Text(
+        String(
+          localized: "\(manager.total) logs",
+          comment: "Total log count label"
+        )
+      )
+      .font(.caption)
+      .foregroundStyle(.secondary)
+      .monospacedDigit()
     }
     .onChange(of: statusFilter) {
       page = 1
@@ -136,7 +143,7 @@ struct LogsView: View {
         if UIDevice.current.userInterfaceIdiom == .pad {
           logsTable
         } else {
-          logsCards
+          logsCompactList
         }
       #endif
 
@@ -147,10 +154,9 @@ struct LogsView: View {
   // MARK: - Table (macOS + iPad)
 
   private var logsTable: some View {
-    Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 0) {
-      // Header
+    Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 0) {
       GridRow {
-        Text(String(localized: "Status")).fontWeight(.medium)
+        Text("").frame(width: 16)  // status icon
         Text(String(localized: "Role")).fontWeight(.medium)
         Text(String(localized: "Capability")).fontWeight(.medium)
         Text(String(localized: "Device")).fontWeight(.medium)
@@ -158,71 +164,90 @@ struct LogsView: View {
         Text(String(localized: "Tokens")).fontWeight(.medium)
         Text(String(localized: "Time")).fontWeight(.medium)
       }
-      .font(.caption)
+      .font(.caption2)
       .foregroundStyle(.secondary)
-      .padding(.vertical, 8)
+      .padding(.vertical, 6)
 
       Divider()
 
       ForEach(manager.logs) { log in
         GridRow {
-          statusBadge(log)
+          statusIcon(log)
           roleBadge(log.role)
           Text(log.capability ?? "—")
-            .font(.caption)
-          Text(log.deviceId.map { String($0.prefix(8)) + "…" } ?? "—")
-            .font(.caption)
+            .font(.caption2)
+          Text(log.deviceId.map { String($0.prefix(8)) } ?? "—")
+            .font(.caption2)
             .monospaced()
           Text(log.durationText)
-            .font(.caption)
+            .font(.caption2)
             .monospaced()
           Text(log.tokensText)
-            .font(.caption)
+            .font(.caption2)
             .monospaced()
           Text(log.createdDate, format: .dateTime.month().day().hour().minute())
-            .font(.caption)
+            .font(.caption2)
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
 
         Divider()
       }
     }
-    .padding(Constants.standardPadding)
+    .padding(12)
     .background(
       .ultraThinMaterial, in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
   }
 
-  // MARK: - Cards (iPhone)
+  // MARK: - Compact List (iPhone)
 
-  private var logsCards: some View {
-    ForEach(manager.logs) { log in
-      LogCard(log: log)
+  private var logsCompactList: some View {
+    VStack(spacing: 0) {
+      ForEach(manager.logs) { log in
+        LogRow(log: log)
+        Divider().padding(.leading, 24)
+      }
     }
+    .padding(.vertical, 4)
+    .background(
+      .ultraThinMaterial, in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
   }
 
-  // MARK: - Badges
+  // MARK: - Status Icon
 
-  private func statusBadge(_ log: LogEntry) -> some View {
-    HStack(spacing: 4) {
-      Circle()
-        .fill(Color(log.statusColor))
-        .frame(width: 7, height: 7)
-      Text(log.status.capitalized)
-        .font(.caption)
+  private func statusIcon(_ log: LogEntry) -> some View {
+    Group {
+      switch log.status {
+      case "completed":
+        Image(systemName: "checkmark.circle.fill")
+          .foregroundStyle(.green)
+      case "failed":
+        Image(systemName: "xmark.circle.fill")
+          .foregroundStyle(.red)
+      case "processing":
+        Image(systemName: "circle.fill")
+          .foregroundStyle(.orange)
+      default:
+        Image(systemName: "circle.dashed")
+          .foregroundStyle(.gray)
+      }
     }
+    .font(.caption2)
+    .frame(width: 16)
   }
+
+  // MARK: - Role Badge
 
   private func roleBadge(_ role: LogRole?) -> some View {
     Group {
       if let role {
         Text(role.label)
-          .font(.caption)
-          .padding(.horizontal, 6)
-          .padding(.vertical, 2)
+          .font(.caption2)
+          .padding(.horizontal, 5)
+          .padding(.vertical, 1)
           .background(Color(role.color).opacity(0.15), in: Capsule())
           .foregroundStyle(Color(role.color))
       } else {
-        Text("—").font(.caption)
+        Text("—").font(.caption2)
       }
     }
   }
@@ -232,7 +257,11 @@ struct LogsView: View {
   private var paginationBar: some View {
     HStack {
       Text(
-        "\((page - 1) * pageSize + 1)-\(min(page * pageSize, manager.total)) of \(manager.total)"
+        String(
+          localized:
+            "\((page - 1) * pageSize + 1)–\(min(page * pageSize, manager.total)) of \(manager.total)",
+          comment: "Pagination range"
+        )
       )
       .font(.caption)
       .foregroundStyle(.secondary)
@@ -262,7 +291,7 @@ struct LogsView: View {
       }
       .buttonStyle(.plain)
     }
-    .padding(.top, 8)
+    .padding(.top, 6)
   }
 
   // MARK: - Refresh
@@ -297,61 +326,79 @@ struct LogsView: View {
   }
 }
 
-// MARK: - Log Card (iPhone)
+// MARK: - Compact Log Row (iPhone)
 
-private struct LogCard: View {
+private struct LogRow: View {
   let log: LogEntry
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      // Top row: Status + Role + Time
-      HStack {
-        HStack(spacing: 4) {
-          Circle()
-            .fill(Color(log.statusColor))
-            .frame(width: 8, height: 8)
-          Text(log.status.capitalized)
-            .font(.subheadline.weight(.medium))
-        }
+    HStack(spacing: 6) {
+      // Status icon
+      statusIcon
+        .frame(width: 16)
 
-        if let role = log.role {
-          Text(role.label)
-            .font(.caption)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Color(role.color).opacity(0.15), in: Capsule())
-            .foregroundStyle(Color(role.color))
-        }
+      // Role capsule
+      if let role = log.role {
+        Text(role.label)
+          .font(.system(size: 9, weight: .medium))
+          .padding(.horizontal, 4)
+          .padding(.vertical, 1)
+          .background(Color(role.color).opacity(0.15), in: Capsule())
+          .foregroundStyle(Color(role.color))
+          .fixedSize()
+      }
 
-        Spacer()
-
-        Text(log.createdDate, format: .dateTime.month().day().hour().minute())
-          .font(.caption)
+      // Capability
+      if let cap = log.capability {
+        Text(cap)
+          .font(.caption2)
           .foregroundStyle(.secondary)
+          .lineLimit(1)
       }
 
-      // Detail row
-      HStack(spacing: 12) {
-        if let cap = log.capability {
-          Label(cap, systemImage: "cpu")
-        }
-        if let deviceId = log.deviceId {
-          Label(String(deviceId.prefix(8)) + "…", systemImage: "desktopcomputer")
-        }
-        Label(log.durationText, systemImage: "clock")
-      }
-      .font(.caption)
-      .foregroundStyle(.secondary)
+      Spacer(minLength: 4)
 
-      // Tokens row
-      if log.promptTokens != nil || log.completionTokens != nil {
-        Label(log.tokensText, systemImage: "number")
-          .font(.caption)
-          .foregroundStyle(.secondary)
+      // Duration
+      Text(log.durationText)
+        .font(.system(size: 10, design: .monospaced))
+        .foregroundStyle(.secondary)
+
+      // Tokens (compact)
+      if let p = log.promptTokens, let c = log.completionTokens {
+        Text("\(p + c)t")
+          .font(.system(size: 10, design: .monospaced))
+          .foregroundStyle(.tertiary)
       }
+
+      // Time
+      Text(log.createdDate, format: .dateTime.hour().minute())
+        .font(.system(size: 10))
+        .foregroundStyle(.tertiary)
     }
-    .padding(12)
-    .background(.ultraThinMaterial, in: .rect(cornerRadius: 12, style: .continuous))
+    .padding(.horizontal, 10)
+    .padding(.vertical, 6)
+  }
+
+  @ViewBuilder
+  private var statusIcon: some View {
+    switch log.status {
+    case "completed":
+      Image(systemName: "checkmark.circle.fill")
+        .foregroundStyle(.green)
+        .font(.system(size: 12))
+    case "failed":
+      Image(systemName: "xmark.circle.fill")
+        .foregroundStyle(.red)
+        .font(.system(size: 12))
+    case "processing":
+      Image(systemName: "circle.fill")
+        .foregroundStyle(.orange)
+        .font(.system(size: 12))
+    default:
+      Image(systemName: "circle.dashed")
+        .foregroundStyle(.gray)
+        .font(.system(size: 12))
+    }
   }
 }
 

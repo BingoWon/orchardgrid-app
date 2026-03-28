@@ -11,6 +11,10 @@ struct APIKeysView: View {
   @State private var showAPIReference = true
   @State private var newlyCreatedKey: String?
 
+  private var docsURL: URL {
+    URL(string: "\(Config.hostURL)/docs")!
+  }
+
   var body: some View {
     Group {
       if !authManager.isAuthenticated {
@@ -21,7 +25,7 @@ struct APIKeysView: View {
         keysContent
       }
     }
-    .navigationTitle("API Keys")
+    .navigationTitle(String(localized: "API Keys"))
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .contentToolbar {
@@ -35,7 +39,7 @@ struct APIKeysView: View {
           Button {
             createKey()
           } label: {
-            Label("Create", systemImage: "plus")
+            Label(String(localized: "Create"), systemImage: "plus")
           }
         }
       }
@@ -44,9 +48,9 @@ struct APIKeysView: View {
       guard let token = await authManager.getToken() else { return }
       await manager.loadAPIKeys(authToken: token)
     }
-    .alert("Delete API Key?", isPresented: $showDeleteConfirmation) {
-      Button("Cancel", role: .cancel) {}
-      Button("Delete", role: .destructive) {
+    .alert(String(localized: "Delete API Key?"), isPresented: $showDeleteConfirmation) {
+      Button(String(localized: "Cancel"), role: .cancel) {}
+      Button(String(localized: "Delete"), role: .destructive) {
         if let key = keyToDelete {
           Task {
             guard let token = await authManager.getToken() else { return }
@@ -56,21 +60,23 @@ struct APIKeysView: View {
       }
     } message: {
       if let key = keyToDelete {
-        Text("Are you sure you want to delete \"\(key.name ?? "this API key")\"?")
+        Text(
+          "Are you sure you want to delete \"\(key.name ?? String(localized: "this API key"))\"?"
+        )
       }
     }
     .alert(
-      "API Key Created",
+      String(localized: "API Key Created"),
       isPresented: .init(
         get: { newlyCreatedKey != nil },
         set: { if !$0 { newlyCreatedKey = nil } }
       )
     ) {
-      Button("Copy Key") {
+      Button(String(localized: "Copy Key")) {
         if let key = newlyCreatedKey { Clipboard.copy(key) }
         newlyCreatedKey = nil
       }
-      Button("Done") {
+      Button(String(localized: "Done")) {
         newlyCreatedKey = nil
       }
     } message: {
@@ -88,8 +94,7 @@ struct APIKeysView: View {
         GuestFeaturePrompt(
           icon: "key.fill",
           title: "Get Your API Keys",
-          description:
-            "Sign in to create API keys and access OrchardGrid from your applications.",
+          description: "Sign in to create API keys and access OrchardGrid from your applications.",
           benefits: [
             "Standard Chat Completion API format",
             "Works with popular AI tools",
@@ -149,7 +154,7 @@ struct APIKeysView: View {
         withAnimation(.easeInOut(duration: 0.2)) { showAPIReference.toggle() }
       } label: {
         HStack {
-          Label("API Reference", systemImage: "book")
+          Label(String(localized: "API Reference"), systemImage: "book")
             .font(.subheadline.weight(.semibold))
           Spacer()
           Image(systemName: "chevron.down")
@@ -196,6 +201,20 @@ struct APIKeysView: View {
               ("style", "string?", "illustration | sketch"),
             ]
           )
+
+          Divider()
+
+          Link(destination: docsURL) {
+            HStack {
+              Image(systemName: "doc.text")
+              Text(String(localized: "View Full Documentation"))
+              Spacer()
+              Image(systemName: "arrow.up.right")
+                .font(.caption)
+            }
+            .font(.subheadline)
+            .foregroundStyle(.blue)
+          }
         }
         .padding([.horizontal, .bottom], Constants.standardPadding)
       }
@@ -258,7 +277,7 @@ struct APIKeysView: View {
 
   private var apiKeysSection: some View {
     VStack(alignment: .leading, spacing: Constants.summaryCardSpacing) {
-      Text("Your API Keys")
+      Text(String(localized: "Your API Keys"))
         .font(.headline)
         .foregroundStyle(.secondary)
 
@@ -292,9 +311,9 @@ struct APIKeysView: View {
         .foregroundStyle(.secondary)
 
       VStack(spacing: 6) {
-        Text("No API Keys")
+        Text(String(localized: "No API Keys"))
           .font(.title3.weight(.semibold))
-        Text("Create an API key to get started")
+        Text(String(localized: "Create an API key to get started"))
           .font(.subheadline)
           .foregroundStyle(.secondary)
       }
@@ -302,7 +321,7 @@ struct APIKeysView: View {
       Button {
         createKey()
       } label: {
-        Label("Create API Key", systemImage: "plus")
+        Label(String(localized: "Create API Key"), systemImage: "plus")
           .frame(minWidth: 160)
       }
       .buttonStyle(.borderedProminent)
@@ -314,10 +333,17 @@ struct APIKeysView: View {
 
   // MARK: - Helpers
 
+  private static let nameFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "yyyy-MM-dd HH:mm"
+    f.timeZone = TimeZone.current
+    return f
+  }()
+
   private func createKey() {
     Task {
       guard let token = await authManager.getToken() else { return }
-      let defaultName = ISO8601DateFormatter().string(from: Date())
+      let defaultName = Self.nameFormatter.string(from: Date())
       if let created = await manager.createAPIKey(name: defaultName, authToken: token),
         let fullKey = created.key
       {
@@ -349,19 +375,19 @@ private struct APIKeyCard: View {
   let onDelete: () -> Void
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
+    VStack(alignment: .leading, spacing: 10) {
       HStack {
         if isEditing {
-          TextField("Name", text: $editingName)
+          TextField(String(localized: "Name"), text: $editingName)
             .textFieldStyle(.roundedBorder)
             .frame(maxWidth: 200)
-          Button("Save") { onSave() }
+          Button(String(localized: "Save")) { onSave() }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
-          Button("Cancel") { onCancelEdit() }
+          Button(String(localized: "Cancel")) { onCancelEdit() }
             .controlSize(.small)
         } else {
-          Text(key.name ?? "Unnamed")
+          Text(key.name ?? String(localized: "Unnamed"))
             .font(.headline)
           Button {
             onEdit()
@@ -375,8 +401,15 @@ private struct APIKeyCard: View {
 
         Spacer()
 
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
           CopyButton(text: key.keyHint)
+
+          ShareLink(item: key.keyHint) {
+            Image(systemName: "square.and.arrow.up")
+              .font(.caption)
+              .foregroundStyle(.blue)
+          }
+          .buttonStyle(.plain)
 
           Button {
             onDelete()
@@ -396,7 +429,10 @@ private struct APIKeyCard: View {
 
       HStack {
         Text(
-          "Created: \(key.createdDate.formatted(date: .abbreviated, time: .shortened))"
+          String(
+            localized:
+              "Created: \(key.createdDate.formatted(date: .abbreviated, time: .shortened))"
+          )
         )
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -404,18 +440,23 @@ private struct APIKeyCard: View {
         Spacer()
 
         if let lastUsedDate = key.lastUsedDate {
-          Text("Last used: \(lastUsedDate.formatted(.relative(presentation: .named)))")
-            .font(.caption)
-            .foregroundStyle(.secondary)
+          Text(
+            String(
+              localized:
+                "Last used: \(lastUsedDate.formatted(.relative(presentation: .named)))"
+            )
+          )
+          .font(.caption)
+          .foregroundStyle(.secondary)
         } else {
-          Text("Never used")
+          Text(String(localized: "Never used"))
             .font(.caption)
             .foregroundStyle(.tertiary)
         }
       }
     }
     .padding(12)
-    .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
+    .background(.ultraThinMaterial, in: .rect(cornerRadius: 12, style: .continuous))
   }
 }
 

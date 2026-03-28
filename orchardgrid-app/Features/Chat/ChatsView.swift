@@ -18,7 +18,7 @@ struct ChatsView: View {
         conversationList
       }
     }
-    .navigationTitle("Chats")
+    .navigationTitle(String(localized: "Chats"))
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .contentToolbar {
@@ -28,7 +28,7 @@ struct ChatsView: View {
             Button(role: .destructive) {
               showDeleteAll = true
             } label: {
-              Label("Delete All", systemImage: "trash")
+              Label(String(localized: "Delete All"), systemImage: "trash")
             }
           } label: {
             Image(systemName: "ellipsis.circle")
@@ -38,7 +38,7 @@ struct ChatsView: View {
             let conv = chatManager.createConversation()
             selectedConversationId = conv.id
           } label: {
-            Label("New Chat", systemImage: "plus")
+            Label(String(localized: "New Chat"), systemImage: "plus")
           }
         }
       }
@@ -46,13 +46,16 @@ struct ChatsView: View {
     .navigationDestination(item: $selectedConversationId) { id in
       ChatDetailView(conversationId: id)
     }
-    .alert("Delete All Conversations?", isPresented: $showDeleteAll) {
-      Button("Cancel", role: .cancel) {}
-      Button("Delete All", role: .destructive) {
+    .alert(String(localized: "Delete All Conversations?"), isPresented: $showDeleteAll) {
+      Button(String(localized: "Cancel"), role: .cancel) {}
+      Button(String(localized: "Delete All"), role: .destructive) {
         chatManager.clearAllConversations()
       }
     } message: {
-      Text("This will permanently delete all conversations. This action cannot be undone.")
+      Text(
+        String(
+          localized: "This will permanently delete all conversations. This action cannot be undone."
+        ))
     }
   }
 
@@ -75,7 +78,7 @@ struct ChatsView: View {
             Button(role: .destructive) {
               chatManager.deleteConversation(id: conversation.id)
             } label: {
-              Label("Delete", systemImage: "trash")
+              Label(String(localized: "Delete"), systemImage: "trash")
             }
           }
         }
@@ -95,9 +98,9 @@ struct ChatsView: View {
         .symbolColorRenderingMode(.gradient)
 
       VStack(spacing: 6) {
-        Text("No Conversations")
+        Text(String(localized: "No Conversations"))
           .font(.title3.weight(.semibold))
-        Text("Start a new chat with Apple Intelligence")
+        Text(String(localized: "Start a new chat with Apple Intelligence"))
           .font(.subheadline)
           .foregroundStyle(.secondary)
       }
@@ -106,7 +109,7 @@ struct ChatsView: View {
         let conv = chatManager.createConversation()
         selectedConversationId = conv.id
       } label: {
-        Label("New Chat", systemImage: "plus")
+        Label(String(localized: "New Chat"), systemImage: "plus")
           .frame(minWidth: 160)
       }
       .buttonStyle(.borderedProminent)

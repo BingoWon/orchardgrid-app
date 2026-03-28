@@ -30,7 +30,7 @@ struct DeviceTableView: View {
 
         TableColumn("Hardware") { device in
           HStack(spacing: 4) {
-            if let chip = device.chipModel {
+            if let chip = device.displayChipModel {
               Text(chip)
             }
             if device.chipModel != nil, device.memoryGb != nil {
@@ -50,7 +50,7 @@ struct DeviceTableView: View {
             Circle()
               .fill(device.isOnline ? Color.green : Color.gray)
               .frame(width: 8, height: 8)
-            Text(device.isOnline ? "Online" : "Offline")
+            Text(device.isOnline ? String(localized: "Online") : String(localized: "Offline"))
           }
         }
         .width(min: 70, ideal: 90)
@@ -112,10 +112,10 @@ struct DeviceTableView: View {
 
               // Hardware
               HStack(spacing: 4) {
-                if let chip = device.chipModel {
+                if let chip = device.displayChipModel {
                   Text(chip)
                 }
-                if device.chipModel != nil, device.memoryGb != nil {
+                if device.displayChipModel != nil, device.memoryGb != nil {
                   Text("·")
                     .foregroundStyle(.secondary)
                 }
@@ -132,7 +132,7 @@ struct DeviceTableView: View {
                 Circle()
                   .fill(device.isOnline ? Color.green : Color.gray)
                   .frame(width: 8, height: 8)
-                Text(device.isOnline ? "Online" : "Offline")
+                Text(device.isOnline ? String(localized: "Online") : String(localized: "Offline"))
               }
               .frame(width: 100, alignment: .leading)
               .padding(.horizontal, 8)

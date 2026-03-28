@@ -38,8 +38,8 @@ enum Config {
 
   static let heartbeatInterval: TimeInterval = 15
   static let heartbeatTimeout: TimeInterval = 45
-  static let connectionRequestTimeout: TimeInterval = 60
-  static let connectionTimeout: TimeInterval = 30
+  static let connectionRequestTimeout: TimeInterval = 30
+  static let connectionTimeout: TimeInterval = 15
 
   // MARK: - LLM
 

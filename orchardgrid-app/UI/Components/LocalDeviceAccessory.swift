@@ -62,7 +62,7 @@ struct LocalDeviceAccessory: View {
         .fill(cloudIndicatorColor)
         .frame(width: 8, height: 8)
 
-      Text("Cloud")
+      Text(String(localized: "Cloud"))
         .font(.subheadline)
 
       if sharing.wantsCloudSharing {
@@ -80,7 +80,7 @@ struct LocalDeviceAccessory: View {
         .fill(localIndicatorColor)
         .frame(width: 8, height: 8)
 
-      Text("Local")
+      Text(String(localized: "Local"))
         .font(.subheadline)
 
       if sharing.wantsLocalSharing {

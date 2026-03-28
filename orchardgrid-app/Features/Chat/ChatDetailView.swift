@@ -36,7 +36,7 @@ struct ChatDetailView: View {
       tokenUsageBadge
       inputBar
     }
-    .navigationTitle(conversation?.title ?? "Chat")
+    .navigationTitle(conversation?.title ?? String(localized: "Chat"))
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .onDisappear { cleanupIfEmpty() }
@@ -523,7 +523,7 @@ private struct ImagePreviewSheet: View {
         .aspectRatio(contentMode: .fit)
         .padding()
         .frame(minWidth: 400, minHeight: 400)
-        .navigationTitle("Image Preview")
+        .navigationTitle(String(localized: "Image Preview"))
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
           ToolbarItem(placement: .confirmationAction) {

@@ -78,7 +78,7 @@ struct AllDevicesView: View {
         await devicesManager.fetchDevices(authToken: token, isManualRefresh: true)
       }
     }
-    .navigationTitle("Devices")
+    .navigationTitle(String(localized: "Devices"))
     .toolbarRole(.editor)
     .toolbarTitleDisplayMode(.inlineLarge)
     .contentToolbar {
@@ -97,7 +97,7 @@ struct AllDevicesView: View {
 
   private var summaryCard: some View {
     VStack(alignment: .leading, spacing: Constants.summaryCardSpacing) {
-      Text("Summary")
+      Text(String(localized: "Summary"))
         .font(.headline)
         .foregroundStyle(.secondary)
 
@@ -116,7 +116,7 @@ struct AllDevicesView: View {
 
   private var deviceTableSection: some View {
     VStack(alignment: .leading, spacing: Constants.summaryCardSpacing) {
-      Text("All Devices")
+      Text(String(localized: "All Devices"))
         .font(.headline)
         .foregroundStyle(.secondary)
 
@@ -132,11 +132,13 @@ struct AllDevicesView: View {
   @ViewBuilder
   private var deviceCardSections: some View {
     if !devicesManager.onlineDevices.isEmpty {
-      deviceSection(title: "Online Devices", devices: devicesManager.onlineDevices)
+      deviceSection(
+        title: String(localized: "Online Devices"), devices: devicesManager.onlineDevices)
     }
 
     if !devicesManager.offlineDevices.isEmpty {
-      deviceSection(title: "Offline Devices", devices: devicesManager.offlineDevices)
+      deviceSection(
+        title: String(localized: "Offline Devices"), devices: devicesManager.offlineDevices)
     }
   }
 
@@ -156,9 +158,9 @@ struct AllDevicesView: View {
 
   private var emptyState: some View {
     ContentUnavailableView(
-      "No Devices",
+      String(localized: "No Devices"),
       systemImage: "server.rack",
-      description: Text("Connect a device to get started")
+      description: Text(String(localized: "Connect a device to get started"))
     )
     .frame(maxWidth: .infinity)
   }
@@ -211,10 +213,10 @@ private struct DeviceCard: View {
           if let osVersion = device.shortOSVersion {
             Text(" \(osVersion)")
           }
-          if device.chipModel != nil || device.memoryGb != nil {
+          if device.displayChipModel != nil || device.memoryGb != nil {
             Text(" · ")
           }
-          if let chipModel = device.chipModel {
+          if let chipModel = device.displayChipModel {
             Text(chipModel)
           }
           if let memoryGb = device.memoryGb {
@@ -240,7 +242,7 @@ private struct DeviceCard: View {
 
       Spacer()
 
-      // Tasks count - centered
+      // Logs count
       VStack(spacing: 2) {
         Text("\(device.logsProcessed)")
           .font(.title3)
