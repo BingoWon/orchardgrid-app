@@ -197,13 +197,35 @@ jobs:
           APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
         run: |
-          xcrun notarytool submit "$RUNNER_TEMP/OrchardGrid.dmg" \
+          # Codesign the DMG itself
+          codesign --force --sign "Developer ID Application" "$RUNNER_TEMP/OrchardGrid.dmg"
+
+          # Submit for notarization and capture the submission ID
+          SUBMIT_OUTPUT=$(xcrun notarytool submit "$RUNNER_TEMP/OrchardGrid.dmg" \
             --key ~/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8 \
             --key-id "$APPSTORE_KEY_ID" \
             --issuer "$APPSTORE_ISSUER_ID" \
-            --wait
+            --wait 2>&1) || true
 
-          xcrun stapler staple "$RUNNER_TEMP/OrchardGrid.dmg"
+          echo "$SUBMIT_OUTPUT"
+
+          # Extract submission ID
+          SUBMISSION_ID=$(echo "$SUBMIT_OUTPUT" | grep "id:" | head -1 | awk '{print $2}')
+
+          # Check if notarization was accepted
+          if echo "$SUBMIT_OUTPUT" | grep -q "status: Accepted"; then
+            echo "Notarization accepted!"
+            xcrun stapler staple "$RUNNER_TEMP/OrchardGrid.dmg"
+          else
+            echo "Notarization failed. Fetching detailed log..."
+            xcrun notarytool log "$SUBMISSION_ID" \
+              --key ~/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8 \
+              --key-id "$APPSTORE_KEY_ID" \
+              --issuer "$APPSTORE_ISSUER_ID" \
+              developer_log.json || true
+            cat developer_log.json || true
+            exit 1
+          fi
 
       - name: Upload DMG to GitHub Release
         env:
