@@ -244,6 +244,7 @@ struct SettingsView: View {
     }
     .padding(Constants.standardPadding)
     .glassEffect(in: .rect(cornerRadius: Constants.cornerRadius, style: .continuous))
+    .contentShape(Rectangle())
     .onTapGesture {
       authManager.showAuthSheet = true
     }
