@@ -87,7 +87,7 @@ jobs:
   build-macos:
     needs: release
     if: needs.release.outputs.skipped != 'true'
-    runs-on: macos-15
+    runs-on: macos-26
     env:
       KEYCHAIN_PATH: /tmp/app-signing.keychain-db
     steps:
