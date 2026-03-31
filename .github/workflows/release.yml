@@ -146,6 +146,9 @@ jobs:
           </plist>
           EOF
 
+          # Set the CODE_SIGN_IDENTITY directly in pbxproj for Release builds to avoid global xcodebuild overrides breaking SPM
+          sed -i '' 's/CODE_SIGN_IDENTITY = "Apple Development";/CODE_SIGN_IDENTITY = "Developer ID Application";/g' orchardgrid-app.xcodeproj/project.pbxproj
+          
           # Archive the app
           xcodebuild clean archive \
             -project "orchardgrid-app.xcodeproj" \
@@ -156,9 +159,7 @@ jobs:
             -allowProvisioningUpdates \
             -authenticationKeyIssuerID ${{ secrets.APPSTORE_ISSUER_ID }} \
             -authenticationKeyID ${{ secrets.APPSTORE_KEY_ID }} \
-            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_KEY_ID }}.p8 \
-            "CODE_SIGN_IDENTITY=Developer ID Application" \
-            "DEVELOPMENT_TEAM=5C4299VVGU"
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_KEY_ID }}.p8
 
           # Export the archive to an .app bundle
           xcodebuild -exportArchive \
