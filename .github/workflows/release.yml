@@ -131,8 +131,9 @@ jobs:
 
       - name: Archive
         run: |
-          # Archive with Automatic signing — xcodebuild + -allowProvisioningUpdates
-          # will auto-fetch the correct provisioning profile via the API key.
+          # Archive with ad-hoc signing (CODE_SIGN_IDENTITY="-") to preserve
+          # entitlements and hardened runtime without requiring a development
+          # certificate. exportArchive will re-sign everything with Developer ID.
           xcodebuild archive \
             -project orchardgrid-app.xcodeproj \
             -scheme orchardgrid-app \
@@ -142,7 +143,10 @@ jobs:
             -allowProvisioningUpdates \
             -authenticationKeyIssuerID "${{ secrets.APPSTORE_ISSUER_ID }}" \
             -authenticationKeyID "${{ secrets.APPSTORE_KEY_ID }}" \
-            -authenticationKeyPath "$API_KEY_PATH"
+            -authenticationKeyPath "$API_KEY_PATH" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="-" \
+            ENABLE_HARDENED_RUNTIME=YES
 
       - name: Export with Developer ID signing
         run: |
