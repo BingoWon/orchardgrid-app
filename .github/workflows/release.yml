@@ -80,60 +80,71 @@ jobs:
 
           echo "${NOTES}" > /tmp/notes.md
           gh release create "v${VERSION}" --title "v${VERSION}" --notes-file /tmp/notes.md
-          
+
           echo "version=v${VERSION}" >> "$GITHUB_OUTPUT"
           echo "skipped=false" >> "$GITHUB_OUTPUT"
 
   build-macos:
     needs: release
-    if: needs.release.outputs.skipped == 'false' || needs.release.outputs.skipped == ''
+    if: needs.release.outputs.skipped != 'true'
     runs-on: macos-15
+    env:
+      KEYCHAIN_PATH: /tmp/app-signing.keychain-db
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.release.outputs.version }}
 
-      - name: Setup macOS Certificate and App Store Connect API Key
+      - name: Install certificate and API key
         env:
           MAC_CERTS_BASE64: ${{ secrets.MAC_CERTS_BASE64 }}
           MAC_CERTS_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
-          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
           APPSTORE_PRIVATE_KEY_BASE64: ${{ secrets.APPSTORE_PRIVATE_KEY_BASE64 }}
         run: |
-          if [ -z "$MAC_CERTS_BASE64" ] || [ -z "$APPSTORE_PRIVATE_KEY_BASE64" ]; then
-            echo "Secrets not configured, skipping build."
-            exit 0
-          fi
+          set -euo pipefail
 
-          # Install Developer ID application certificate
-          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
-          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          # Decode and import the Developer ID certificate into a temporary keychain
+          echo -n "$MAC_CERTS_BASE64" | base64 --decode -o "$RUNNER_TEMP/cert.p12"
 
-          echo -n "$MAC_CERTS_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+          security create-keychain -p "" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "" "$KEYCHAIN_PATH"
+          security import "$RUNNER_TEMP/cert.p12" \
+            -P "$MAC_CERTS_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
 
-          security create-keychain -p "" $KEYCHAIN_PATH
-          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-          security unlock-keychain -p "" $KEYCHAIN_PATH
+          # Verify the certificate is available
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
 
-          security import $CERTIFICATE_PATH -P "$MAC_CERTS_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-          security list-keychain -d user -s $KEYCHAIN_PATH
-          security find-identity -v -p codesigning
+          # Place the App Store Connect API key where xcodebuild expects it
+          mkdir -p ~/private_keys
+          echo -n "$APPSTORE_PRIVATE_KEY_BASE64" | base64 --decode \
+            > ~/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8
 
-          # Setup App Store Connect API Key for xcodebuild
-          mkdir -p ~/.appstoreconnect/private_keys
-          echo -n "$APPSTORE_PRIVATE_KEY_BASE64" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8
-
-      - name: Build and Package macOS App
-        env:
-          MAC_CERTS_BASE64: ${{ secrets.MAC_CERTS_BASE64 }}
+      - name: Archive
         run: |
-          if [ -z "$MAC_CERTS_BASE64" ]; then exit 0; fi
-          
-          # Create ExportOptions.plist for Developer ID distribution
-          cat <<EOF > ExportOptions.plist
+          xcodebuild archive \
+            -project orchardgrid-app.xcodeproj \
+            -scheme orchardgrid-app \
+            -configuration Release \
+            -destination "generic/platform=macOS" \
+            -archivePath "$RUNNER_TEMP/OrchardGrid.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyIssuerID "${{ secrets.APPSTORE_ISSUER_ID }}" \
+            -authenticationKeyID "${{ secrets.APPSTORE_KEY_ID }}" \
+            -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.APPSTORE_KEY_ID }}.p8 \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Export with Developer ID signing
+        run: |
+          cat <<'EOF' > "$RUNNER_TEMP/ExportOptions.plist"
           <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
               <key>method</key>
@@ -146,68 +157,57 @@ jobs:
           </plist>
           EOF
 
-          # Set the CODE_SIGN_IDENTITY directly in pbxproj for Release builds to avoid global xcodebuild overrides breaking SPM
-          sed -i '' 's/CODE_SIGN_IDENTITY = "Apple Development";/CODE_SIGN_IDENTITY = "Developer ID Application";/g' orchardgrid-app.xcodeproj/project.pbxproj
-          
-          # Archive the app
-          xcodebuild clean archive \
-            -project "orchardgrid-app.xcodeproj" \
-            -scheme "orchardgrid-app" \
-            -configuration Release \
-            -destination "generic/platform=macOS" \
-            -archivePath "$PWD/build/OrchardGrid.xcarchive" \
-            -allowProvisioningUpdates \
-            -authenticationKeyIssuerID ${{ secrets.APPSTORE_ISSUER_ID }} \
-            -authenticationKeyID ${{ secrets.APPSTORE_KEY_ID }} \
-            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_KEY_ID }}.p8
-
-          # Export the archive to an .app bundle
           xcodebuild -exportArchive \
-            -archivePath "$PWD/build/OrchardGrid.xcarchive" \
-            -exportOptionsPlist ExportOptions.plist \
-            -exportPath "$PWD/build/export" \
+            -archivePath "$RUNNER_TEMP/OrchardGrid.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
             -allowProvisioningUpdates \
-            -authenticationKeyIssuerID ${{ secrets.APPSTORE_ISSUER_ID }} \
-            -authenticationKeyID ${{ secrets.APPSTORE_KEY_ID }} \
-            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_KEY_ID }}.p8
+            -authenticationKeyIssuerID "${{ secrets.APPSTORE_ISSUER_ID }}" \
+            -authenticationKeyID "${{ secrets.APPSTORE_KEY_ID }}" \
+            -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.APPSTORE_KEY_ID }}.p8
 
-      - name: Create DMG and Notarize
-        env:
-          MAC_CERTS_BASE64: ${{ secrets.MAC_CERTS_BASE64 }}
-          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
-          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+      - name: Create DMG
         run: |
-          if [ -z "$MAC_CERTS_BASE64" ]; then exit 0; fi
-          
-          # Use create-dmg to build an elegant DMG installer
           brew install create-dmg
-          
-          mkdir -p "$PWD/build/dmg"
+
+          # Find the exported .app (name may differ from scheme name)
+          APP_PATH=$(find "$RUNNER_TEMP/export" -name "*.app" -maxdepth 1 | head -1)
+          APP_NAME=$(basename "$APP_PATH")
+
           create-dmg \
             --volname "OrchardGrid" \
             --window-pos 200 120 \
             --window-size 600 400 \
             --icon-size 100 \
-            --icon "orchardgrid-app.app" 150 150 \
-            --hide-extension "orchardgrid-app.app" \
+            --icon "$APP_NAME" 150 150 \
+            --hide-extension "$APP_NAME" \
             --app-drop-link 450 150 \
-            "$PWD/build/dmg/OrchardGrid.dmg" \
-            "$PWD/build/export/orchardgrid-app.app"
+            "$RUNNER_TEMP/OrchardGrid.dmg" \
+            "$APP_PATH" || true
+            # create-dmg returns non-zero when it can't set a custom icon; the DMG is still valid
 
-          # Upload DMG to Apple Notary Service
-          xcrun notarytool submit "$PWD/build/dmg/OrchardGrid.dmg" \
-            --key ~/.appstoreconnect/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8 \
-            --key-id "${APPSTORE_KEY_ID}" \
-            --issuer "${APPSTORE_ISSUER_ID}" \
+          ls -lh "$RUNNER_TEMP/OrchardGrid.dmg"
+
+      - name: Notarize and staple
+        env:
+          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+        run: |
+          xcrun notarytool submit "$RUNNER_TEMP/OrchardGrid.dmg" \
+            --key ~/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8 \
+            --key-id "$APPSTORE_KEY_ID" \
+            --issuer "$APPSTORE_ISSUER_ID" \
             --wait
 
-          # Staple the ticket directly to the DMG
-          xcrun stapler staple "$PWD/build/dmg/OrchardGrid.dmg"
+          xcrun stapler staple "$RUNNER_TEMP/OrchardGrid.dmg"
 
-      - name: Upload DMG to Release
+      - name: Upload DMG to GitHub Release
         env:
-          MAC_CERTS_BASE64: ${{ secrets.MAC_CERTS_BASE64 }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [ -z "$MAC_CERTS_BASE64" ]; then exit 0; fi
-          gh release upload "${{ needs.release.outputs.version }}" "$PWD/build/dmg/OrchardGrid.dmg"
+          gh release upload "${{ needs.release.outputs.version }}" \
+            "$RUNNER_TEMP/OrchardGrid.dmg"
+
+      - name: Cleanup keychain
+        if: always()
+        run: security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true
