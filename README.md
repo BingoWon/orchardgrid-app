@@ -111,6 +111,12 @@ Every capability is accessible both through the **local direct API** (on your LA
 
 ## 🚀 Getting Started
 
+### Install via Homebrew (macOS)
+
+```bash
+brew install --cask orchardgrid
+```
+
 ### Install from App Store
 
 <a href="https://apps.apple.com/us/app/orchardgrid/id6754092757">

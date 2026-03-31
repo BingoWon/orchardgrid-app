@@ -111,6 +111,12 @@ flowchart LR
 
 ## 🚀 快速开始
 
+### 通过 Homebrew 安装 (macOS)
+
+```bash
+brew install --cask orchardgrid
+```
+
 ### 从 App Store 安装
 
 <a href="https://apps.apple.com/us/app/orchardgrid/id6754092757">
