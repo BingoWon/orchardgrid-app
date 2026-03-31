@@ -10,7 +10,7 @@ API_BASE_URL = http:$()/$()/localhost:4399
 CLERK_PUBLISHABLE_KEY = pk_test_cmF0aW9uYWwtamFndWFyLTQ5LmNsZXJrLmFjY291bnRzLmRldiQ
 
 // App Configuration
-PRODUCT_BUNDLE_IDENTIFIER = com.orchardgrid.app.dev
+PRODUCT_BUNDLE_IDENTIFIER = com.orchardgrid.app.dev.debug
 PRODUCT_NAME = OrchardGrid Dev
 
 // Info.plist Configuration
