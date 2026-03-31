@@ -12,15 +12,17 @@
 </p>
 
 <p align="center">
-  <a href="https://apps.apple.com/us/app/orchardgrid/id6754092757">
-    <img src="https://img.shields.io/badge/Download_on_the-App_Store-black?style=for-the-badge&logo=apple&logoColor=white" alt="App Store" />
-  </a>
-  <a href="https://orchardgrid.com">
-    <img src="https://img.shields.io/badge/Website-orchardgrid.com-015135?style=for-the-badge" alt="官网" />
-  </a>
-  <a href="https://orchardgrid.com/docs">
-    <img src="https://img.shields.io/badge/API_Docs-Reference-4A90D9?style=for-the-badge" alt="API 文档" />
-  </a>
+  <img src="https://img.shields.io/badge/platform-iOS%20%7C%20iPadOS%20%7C%20macOS-blue?style=flat" alt="平台" />
+  <img src="https://img.shields.io/badge/Swift-6-F05138?style=flat&logo=swift&logoColor=white" alt="Swift 6" />
+  <img src="https://img.shields.io/badge/license-BSL_1.1-green?style=flat" alt="许可证" />
+  <img src="https://img.shields.io/badge/macOS-26.0%2B-black?style=flat&logo=apple&logoColor=white" alt="macOS 26+" />
+</p>
+
+<p align="center">
+  <a href="https://apps.apple.com/us/app/orchardgrid/id6754092757">App Store</a> ·
+  <a href="https://orchardgrid.com">官网</a> ·
+  <a href="https://orchardgrid.com/docs">API 文档</a> ·
+  <a href="https://orchardgrid.com/dashboard">控制台</a>
 </p>
 
 <p align="center">
@@ -117,10 +119,10 @@ flowchart LR
 brew install --cask orchardgrid
 ```
 
-### 从 App Store 安装
+### 从 App Store 安装 (iOS · iPadOS · macOS)
 
 <a href="https://apps.apple.com/us/app/orchardgrid/id6754092757">
-  <img src="https://img.shields.io/badge/Download_on_the-App_Store-black?style=for-the-badge&logo=apple&logoColor=white" alt="App Store" />
+  <img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83" alt="Download on the App Store" height="40" />
 </a>
 
 ### 从源码构建
