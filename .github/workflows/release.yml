@@ -103,12 +103,13 @@ jobs:
         with:
           ref: ${{ needs.release.outputs.version }}
 
-      - name: Install certificate and API key
+      - name: Install certificate, profile, and API key
         env:
           MAC_CERTS_BASE64: ${{ secrets.MAC_CERTS_BASE64 }}
           MAC_CERTS_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
           APPSTORE_PRIVATE_KEY_BASE64: ${{ secrets.APPSTORE_PRIVATE_KEY_BASE64 }}
+          MAC_PROVISION_PROFILE_BASE64: ${{ secrets.MAC_PROVISION_PROFILE_BASE64 }}
         run: |
           set -euo pipefail
 
@@ -125,6 +126,11 @@ jobs:
 
           # Verify the certificate is available
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+          # Install Developer ID provisioning profile
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo -n "$MAC_PROVISION_PROFILE_BASE64" | base64 --decode \
+            > ~/Library/MobileDevice/Provisioning\ Profiles/OrchardGrid_DevID.provisionprofile
 
           # Place the App Store Connect API key
           echo -n "$APPSTORE_PRIVATE_KEY_BASE64" | base64 --decode > "$API_KEY_PATH"
@@ -161,7 +167,14 @@ jobs:
               <key>teamID</key>
               <string>5C4299VVGU</string>
               <key>signingStyle</key>
-              <string>automatic</string>
+              <string>manual</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>com.orchardgrid.app.dev</key>
+                  <string>OrchardGrid Developer ID</string>
+              </dict>
+              <key>signingCertificate</key>
+              <string>Developer ID Application</string>
           </dict>
           </plist>
           EOF
