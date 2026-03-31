@@ -152,7 +152,7 @@ jobs:
         run: |
           IDENTITY="Developer ID Application"
           APP="$RUNNER_TEMP/OrchardGrid.xcarchive/Products/Applications/OrchardGrid.app"
-          ENT="orchardgrid-app/orchardgrid-app.entitlements"
+          ENT="orchardgrid-app/orchardgrid-app-dmg.entitlements"
 
           # Sign all nested Mach-O binaries (frameworks, dylibs) from inner to outer
           find "$APP/Contents/Frameworks" -type f 2>/dev/null | while read f; do
