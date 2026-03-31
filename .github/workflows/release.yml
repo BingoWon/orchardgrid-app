@@ -137,76 +137,62 @@ jobs:
 
       - name: Archive
         run: |
-          # Archive with ad-hoc signing (CODE_SIGN_IDENTITY="-") to preserve
-          # entitlements and hardened runtime without requiring a development
-          # certificate. exportArchive will re-sign everything with Developer ID.
+          # Archive with signing disabled — we codesign manually in the next step
+          # to avoid exportArchive's provisioning profile resolution entirely.
           xcodebuild archive \
             -project orchardgrid-app.xcodeproj \
             -scheme orchardgrid-app \
             -configuration Release \
             -destination "generic/platform=macOS" \
             -archivePath "$RUNNER_TEMP/OrchardGrid.xcarchive" \
-            -allowProvisioningUpdates \
-            -authenticationKeyIssuerID "${{ secrets.APPSTORE_ISSUER_ID }}" \
-            -authenticationKeyID "${{ secrets.APPSTORE_KEY_ID }}" \
-            -authenticationKeyPath "$API_KEY_PATH" \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="-" \
-            ENABLE_HARDENED_RUNTIME=YES
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
 
-      - name: Export with Developer ID signing
+      - name: Sign app with Developer ID
         run: |
-          cat <<'EOF' > "$RUNNER_TEMP/ExportOptions.plist"
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>method</key>
-              <string>developer-id</string>
-              <key>teamID</key>
-              <string>5C4299VVGU</string>
-              <key>signingStyle</key>
-              <string>manual</string>
-              <key>provisioningProfiles</key>
-              <dict>
-                  <key>com.orchardgrid.app.dev</key>
-                  <string>OrchardGrid Developer ID</string>
-              </dict>
-              <key>signingCertificate</key>
-              <string>Developer ID Application</string>
-          </dict>
-          </plist>
-          EOF
+          IDENTITY="Developer ID Application"
+          APP="$RUNNER_TEMP/OrchardGrid.xcarchive/Products/Applications/OrchardGrid.app"
+          ENT="orchardgrid-app/orchardgrid-app.entitlements"
 
-          xcodebuild -exportArchive \
-            -archivePath "$RUNNER_TEMP/OrchardGrid.xcarchive" \
-            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
-            -exportPath "$RUNNER_TEMP/export" \
-            -allowProvisioningUpdates \
-            -authenticationKeyIssuerID "${{ secrets.APPSTORE_ISSUER_ID }}" \
-            -authenticationKeyID "${{ secrets.APPSTORE_KEY_ID }}" \
-            -authenticationKeyPath "$API_KEY_PATH"
+          # Sign all nested Mach-O binaries (frameworks, dylibs) from inner to outer
+          find "$APP/Contents/Frameworks" -type f 2>/dev/null | while read f; do
+            if file "$f" | grep -q "Mach-O"; then
+              codesign --force --options runtime --timestamp \
+                --sign "$IDENTITY" "$f" 2>&1 || true
+            fi
+          done
+
+          # Sign each .framework bundle
+          find "$APP/Contents/Frameworks" -name "*.framework" -maxdepth 1 2>/dev/null | while read fw; do
+            codesign --force --options runtime --timestamp \
+              --sign "$IDENTITY" "$fw" 2>&1 || true
+          done
+
+          # Sign the main app bundle with full entitlements and hardened runtime
+          codesign --force --options runtime --timestamp \
+            --sign "$IDENTITY" \
+            --entitlements "$ENT" \
+            "$APP" 2>&1
+
+          echo "=== Signature Info ==="
+          codesign -dvv "$APP" 2>&1 | grep -E "(Authority|Runtime|Identifier)"
 
       - name: Create DMG
         run: |
           brew install create-dmg
 
-          # Find the exported .app (name may differ from scheme name)
-          APP_PATH=$(find "$RUNNER_TEMP/export" -name "*.app" -maxdepth 1 | head -1)
-          APP_NAME=$(basename "$APP_PATH")
+          APP="$RUNNER_TEMP/OrchardGrid.xcarchive/Products/Applications/OrchardGrid.app"
 
           create-dmg \
             --volname "OrchardGrid" \
             --window-pos 200 120 \
             --window-size 600 400 \
             --icon-size 100 \
-            --icon "$APP_NAME" 150 150 \
-            --hide-extension "$APP_NAME" \
+            --icon "OrchardGrid.app" 150 150 \
+            --hide-extension "OrchardGrid.app" \
             --app-drop-link 450 150 \
             "$RUNNER_TEMP/OrchardGrid.dmg" \
-            "$APP_PATH" || true
-            # create-dmg returns non-zero when it can't set a custom icon; the DMG is still valid
+            "$APP" || true
 
           ls -lh "$RUNNER_TEMP/OrchardGrid.dmg"
 
