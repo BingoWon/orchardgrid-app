@@ -185,7 +185,7 @@ struct SignInView: View {
   private var oauthButtons: some View {
     HStack(spacing: 8) {
       oauthButton(label: "Apple", icon: "AppleLogo") {
-        await oauthFlow { try await Clerk.shared.auth.signInWithApple() }
+        await oauthFlow { try await Clerk.shared.auth.signInWithOAuth(provider: .apple) }
       }
       oauthButton(label: "Google", icon: "GoogleLogo") {
         await oauthFlow { try await Clerk.shared.auth.signInWithOAuth(provider: .google) }
