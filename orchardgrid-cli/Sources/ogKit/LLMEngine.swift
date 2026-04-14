@@ -143,7 +143,7 @@ public final class LocalEngine: LLMEngine {
     let systemPrompt = messages.first(where: { $0.role == "system" })?.content
     let history = messages.filter { $0.role != "system" }.dropLast()
     let prompt = lastUser.content
-    let tools: [any Tool] = await mcp?.tools() ?? []
+    let tools: [any Tool] = await mcp?.tools ?? []
 
     do {
       let session = try await buildSession(

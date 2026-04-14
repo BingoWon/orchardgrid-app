@@ -138,4 +138,45 @@ struct MCPArgumentTests {
       _ = try parseArguments(["mcp", "list"], env: [:])
     }
   }
+
+  @Test("`og mcp` with no verb is rejected with a clean message")
+  func mcpMissingVerb() {
+    do {
+      _ = try parseArguments(["mcp"], env: [:])
+      Issue.record("expected throw")
+    } catch let err as CLIError {
+      let msg = err.description
+      #expect(msg.contains("mcp verb"))
+      #expect(!msg.hasSuffix(" "))
+    } catch { Issue.record("wrong error: \(error)") }
+  }
+
+  @Test("`og mcp unknown` is rejected without trailing space")
+  func mcpUnknownVerb() {
+    do {
+      _ = try parseArguments(["mcp", "wiggle"], env: [:])
+      Issue.record("expected throw")
+    } catch let err as CLIError {
+      #expect(err.description == "unknown subcommand: mcp wiggle")
+    } catch { Issue.record("wrong error: \(error)") }
+  }
+
+  @Test("--mcp combined with --host is rejected at parse time")
+  func mcpAndHostMutuallyExclusive() {
+    do {
+      _ = try parseArguments(["--mcp", "/tmp/s.py", "--host", "http://x", "hi"], env: [:])
+      Issue.record("expected throw")
+    } catch let err as CLIError {
+      #expect(err.description.contains("--mcp"))
+      #expect(err.description.contains("on-device"))
+    } catch { Issue.record("wrong error: \(error)") }
+  }
+
+  @Test("--mcp is allowed with `og mcp list` even if a host is in ORCHARDGRID_HOST")
+  func mcpListIgnoresHostEnv() throws {
+    let args = try parseArguments(
+      ["mcp", "list", "/tmp/s.py"],
+      env: ["ORCHARDGRID_HOST": "http://x"])
+    #expect(args.mode == .mcpList)
+  }
 }

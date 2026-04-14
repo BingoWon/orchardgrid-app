@@ -24,10 +24,7 @@ final class MCPConnection: @unchecked Sendable {
   private var nextId = 1
 
   init(path: String, timeoutSeconds: Int = 5) throws {
-    let absolute =
-      path.hasPrefix("/")
-      ? path
-      : FileManager.default.currentDirectoryPath + "/" + path
+    let absolute = URL(fileURLWithPath: path).standardizedFileURL.path
     guard FileManager.default.fileExists(atPath: absolute) else {
       throw MCPError.processError("MCP server not found: \(absolute)")
     }
@@ -108,13 +105,14 @@ final class MCPConnection: @unchecked Sendable {
 // MARK: - Manager (routes tool calls across servers)
 
 public actor MCPManager {
+  /// FoundationModels tool instances bound to this manager. Internal: the
+  /// only consumer is `LocalEngine` inside the same module.
+  private(set) var tools: [MCPTool] = []
+  /// Public catalogue of server-advertised tool metadata.
+  public private(set) var schemas: [MCPToolSchema] = []
+
   private var connections: [MCPConnection] = []
   private var toolMap: [String: MCPConnection] = [:]
-
-  /// Lazy-initialised cache of `MCPTool` wrappers, populated on first
-  /// `tools()` call. Kept inside the actor so concurrent callers see the
-  /// same identities.
-  private var toolCache: [MCPTool]?
 
   public init(paths: [String], timeoutSeconds: Int = 5, logHeader: Bool = true) async throws {
     for p in paths {
@@ -126,17 +124,8 @@ public actor MCPManager {
         printErr("mcp: \(conn.path) — \(names.isEmpty ? "(no tools)" : names)")
       }
     }
-  }
-
-  public func schemas() -> [MCPToolSchema] { connections.flatMap(\.tools) }
-
-  public func tools() -> [MCPTool] {
-    if let cached = toolCache { return cached }
-    let built: [MCPTool] = schemas().compactMap { schema in
-      try? MCPTool(schema: schema, manager: self)
-    }
-    toolCache = built
-    return built
+    schemas = connections.flatMap(\.tools)
+    tools = schemas.compactMap { try? MCPTool(schema: $0, manager: self) }
   }
 
   public func execute(name: String, argumentsJSON: String) async throws -> String {
@@ -152,19 +141,20 @@ public actor MCPManager {
     for c in connections { c.shutdown() }
     connections.removeAll()
     toolMap.removeAll()
-    toolCache = nil
+    tools.removeAll()
+    schemas.removeAll()
   }
 }
 
 // MARK: - MCPTool — bridges a discovered MCP tool into a native FM Tool
 
-public struct MCPTool: Tool {
-  public typealias Arguments = GeneratedContent
-  public typealias Output = String
+struct MCPTool: Tool {
+  typealias Arguments = GeneratedContent
+  typealias Output = String
 
-  public let name: String
-  public let description: String
-  public let parameters: GenerationSchema
+  let name: String
+  let description: String
+  let parameters: GenerationSchema
 
   private let manager: MCPManager
 
@@ -176,7 +166,7 @@ public struct MCPTool: Tool {
     self.parameters = try GenerationSchema(root: root, dependencies: [])
   }
 
-  public func call(arguments: GeneratedContent) async throws -> String {
+  func call(arguments: GeneratedContent) async throws -> String {
     try await manager.execute(name: name, argumentsJSON: arguments.jsonString)
   }
 

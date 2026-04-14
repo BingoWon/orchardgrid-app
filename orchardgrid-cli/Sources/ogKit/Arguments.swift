@@ -204,7 +204,18 @@ public func parseArguments(_ args: [String], env: [String: String]) throws -> Ar
 
   // Fallback: positionals are prompt text.
   result.prompt = positional.joined(separator: " ")
+  try validateCombinations(result)
   return result
+}
+
+/// Cross-flag validation that can't be expressed while individual flags are
+/// being parsed. Thrown as a `CLIError` so main.swift's existing handler
+/// prints a clean usage hint and exits with code 2.
+private func validateCombinations(_ args: Arguments) throws {
+  if !args.mcpPaths.isEmpty, args.host != nil, args.mode != .mcpList {
+    throw CLIError.invalidValue(
+      "--mcp", "requires on-device inference; remove --host to run locally")
+  }
 }
 
 private func applySubcommand(
@@ -219,13 +230,16 @@ private func applySubcommand(
   case "status": result.mode = .status
   case "benchmark": result.mode = .benchmark
   case "mcp":
-    switch rest.first {
+    guard let verb = rest.first else {
+      throw CLIError.missingArgument("mcp verb (expected `list`)")
+    }
+    switch verb {
     case "list":
       guard rest.count >= 2 else { throw CLIError.missingArgument("mcp server path") }
       result.mode = .mcpList
       result.mcpPaths = Array(rest.dropFirst())
     default:
-      throw CLIError.unknownSubcommand("mcp \(rest.first ?? "")")
+      throw CLIError.unknownSubcommand("mcp \(verb)")
     }
   case "devices":
     guard rest.isEmpty || rest.first == "list" else {

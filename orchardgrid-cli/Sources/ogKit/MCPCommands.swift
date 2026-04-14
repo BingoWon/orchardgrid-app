@@ -6,7 +6,7 @@ import Foundation
 // then shuts them down. Useful for verifying an MCP server works with og
 // before plumbing it into a live inference call.
 
-public func runMcpList(args: Arguments) async throws {
+public func runMCPList(args: Arguments) async throws {
   guard !args.mcpPaths.isEmpty else {
     throw OGError.usage("`og mcp list` requires at least one server path")
   }
@@ -17,7 +17,7 @@ public func runMcpList(args: Arguments) async throws {
   )
   defer { Task { await manager.shutdown() } }
 
-  let schemas = await manager.schemas()
+  let schemas = await manager.schemas
   switch args.outputFormat {
   case .json:
     struct Entry: Encodable {

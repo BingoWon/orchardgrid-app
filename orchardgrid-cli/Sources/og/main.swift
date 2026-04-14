@@ -52,14 +52,18 @@ default: break
 // MARK: - Dispatch
 
 // Spin up any MCP servers once up-front; shut them down at exit regardless
-// of success or failure. Only inference commands consume them.
-let mcp: MCPManager? =
-  args.mcpPaths.isEmpty
-  ? nil
-  : try await MCPManager(
-    paths: args.mcpPaths, timeoutSeconds: args.mcpTimeoutSeconds, logHeader: !args.quiet)
+// of success or failure. Only inference commands consume them; `og mcp list`
+// manages its own lifecycle since its whole purpose is MCP introspection.
+var mcp: MCPManager? = nil
 
 do {
+  if !args.mcpPaths.isEmpty, args.mode != .mcpList {
+    mcp = try await MCPManager(
+      paths: args.mcpPaths,
+      timeoutSeconds: args.mcpTimeoutSeconds,
+      logHeader: !args.quiet)
+  }
+
   switch args.mode {
 
   // ── inference / info ────────────────────────────────────────────
@@ -88,7 +92,7 @@ do {
     try await runBenchmark(engine: engine, args: args)
 
   case .mcpList:
-    try await runMcpList(args: args)
+    try await runMCPList(args: args)
 
   // ── local snapshot ──────────────────────────────────────────────
   case .status:
@@ -158,8 +162,11 @@ func printUsage() {
 
     \(styled("LOCAL SNAPSHOT:", .yellow, .bold))
       og status                     Show app/CLI state (local server, login, capabilities)
+
+    \(styled("DIAGNOSTICS:", .yellow, .bold))
       og benchmark [--runs N] [--bench-prompt "..."]
                                     Measure ttft, total latency, tokens/sec
+                                    (respects --temperature / --max-tokens)
       og mcp list <path> [<path>…]  Introspect MCP servers (prints tool catalogue)
 
     \(styled("AUTH (logs in to orchardgrid.com):", .yellow, .bold))

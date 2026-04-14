@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 // MARK: - `og benchmark` — user-facing throughput probe
 //
@@ -84,19 +85,27 @@ public func runBenchmark(engine: LLMEngine, args: Arguments) async throws {
   var totals: [Double] = []
   var rates: [Double] = []
   var tokens: [Double] = []
-  let options = ChatOptions(temperature: 0, maxTokens: 256)
+  // Default to deterministic sampling (temperature 0, max_tokens 256) so
+  // runs are comparable. User overrides via --temperature / --max-tokens
+  // win — document in --help.
+  let options = ChatOptions(
+    temperature: args.temperature ?? 0,
+    maxTokens: args.maxTokens ?? 256
+  )
 
   for i in 1...runs {
     if chrome { writeStdout("run \(i)/\(runs)… ") }
     let start = DispatchTime.now().uptimeNanoseconds
-    let firstDelta = AtomicTimestamp()
+    let firstDelta = OSAllocatedUnfairLock<UInt64?>(initialState: nil)
     let result = try await engine.chat(
       messages: [ChatMessage(role: "user", content: prompt)],
       options: options,
       mcp: nil
-    ) { _ in firstDelta.recordIfUnset(DispatchTime.now().uptimeNanoseconds) }
+    ) { _ in
+      firstDelta.withLock { if $0 == nil { $0 = DispatchTime.now().uptimeNanoseconds } }
+    }
     let end = DispatchTime.now().uptimeNanoseconds
-    let ttft = Double((firstDelta.value ?? end) - start) / 1_000_000
+    let ttft = Double((firstDelta.withLock { $0 } ?? end) - start) / 1_000_000
     let total = Double(end - start) / 1_000_000
     let out = Double(result.usage?.completionTokens ?? 0)
     let gen = Swift.max(1.0, total - ttft)
@@ -137,23 +146,6 @@ public func runBenchmark(engine: LLMEngine, args: Arguments) async throws {
     printStatRow("total", report.totalMs, unit: "ms", decimals: 0)
     printStatRow("throughput", report.tokensPerSec, unit: "tok/s", decimals: 2)
     printStatRow("output", report.outputTokens, unit: "tok", decimals: 0)
-  }
-}
-
-/// Sendable latch for capturing the first-delta timestamp from the streaming
-/// callback (which is `@Sendable` and may run on any executor).
-private final class AtomicTimestamp: @unchecked Sendable {
-  private let lock = NSLock()
-  private var stored: UInt64?
-  func recordIfUnset(_ t: UInt64) {
-    lock.lock()
-    defer { lock.unlock() }
-    if stored == nil { stored = t }
-  }
-  var value: UInt64? {
-    lock.lock()
-    defer { lock.unlock() }
-    return stored
   }
 }
 
