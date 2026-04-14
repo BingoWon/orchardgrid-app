@@ -17,10 +17,15 @@ enum APIError: Error, Sendable, Equatable {
   /// Domain-level failure produced by our own code (misconfiguration, port in use, etc.).
   case local(String)
 
+  /// Task cancellation (user-initiated or caller cancelled). Never user-facing.
+  case cancelled
+
   /// Map any error into an `APIError`. Returns the input unchanged if already typed.
   static func classify(_ error: any Error) -> APIError {
     switch error {
     case let apiError as APIError: apiError
+    case is CancellationError: .cancelled
+    case let urlError as URLError where urlError.code == .cancelled: .cancelled
     case let urlError as URLError: .transport(urlError)
     case let decodingError as DecodingError: .decoding(String(describing: decodingError))
     default: .local(error.localizedDescription)
@@ -40,6 +45,8 @@ extension APIError: LocalizedError {
       return String(localized: "Could not parse server response.")
     case .local(let message):
       return message
+    case .cancelled:
+      return nil
     }
   }
 }

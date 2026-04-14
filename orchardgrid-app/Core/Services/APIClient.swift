@@ -61,19 +61,17 @@ struct APIClient: Sendable {
     var request = URLRequest(url: url)
     request.httpMethod = method
     request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-    if body != nil {
+    if let body {
       request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.httpBody = body
     }
-    request.httpBody = body
 
     let data: Data
     let response: URLResponse
     do {
       (data, response) = try await session.data(for: request)
-    } catch let error as URLError {
-      throw APIError.transport(error)
     } catch {
-      throw APIError.local(error.localizedDescription)
+      throw APIError.classify(error)
     }
 
     guard let http = response as? HTTPURLResponse else {
@@ -90,47 +88,45 @@ struct APIClient: Sendable {
   // MARK: - Helpers
 
   private func makeURL(path: String, query: [URLQueryItem]) throws -> URL {
-    var components = URLComponents()
-    components.scheme = baseURL.scheme
-    components.host = baseURL.host
-    components.port = baseURL.port
-    components.path = baseURL.path + path
-    if !query.isEmpty { components.queryItems = query }
-    guard let url = components.url else {
+    let trimmed = path.hasPrefix("/") ? String(path.dropFirst()) : path
+    let url = baseURL.appending(path: trimmed)
+    guard !query.isEmpty else { return url }
+    guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
       throw APIError.local(String(localized: "Invalid URL."))
     }
-    return url
+    components.queryItems = query
+    guard let composed = components.url else {
+      throw APIError.local(String(localized: "Invalid URL."))
+    }
+    return composed
   }
 
   private func encode<B: Encodable>(_ body: B) throws -> Data {
     do {
       return try JSONEncoder().encode(body)
     } catch {
-      throw APIError.local("Failed to encode request: \(error.localizedDescription)")
+      throw APIError.local(String(localized: "Failed to encode request."))
     }
   }
 
   private func decode<T: Decodable>(_: T.Type, from data: Data) throws -> T {
     do {
       return try JSONDecoder().decode(T.self, from: data)
-    } catch let error as DecodingError {
-      throw APIError.decoding(String(describing: error))
     } catch {
-      throw APIError.local(error.localizedDescription)
+      throw APIError.classify(error)
     }
   }
 
   /// Extracts a human-readable error from a server response body.
-  /// Tries `{"error": "..."}`, then falls back to raw UTF-8, then nil.
+  /// Accepts `{"error": "..."}` regardless of neighboring field types,
+  /// then falls back to raw UTF-8, then nil.
   private static func extractMessage(from data: Data) -> String? {
-    if let object = try? JSONDecoder().decode([String: String].self, from: data),
-      let message = object["error"], !message.isEmpty
+    if let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+      let message = object["error"] as? String, !message.isEmpty
     {
       return message
     }
-    if let text = String(data: data, encoding: .utf8),
-      !text.isEmpty
-    {
+    if let text = String(data: data, encoding: .utf8), !text.isEmpty {
       return text
     }
     return nil
