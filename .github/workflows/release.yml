@@ -302,14 +302,17 @@ jobs:
 
       - name: Bump cask in homebrew-orchardgrid
         env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           VERSION: ${{ needs.release.outputs.version }}
         run: |
           set -euo pipefail
           V=${VERSION#v}
           SHA=$(cat dmg.sha256)
 
-          gh repo clone BingoWon/homebrew-orchardgrid tap
+          # Clone anonymously (tap is public), then push over HTTPS with
+          # the fine-grained PAT embedded in the remote URL. Avoids gh's
+          # GraphQL calls which need scopes this PAT doesn't have.
+          git clone https://github.com/BingoWon/homebrew-orchardgrid.git tap
           cd tap
           sed -i "s/version \".*\"/version \"${V}\"/" Casks/orchardgrid.rb
           sed -i "s/sha256 \".*\"/sha256 \"${SHA}\"/" Casks/orchardgrid.rb
@@ -317,4 +320,6 @@ jobs:
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit -am "Update orchardgrid to v${V}"
+          git remote set-url origin \
+            "https://x-access-token:${TAP_TOKEN}@github.com/BingoWon/homebrew-orchardgrid.git"
           git push
