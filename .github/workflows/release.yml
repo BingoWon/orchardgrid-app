@@ -148,6 +148,24 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
+      - name: Build og CLI
+        run: |
+          # Build the universal og binary from the in-repo SPM package.
+          # Bundled inside the .app + signed in the next steps so a single
+          # `brew install --cask orchardgrid` gives the user both.
+          cd orchardgrid-cli
+          swift build -c release --arch arm64 --arch x86_64
+
+      - name: Bundle og into the .app
+        run: |
+          APP="$RUNNER_TEMP/OrchardGrid.xcarchive/Products/Applications/OrchardGrid.app"
+          # Universal binary lives at .build/apple/Products/Release/og when
+          # built with multiple --arch flags.
+          cp orchardgrid-cli/.build/apple/Products/Release/og \
+             "$APP/Contents/Resources/og"
+          chmod +x "$APP/Contents/Resources/og"
+          ls -lh "$APP/Contents/Resources/og"
+
       - name: Sign app with Developer ID
         env:
           MAC_PROVISION_PROFILE_BASE64: ${{ secrets.MAC_PROVISION_PROFILE_BASE64 }}
@@ -155,6 +173,7 @@ jobs:
           IDENTITY="Developer ID Application"
           APP="$RUNNER_TEMP/OrchardGrid.xcarchive/Products/Applications/OrchardGrid.app"
           ENT="orchardgrid-app/orchardgrid-app-dmg.entitlements"
+          OG_ENT="orchardgrid-app/og.entitlements"
 
           # Embed the provisioning profile into the app bundle.
           # Required by macOS 26+ AMFI: restricted entitlements
@@ -176,6 +195,14 @@ jobs:
               --sign "$IDENTITY" "$fw" 2>&1 || true
           done
 
+          # Sign the bundled og CLI with its own entitlements (App Group + network).
+          # Must happen BEFORE the outer .app sign so the bundle hash includes
+          # og's signature.
+          codesign --force --options runtime --timestamp \
+            --sign "$IDENTITY" \
+            --entitlements "$OG_ENT" \
+            "$APP/Contents/Resources/og"
+
           # Sign the main app bundle with full entitlements and hardened runtime.
           # Must be done AFTER embedding the profile (profile inclusion affects the bundle hash).
           codesign --force --options runtime --timestamp \
@@ -183,8 +210,10 @@ jobs:
             --entitlements "$ENT" \
             "$APP" 2>&1
 
-          echo "=== Signature Info ==="
+          echo "=== App Signature ==="
           codesign -dvv "$APP" 2>&1 | grep -E "(Authority|Runtime|Identifier)"
+          echo "=== og Signature ==="
+          codesign -dvv "$APP/Contents/Resources/og" 2>&1 | grep -E "(Authority|Runtime|Identifier)"
 
       - name: Create DMG
         run: |

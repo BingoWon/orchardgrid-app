@@ -134,10 +134,19 @@ struct ChatRequest: Codable, Sendable {
   let messages: [ChatMessage]
   let stream: Bool?
   let responseFormat: ResponseFormat?
+  let temperature: Double?
+  let maxTokens: Int?
+  let seed: UInt64?
+  let contextStrategy: String?
+  let contextMaxTurns: Int?
+  let permissive: Bool?
 
   enum CodingKeys: String, CodingKey {
-    case model, messages, stream
+    case model, messages, stream, temperature, seed, permissive
     case responseFormat = "response_format"
+    case maxTokens = "max_tokens"
+    case contextStrategy = "context_strategy"
+    case contextMaxTurns = "context_max_turns"
   }
 }
 
@@ -148,6 +157,19 @@ extension ChatRequest {
 
   var nonSystemMessages: [ChatMessage] {
     messages.filter { $0.role != "system" }
+  }
+
+  /// Build `SessionOptions` from wire parameters, falling back to defaults
+  /// for anything the client didn't specify.
+  var sessionOptions: SessionOptions {
+    let strategy = contextStrategy.flatMap(ContextStrategy.init(rawValue:)) ?? .newestFirst
+    return SessionOptions(
+      temperature: temperature,
+      maxTokens: maxTokens,
+      seed: seed,
+      permissive: permissive ?? false,
+      contextConfig: ContextConfig(strategy: strategy, maxTurns: contextMaxTurns)
+    )
   }
 }
 

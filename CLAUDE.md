@@ -24,6 +24,7 @@ The cloud never sees your model inputs or outputs — it only routes a task id t
 4. **Three entitlement files per platform** (release/debug × macOS/iOS). Don't collapse them. Apple Sign-In only on macOS.
 5. **No backward-compatibility shims.** This is a solo-dev shipping app — delete, don't deprecate.
 6. **Conventional commits drive releases.** `feat:` → minor bump, `fix:`/`perf:`/`refactor:` → patch bump. Anything else skips release.
+7. **App + CLI ship as one.** The `og` CLI lives in `orchardgrid-cli/` (sibling to the Xcode project) and is bundled inside `OrchardGrid.app/Contents/Resources/og` by `make bundle-cli` (locally) or the `release.yml` "Build og CLI" + "Bundle og into the .app" steps (CI). State is shared via App Group `group.com.orchardgrid.shared` (5 entitlement files + `og.entitlements`).
 
 ---
 

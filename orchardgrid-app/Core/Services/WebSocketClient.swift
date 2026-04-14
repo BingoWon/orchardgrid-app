@@ -493,6 +493,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       messages: request.nonSystemMessages,
       systemPrompt: request.systemPrompt,
       responseFormat: request.responseFormat,
+      options: request.sessionOptions,
       onChunk: onChunk
     )
   }

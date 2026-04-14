@@ -46,6 +46,9 @@ enum Config {
   static let defaultSystemPrompt =
     "You are a helpful AI assistant. Provide clear, concise, and accurate responses."
 
+  /// Tokens reserved for the model's output when computing the input budget.
+  static let llmOutputReserve = 512
+
   // MARK: - Local API Server
 
   static let apiServerPort: UInt16 = 8888

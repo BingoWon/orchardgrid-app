@@ -50,16 +50,22 @@ struct HTTPRequest: Sendable {
 // MARK: - HTTP Response Builder
 
 private enum HTTP {
-  static func json(
-    status: Int = 200,
-    statusText: String = "OK",
-    body: Data
-  ) -> String {
+  /// Permissive CORS — the local server is a LAN tool, browser clients are
+  /// expected. A trailing CRLF is baked in so it slots between header lines.
+  static let corsHeaders = """
+    Access-Control-Allow-Origin: *\r
+    Access-Control-Allow-Methods: GET, POST, OPTIONS\r
+    Access-Control-Allow-Headers: Content-Type, Authorization\r
+
+    """
+
+  static func json(status: Int = 200, body: Data) -> String {
     let json = String(data: body, encoding: .utf8) ?? ""
     return """
-      HTTP/1.1 \(status) \(statusText)\r
+      HTTP/1.1 \(status) \(httpStatusText(status))\r
       Content-Type: application/json\r
       Content-Length: \(body.count)\r
+      \(corsHeaders)\
       Connection: close\r
       \r
       \(json)
@@ -70,14 +76,24 @@ private enum HTTP {
     HTTP/1.1 200 OK\r
     Content-Type: text/event-stream\r
     Cache-Control: no-cache\r
+    \(corsHeaders)\
     Connection: keep-alive\r
     \r
 
     """
 
-  static func empty(status: Int, statusText: String) -> String {
+  static let corsPreflight = """
+    HTTP/1.1 204 No Content\r
+    \(corsHeaders)\
+    Connection: close\r
+    \r
+
     """
-    HTTP/1.1 \(status) \(statusText)\r
+
+  static func empty(status: Int) -> String {
+    """
+    HTTP/1.1 \(status) \(httpStatusText(status))\r
+    \(corsHeaders)\
     Connection: close\r
     \r
 
@@ -119,6 +135,12 @@ final class APIServer {
 
   private let llmProcessor: LLMProcessor
 
+  /// Optional Bearer token. When set, clients must send
+  /// `Authorization: Bearer <token>` on every request except CORS preflight
+  /// and `GET /health`. Sourced from env `ORCHARDGRID_API_TOKEN` or
+  /// UserDefaults key `APIServer.authToken`.
+  private let authToken: String?
+
   private typealias Handler = @MainActor (Data) async throws -> Data
 
   private let capabilityRoutes: [String: Handler]
@@ -157,6 +179,11 @@ final class APIServer {
 
   init(llmProcessor: LLMProcessor) {
     self.llmProcessor = llmProcessor
+    // Auth token: env wins, then App Group (so the user can configure it
+    // via Settings or `defaults write`), then nil (no auth required).
+    self.authToken =
+      ProcessInfo.processInfo.environment["ORCHARDGRID_API_TOKEN"]
+      ?? OGSharedDefaults.store.string(forKey: OGSharedDefaults.Key.apiServerAuthToken)
 
     var routes: [String: Handler] = [:]
     for (path, available, handler) in Self.routeHandlers where available {
@@ -164,6 +191,14 @@ final class APIServer {
     }
     capabilityRoutes = routes
     startNetworkMonitoring()
+  }
+
+  /// Publish runtime state to the App Group so `og status` (and any other
+  /// peer process) can read it. Called whenever isRunning or port changes.
+  private func publishState() {
+    let store = OGSharedDefaults.store
+    store.set(isRunning, forKey: OGSharedDefaults.Key.localRunning)
+    store.set(Int(port), forKey: OGSharedDefaults.Key.localPort)
   }
 
   // MARK: - Capability Management
@@ -207,6 +242,7 @@ final class APIServer {
           default:
             break
           }
+          self.publishState()
         }
       }
 
@@ -229,6 +265,7 @@ final class APIServer {
     portConflict = false
     suggestedPort = nil
     lastError = nil
+    publishState()
     if isEnabled {
       Task { await start() }
     }
@@ -267,6 +304,7 @@ final class APIServer {
     lastError = nil
     portConflict = false
     suggestedPort = nil
+    publishState()
   }
 
   // MARK: - Network Monitoring
@@ -336,6 +374,15 @@ final class APIServer {
   }
 
   private func processRequest(_ request: HTTPRequest, connection: NWConnection) async {
+    // Auth: required for everything except CORS preflight and /health.
+    let isOpenRoute =
+      request.method == "OPTIONS"
+      || (request.method == "GET" && request.path == "/health")
+    if let expected = authToken, !isOpenRoute, !isAuthorized(request, expected: expected) {
+      await sendError(.unauthorized, to: connection)
+      return
+    }
+
     if let capability = Self.routeToCapability[request.path],
       !enabledCapabilities.contains(capability)
     {
@@ -345,6 +392,12 @@ final class APIServer {
     }
 
     switch (request.method, request.path) {
+    case ("OPTIONS", _):
+      await send(HTTP.corsPreflight, to: connection, closeAfter: true)
+
+    case ("GET", "/health"):
+      await sendHealth(to: connection)
+
     case ("GET", "/v1/models"):
       await sendModels(to: connection)
 
@@ -357,6 +410,16 @@ final class APIServer {
     default:
       await sendError(.notFound, to: connection)
     }
+  }
+
+  private func isAuthorized(_ request: HTTPRequest, expected: String) -> Bool {
+    guard
+      let header = request.headers.first(where: {
+        $0.key.caseInsensitiveCompare("Authorization") == .orderedSame
+      })?.value,
+      header.hasPrefix("Bearer ")
+    else { return false }
+    return String(header.dropFirst(7)) == expected
   }
 
   // MARK: - Generic Capability Handler
@@ -419,6 +482,7 @@ final class APIServer {
           messages: messages,
           systemPrompt: chatRequest.systemPrompt,
           responseFormat: chatRequest.responseFormat,
+          options: chatRequest.sessionOptions,
           connection: connection
         )
       } else {
@@ -426,6 +490,7 @@ final class APIServer {
           messages: messages,
           systemPrompt: chatRequest.systemPrompt,
           responseFormat: chatRequest.responseFormat,
+          options: chatRequest.sessionOptions,
           connection: connection
         )
       }
@@ -442,15 +507,16 @@ final class APIServer {
     messages: [ChatMessage],
     systemPrompt: String,
     responseFormat: ResponseFormat?,
+    options: SessionOptions,
     connection: NWConnection
   ) async {
     do {
       let result = try await llmProcessor.processRequest(
         messages: messages,
         systemPrompt: systemPrompt,
-        responseFormat: responseFormat
+        responseFormat: responseFormat,
+        options: options
       )
-
       await sendJSON(
         ChatResponse.create(
           content: result.content,
@@ -468,10 +534,10 @@ final class APIServer {
     messages: [ChatMessage],
     systemPrompt: String,
     responseFormat: ResponseFormat?,
+    options: SessionOptions,
     connection: NWConnection
   ) async {
     let id = "chatcmpl-\(UUID().uuidString.prefix(8))"
-
     await send(HTTP.sseHeaders, to: connection, closeAfter: false)
     await sendSSE(StreamChunk.delta(id, content: ""), to: connection)
 
@@ -479,13 +545,13 @@ final class APIServer {
       let result = try await llmProcessor.processRequest(
         messages: messages,
         systemPrompt: systemPrompt,
-        responseFormat: responseFormat
+        responseFormat: responseFormat,
+        options: options
       ) { [weak self] delta in
         Task {
           await self?.sendSSE(StreamChunk.delta(id, content: delta), to: connection)
         }
       }
-
       let usage = TokenUsage(
         promptTokens: result.promptTokens,
         completionTokens: result.completionTokens,
@@ -497,11 +563,23 @@ final class APIServer {
       await sendSSE(StreamChunk.end(id, finishReason: "error"), to: connection)
       await send("data: [DONE]\n\n", to: connection, closeAfter: false)
     }
-
     connection.cancel()
   }
 
   // MARK: - Response Helpers
+
+  private func sendHealth(to connection: NWConnection) async {
+    struct HealthResponse: Encodable {
+      let status: String
+      let model: String
+      let available: Bool
+    }
+    await sendJSON(
+      HealthResponse(
+        status: "ok", model: "apple-intelligence", available: llmProcessor.isAvailable),
+      to: connection
+    )
+  }
 
   private func sendModels(to connection: NWConnection) async {
     let now = Int(Date().timeIntervalSince1970)
@@ -542,18 +620,14 @@ final class APIServer {
   }
 
   private func sendLLMError(_ error: Error, to connection: NWConnection) async {
-    if let llmError = error as? LLMError {
-      switch llmError {
-      case .modelUnavailable:
-        await sendError(.serviceUnavailable, message: "Model not available", to: connection)
-      case .invalidRequest(let msg):
-        await sendError(.badRequest, message: msg, to: connection)
-      case .processingFailed(let msg):
-        await sendError(.internalError, message: msg, to: connection)
-      }
-    } else {
-      await sendError(.internalError, message: error.localizedDescription, to: connection)
-    }
+    let llmError = LLMError.classify(error)
+    await sendErrorJSON(
+      status: llmError.httpStatusCode,
+      message: llmError.errorDescription ?? "Unknown error",
+      type: llmError.openAIType,
+      code: nil,
+      to: connection
+    )
   }
 
   private func sendError(
@@ -561,29 +635,32 @@ final class APIServer {
     message: String? = nil,
     to connection: NWConnection
   ) async {
-    let errorResponse = ErrorResponse(
-      error: .init(
-        message: message ?? error.message,
-        type: error.type,
-        code: error.code
-      )
+    await sendErrorJSON(
+      status: error.statusCode,
+      message: message ?? error.message,
+      type: error.type,
+      code: error.code,
+      to: connection
     )
+  }
 
+  /// Shared error-response writer. Falls back to a header-only response if
+  /// JSON encoding fails (shouldn't happen in practice — defensive).
+  private func sendErrorJSON(
+    status: Int,
+    message: String,
+    type: String,
+    code: String?,
+    to connection: NWConnection
+  ) async {
+    let body = ErrorResponse(error: .init(message: message, type: type, code: code))
     let encoder = JSONEncoder()
     encoder.keyEncodingStrategy = .convertToSnakeCase
-
-    guard let data = try? encoder.encode(errorResponse) else {
-      await send(
-        HTTP.empty(status: error.statusCode, statusText: error.statusMessage),
-        to: connection, closeAfter: true)
-      return
+    if let data = try? encoder.encode(body) {
+      await send(HTTP.json(status: status, body: data), to: connection, closeAfter: true)
+    } else {
+      await send(HTTP.empty(status: status), to: connection, closeAfter: true)
     }
-
-    await send(
-      HTTP.json(status: error.statusCode, statusText: error.statusMessage, body: data),
-      to: connection,
-      closeAfter: true
-    )
   }
 
   private func send(
@@ -608,6 +685,7 @@ final class APIServer {
 
 enum HTTPError: Sendable {
   case badRequest
+  case unauthorized
   case notFound
   case internalError
   case serviceUnavailable
@@ -615,24 +693,17 @@ enum HTTPError: Sendable {
   var statusCode: Int {
     switch self {
     case .badRequest: 400
+    case .unauthorized: 401
     case .notFound: 404
     case .internalError: 500
     case .serviceUnavailable: 503
     }
   }
 
-  var statusMessage: String {
-    switch self {
-    case .badRequest: "Bad Request"
-    case .notFound: "Not Found"
-    case .internalError: "Internal Server Error"
-    case .serviceUnavailable: "Service Unavailable"
-    }
-  }
-
   var message: String {
     switch self {
     case .badRequest: "The request was malformed or invalid"
+    case .unauthorized: "Authentication required"
     case .notFound: "The requested resource was not found"
     case .internalError: "An internal server error occurred"
     case .serviceUnavailable: "The service is temporarily unavailable"
@@ -642,6 +713,7 @@ enum HTTPError: Sendable {
   var type: String {
     switch self {
     case .badRequest: "invalid_request_error"
+    case .unauthorized: "authentication_error"
     case .notFound: "not_found_error"
     case .internalError: "internal_error"
     case .serviceUnavailable: "service_unavailable_error"
@@ -651,6 +723,7 @@ enum HTTPError: Sendable {
   var code: String? {
     switch self {
     case .badRequest: "bad_request"
+    case .unauthorized: "unauthorized"
     case .notFound: "not_found"
     case .internalError: "internal_error"
     case .serviceUnavailable: "service_unavailable"

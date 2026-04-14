@@ -2,12 +2,19 @@ SHELL := /bin/bash
 
 PROJECT := orchardgrid-app.xcodeproj
 SCHEME  := orchardgrid-app
+CLI_DIR := orchardgrid-cli
 
-XCB     := xcodebuild -project $(PROJECT) -scheme $(SCHEME) -quiet
+# `-allowProvisioningUpdates` lets Xcode auto-create / refresh App Group +
+# other capability registrations in the Apple Developer portal. Without it,
+# adding entitlements (e.g. App Groups for og state-sharing) would require
+# manual portal config.
+XCB     := xcodebuild -project $(PROJECT) -scheme $(SCHEME) -quiet \
+           -allowProvisioningUpdates
 MAC_DST := generic/platform=macOS
 IOS_DST := platform=iOS Simulator,name=iPhone 17
 
-.PHONY: help build build-macos build-ios debug test test-macos test-ios format clean open release-notes
+.PHONY: help build build-macos build-ios debug test test-macos test-ios \
+        format clean open release-notes bundle bundle-cli
 
 help: ## Show this help
 	@awk 'BEGIN{FS=":.*##"; printf "Targets:\n"} /^[a-zA-Z_-]+:.*##/ {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -23,6 +30,35 @@ build-ios: ## Release build for iOS (iPhone 17 simulator, unsigned)
 
 debug: ## Debug build for macOS
 	$(XCB) -configuration Debug -destination '$(MAC_DST)' build
+
+# ── Bundle the og CLI inside the .app ───────────────────────────────────
+# Phase 6: a single `brew install --cask orchardgrid` should give the user
+# both the GUI and the `og` command. We achieve that by compiling og from
+# its sibling SPM package, dropping it inside OrchardGrid.app/Contents/
+# Resources/og, and ad-hoc signing it with the App Group entitlement so
+# it can read state shared with the GUI app.
+#
+# The cask file in homebrew-orchardgrid then has one extra line:
+#   binary "#{appdir}/OrchardGrid.app/Contents/Resources/og"
+# which symlinks /opt/homebrew/bin/og → bundled binary at install time.
+
+bundle: build-macos bundle-cli ## Build the app AND bundle og inside it (for local testing)
+
+bundle-cli: ## Compile og + copy into the most recent OrchardGrid.app, ad-hoc signed
+	@echo "→ building og release binary…"
+	@cd $(CLI_DIR) && swift build -c release
+	@APP=$$(find ~/Library/Developer/Xcode/DerivedData -name OrchardGrid.app -type d | head -1); \
+	if [ -z "$$APP" ]; then \
+		echo "error: OrchardGrid.app not found in DerivedData — run 'make build-macos' first"; \
+		exit 1; \
+	fi; \
+	echo "→ copying og into $$APP/Contents/Resources/"; \
+	cp $(CLI_DIR)/.build/release/og "$$APP/Contents/Resources/og"; \
+	codesign --force --sign - \
+		--entitlements orchardgrid-app/og.entitlements \
+		--options runtime \
+		"$$APP/Contents/Resources/og"; \
+	echo "✓ og bundled (ad-hoc signed). Path: $$APP/Contents/Resources/og"
 
 test: test-macos test-ios ## Run tests on macOS and iOS
 

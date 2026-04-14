@@ -27,9 +27,6 @@ final class ChatManager {
     Reply with ONLY the title, no quotes, no line breaks.
     """
 
-  /// Reserve tokens for the user's next prompt and the model's response.
-  private static let tokenReserve = 512
-
   var modelAvailability: SystemLanguageModel.Availability {
     model.availability
   }
@@ -221,53 +218,37 @@ final class ChatManager {
 
   // MARK: - Smart Session Builder
 
-  /// Builds a `LanguageModelSession` with as much conversation history as fits
-  /// within the context window, prioritizing the most recent messages.
+  /// Builds a `LanguageModelSession` with the largest recent-message suffix
+  /// that fits within the context window (binary search, newest-first).
   private func buildSession(for conversationId: UUID) async -> LanguageModelSession {
-    if let session = sessions[conversationId] {
-      return session
-    }
+    if let session = sessions[conversationId] { return session }
 
     let tool = ImageGenerationTool(collector: imageCollector)
-    let processor = LLMProcessor()
+    let messages = conversation(for: conversationId)?.messages ?? []
+    let budget = contextSize - Config.llmOutputReserve
 
-    guard let conversation = conversation(for: conversationId), !conversation.messages.isEmpty
-    else {
-      let session = LanguageModelSession(tools: [tool], instructions: Self.systemPrompt)
-      sessions[conversationId] = session
-      return session
+    var lo = 0
+    var hi = messages.count
+    while lo < hi {
+      let mid = (lo + hi + 1) / 2
+      let instructions = Self.buildInstructions(history: Array(messages.suffix(mid)))
+      let tokens = await LLMProcessor.measureInstructions(instructions, tools: [tool])
+      if tokens <= budget { lo = mid } else { hi = mid - 1 }
     }
 
-    var messages = Array(conversation.messages)
-
-    // Iteratively trim until history fits within budget
-    while !messages.isEmpty {
-      let history = Self.formatHistory(messages)
-      let instructions = "\(Self.systemPrompt)\n\nPrevious conversation:\n\(history)"
-      let instructionTokens = await processor.measureInstructions(
-        instructions, tools: [tool])
-
-      if instructionTokens <= contextSize - Self.tokenReserve {
-        let session = LanguageModelSession(tools: [tool], instructions: instructions)
-        sessions[conversationId] = session
-        return session
-      }
-
-      // Remove oldest quarter of messages
-      let removeCount = max(1, messages.count / 4)
-      messages = Array(messages.dropFirst(removeCount))
-    }
-
-    // Fallback: no history
-    let session = LanguageModelSession(tools: [tool], instructions: Self.systemPrompt)
+    let instructions = Self.buildInstructions(history: Array(messages.suffix(lo)))
+    let session = LanguageModelSession(tools: [tool], instructions: instructions)
     sessions[conversationId] = session
     return session
   }
 
-  private static func formatHistory(_ messages: [Message]) -> String {
-    messages
+  private static func buildInstructions(history: [Message]) -> String {
+    guard !history.isEmpty else { return systemPrompt }
+    let formatted =
+      history
       .map { "\($0.role == .user ? "User" : "Assistant"): \($0.content)" }
       .joined(separator: "\n")
+    return "\(systemPrompt)\n\nPrevious conversation:\n\(formatted)"
   }
 
   // MARK: - Private Helpers

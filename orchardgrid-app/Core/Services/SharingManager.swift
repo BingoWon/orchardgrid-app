@@ -60,18 +60,14 @@ final class SharingManager {
     }
   }
 
-  // MARK: - User Intent (Persisted)
+  // MARK: - User Intent (Persisted in App Group — readable by `og` CLI)
 
-  private enum Keys {
-    static let cloud = "SharingManager.cloudEnabled"
-    static let local = "SharingManager.localEnabled"
-    static let enabledCapabilities = "SharingManager.enabledCapabilities"
-  }
+  private var defaults: UserDefaults { OGSharedDefaults.store }
 
   private(set) var wantsCloudSharing: Bool {
     didSet {
       guard oldValue != wantsCloudSharing else { return }
-      UserDefaults.standard.set(wantsCloudSharing, forKey: Keys.cloud)
+      defaults.set(wantsCloudSharing, forKey: OGSharedDefaults.Key.cloudEnabled)
       syncCloudState()
     }
   }
@@ -79,7 +75,7 @@ final class SharingManager {
   private(set) var wantsLocalSharing: Bool {
     didSet {
       guard oldValue != wantsLocalSharing else { return }
-      UserDefaults.standard.set(wantsLocalSharing, forKey: Keys.local)
+      defaults.set(wantsLocalSharing, forKey: OGSharedDefaults.Key.localEnabled)
       syncLocalState()
     }
   }
@@ -87,8 +83,9 @@ final class SharingManager {
   private(set) var enabledCapabilities: Set<Capability> {
     didSet {
       guard oldValue != enabledCapabilities else { return }
-      UserDefaults.standard.set(
-        enabledCapabilities.map(\.rawValue), forKey: Keys.enabledCapabilities)
+      defaults.set(
+        enabledCapabilities.map(\.rawValue).joined(separator: ","),
+        forKey: OGSharedDefaults.Key.enabledCapabilities)
       syncCapabilities()
     }
   }
@@ -114,11 +111,15 @@ final class SharingManager {
   // MARK: - Initialization
 
   init() {
-    let wantsCloud = UserDefaults.standard.bool(forKey: Keys.cloud)
-    let wantsLocal = UserDefaults.standard.bool(forKey: Keys.local)
+    let store = OGSharedDefaults.store
+    let wantsCloud = store.bool(forKey: OGSharedDefaults.Key.cloudEnabled)
+    let wantsLocal = store.bool(forKey: OGSharedDefaults.Key.localEnabled)
 
-    if let saved = UserDefaults.standard.stringArray(forKey: Keys.enabledCapabilities) {
-      enabledCapabilities = Set(saved.compactMap { Capability(rawValue: $0) })
+    // Capabilities are stored as a comma-separated string in the App
+    // Group (CLI reads this without needing CoreFoundation array decoding).
+    if let raw = store.string(forKey: OGSharedDefaults.Key.enabledCapabilities) {
+      enabledCapabilities = Set(
+        raw.split(separator: ",").compactMap { Capability(rawValue: String($0)) })
     } else {
       enabledCapabilities = Set(Capability.allCases)
     }
