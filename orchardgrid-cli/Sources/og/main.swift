@@ -51,6 +51,14 @@ default: break
 
 // MARK: - Dispatch
 
+// Spin up any MCP servers once up-front; shut them down at exit regardless
+// of success or failure. Only inference commands consume them.
+let mcp: MCPManager? =
+  args.mcpPaths.isEmpty
+  ? nil
+  : try await MCPManager(
+    paths: args.mcpPaths, timeoutSeconds: args.mcpTimeoutSeconds, logHeader: !args.quiet)
+
 do {
   switch args.mode {
 
@@ -62,7 +70,7 @@ do {
   case .chat:
     let engine = try EngineFactory.make(host: args.host, token: args.token)
     try await runChat(
-      engine: engine, args: args, systemPrompt: resolveSystemPrompt(args))
+      engine: engine, args: args, systemPrompt: resolveSystemPrompt(args), mcp: mcp)
 
   case .run:
     let prompt = try assemblePrompt(args)
@@ -73,11 +81,14 @@ do {
     let engine = try EngineFactory.make(host: args.host, token: args.token)
     try await runPrompt(
       engine: engine, args: args, prompt: prompt,
-      systemPrompt: resolveSystemPrompt(args))
+      systemPrompt: resolveSystemPrompt(args), mcp: mcp)
 
   case .benchmark:
     let engine = try EngineFactory.make(host: args.host, token: args.token)
     try await runBenchmark(engine: engine, args: args)
+
+  case .mcpList:
+    try await runMcpList(args: args)
 
   // ── local snapshot ──────────────────────────────────────────────
   case .status:
@@ -115,11 +126,18 @@ do {
   case .help, .version:
     break  // handled above
   }
+  if let mcp { await mcp.shutdown() }
   exit(ExitCode.success.rawValue)
 } catch let og as OGError {
+  if let mcp { await mcp.shutdown() }
   printErr("\(og.label) \(og.message)")
   exit(og.exitCode)
+} catch let mcpErr as MCPError {
+  if let mcp { await mcp.shutdown() }
+  printErr("mcp error: \(mcpErr)")
+  exit(ExitCode.runtime.rawValue)
 } catch {
+  if let mcp { await mcp.shutdown() }
   printErr("error: \(error.localizedDescription)")
   exit(ExitCode.runtime.rawValue)
 }
@@ -142,6 +160,7 @@ func printUsage() {
       og status                     Show app/CLI state (local server, login, capabilities)
       og benchmark [--runs N] [--bench-prompt "..."]
                                     Measure ttft, total latency, tokens/sec
+      og mcp list <path> [<path>…]  Introspect MCP servers (prints tool catalogue)
 
     \(styled("AUTH (logs in to orchardgrid.com):", .yellow, .bold))
       og login                      Open browser, authorize this CLI
@@ -170,6 +189,8 @@ func printUsage() {
           --context-strategy <s>    newest-first | oldest-first | sliding-window | summarize | strict
           --context-max-turns <n>   Max turns for sliding-window
           --permissive              Permissive content guardrails
+          --mcp <path>              Attach an MCP server (repeatable; on-device only)
+          --mcp-timeout <s>         Per-request MCP timeout, default 5s
           --host <url>              Remote OrchardGrid host (default: on-device / saved from login)
           --token <secret>          Bearer token (default: saved from login)
           --role <r>                consumer | provider | self (logs filter)

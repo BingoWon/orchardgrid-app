@@ -37,7 +37,8 @@ public func runPrompt(
   engine: LLMEngine,
   args: Arguments,
   prompt: String,
-  systemPrompt: String?
+  systemPrompt: String?,
+  mcp: MCPManager? = nil
 ) async throws {
   var messages: [ChatMessage] = []
   if let systemPrompt {
@@ -46,8 +47,9 @@ public func runPrompt(
   messages.append(ChatMessage(role: "user", content: prompt))
 
   let streamToStdout = args.outputFormat == .plain
-  let result = try await engine.chat(messages: messages, options: chatOptions(args)) {
-    delta in
+  let result = try await engine.chat(
+    messages: messages, options: chatOptions(args), mcp: mcp
+  ) { delta in
     if streamToStdout { writeStdout(delta) }
   }
 
@@ -64,7 +66,7 @@ public func runPrompt(
 }
 
 public func runChat(
-  engine: LLMEngine, args: Arguments, systemPrompt: String?
+  engine: LLMEngine, args: Arguments, systemPrompt: String?, mcp: MCPManager? = nil
 ) async throws {
   guard isatty(STDIN_FILENO) != 0 else {
     throw OGError.usage("--chat requires an interactive terminal")
@@ -100,7 +102,7 @@ public func runChat(
 
     do {
       let result = try await engine.chat(
-        messages: messages, options: chatOptions(args)
+        messages: messages, options: chatOptions(args), mcp: mcp
       ) { delta in
         writeStdout(delta)
       }

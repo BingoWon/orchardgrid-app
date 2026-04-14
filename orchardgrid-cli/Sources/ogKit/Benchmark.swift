@@ -92,7 +92,8 @@ public func runBenchmark(engine: LLMEngine, args: Arguments) async throws {
     let firstDelta = AtomicTimestamp()
     let result = try await engine.chat(
       messages: [ChatMessage(role: "user", content: prompt)],
-      options: options
+      options: options,
+      mcp: nil
     ) { _ in firstDelta.recordIfUnset(DispatchTime.now().uptimeNanoseconds) }
     let end = DispatchTime.now().uptimeNanoseconds
     let ttft = Double((firstDelta.value ?? end) - start) / 1_000_000

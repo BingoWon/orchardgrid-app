@@ -10,9 +10,12 @@ public protocol LLMEngine: Sendable {
   func health() async throws -> EngineHealth
 
   /// Run a streaming chat completion. `onDelta` fires for each content chunk.
+  /// Pass an `MCPManager` to enable tool calling — only supported by
+  /// `LocalEngine`; remote paths throw `OGError.usage`.
   func chat(
     messages: [ChatMessage],
     options: ChatOptions,
+    mcp: MCPManager?,
     onDelta: @Sendable (String) -> Void
   ) async throws -> ChatResult
 }
@@ -127,6 +130,7 @@ public final class LocalEngine: LLMEngine {
   public func chat(
     messages: [ChatMessage],
     options: ChatOptions,
+    mcp: MCPManager?,
     onDelta: @Sendable (String) -> Void
   ) async throws -> ChatResult {
     guard case .available = model.availability else {
@@ -139,13 +143,15 @@ public final class LocalEngine: LLMEngine {
     let systemPrompt = messages.first(where: { $0.role == "system" })?.content
     let history = messages.filter { $0.role != "system" }.dropLast()
     let prompt = lastUser.content
+    let tools: [any Tool] = await mcp?.tools() ?? []
 
     do {
       let session = try await buildSession(
         history: Array(history),
         systemPrompt: systemPrompt,
         prompt: prompt,
-        options: options
+        options: options,
+        tools: tools
       )
       let genOpts = makeGenerationOptions(options)
       let content = try await streamResponse(
@@ -165,7 +171,8 @@ public final class LocalEngine: LLMEngine {
     history: [ChatMessage],
     systemPrompt: String?,
     prompt: String,
-    options: ChatOptions
+    options: ChatOptions,
+    tools: [any Tool]
   ) async throws -> LanguageModelSession {
     let instrSegments: [Transcript.Segment] =
       systemPrompt.map {
@@ -195,6 +202,7 @@ public final class LocalEngine: LLMEngine {
 
     return LanguageModelSession(
       model: sessionModel,
+      tools: tools,
       transcript: Transcript(entries: [instrEntry] + trimmed)
     )
   }

@@ -34,13 +34,33 @@ og -f file.swift "explain this"          # attach file
 echo "summarize this" | og               # stdin pipe
 og -o json "hello" | jq .content         # JSON output
 og --temperature 0.2 --seed 42 "..."     # reproducible sampling
+og --context-strategy summarize "..."    # compress old turns via model
 og --context-strategy strict "..."       # fail on overflow instead of trimming
+og benchmark --runs 5                    # min/median/p95/max ttft + tokens/sec
+og --mcp ./calc.py "what is 41 + 1?"     # attach an MCP tool server
+og mcp list ./calc.py                    # introspect an MCP server's tools
 
 og --host https://orchardgrid.com --token sk-… "hello"   # cloud
 og --host http://mac.local:8888 "hello"                   # LAN peer
 ```
 
 See `og --help` for the full flag list.
+
+## MCP (Model Context Protocol)
+
+Attach any MCP-compliant tool server and let Apple Intelligence call it.
+Stdio transport only — pass a path to the server binary or `.py` script;
+`og` spawns it, handshakes, and registers its tools natively with
+`LanguageModelSession`:
+
+```sh
+og --mcp /path/to/server.py --mcp /path/to/other "how many stars on orchardgrid?"
+og --mcp /path/to/server.py --mcp-timeout 30 --chat
+og mcp list /path/to/server.py -o json
+```
+
+MCP requires on-device inference — combining `--mcp` with `--host` is
+rejected. The handshake uses MCP protocol version `2025-06-18`.
 
 ## Configuration
 

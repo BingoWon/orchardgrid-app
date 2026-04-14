@@ -8,6 +8,8 @@ public struct Arguments: Sendable {
     case help, version, modelInfo, chat, run, benchmark
     // Local snapshot (App Group state + saved config)
     case status
+    // MCP diagnostics (no model inference)
+    case mcpList
     // Auth
     case login, logout
     // Management
@@ -51,6 +53,10 @@ public struct Arguments: Sendable {
   public var benchRuns: Int? = nil
   public var benchPrompt: String? = nil
 
+  // MCP servers supplied via repeated `--mcp <path>`.
+  public var mcpPaths: [String] = []
+  public var mcpTimeoutSeconds: Int = 5
+
   public init() {}
 }
 
@@ -79,7 +85,7 @@ public enum CLIError: Error, CustomStringConvertible, Equatable {
 /// Reserved subcommand words. If the first positional arg is one of these,
 /// we dispatch to subcommand mode instead of treating it as prompt text.
 private let subcommandWords: Set<String> = [
-  "login", "logout", "me", "keys", "devices", "logs", "status", "benchmark",
+  "login", "logout", "me", "keys", "devices", "logs", "status", "benchmark", "mcp",
 ]
 
 /// Parse command-line arguments with environment-variable fallback.
@@ -169,6 +175,12 @@ public func parseArguments(_ args: [String], env: [String: String]) throws -> Ar
       result.benchRuns = n
     case "--bench-prompt":
       result.benchPrompt = try nextValue(a)
+    case "--mcp":
+      result.mcpPaths.append(try nextValue(a))
+    case "--mcp-timeout":
+      let v = try nextValue(a)
+      guard let n = Int(v), n > 0 else { throw CLIError.invalidValue(a, v) }
+      result.mcpTimeoutSeconds = n
     default:
       if a.hasPrefix("-") { throw CLIError.unknownFlag(a) }
       positional.append(a)
@@ -206,6 +218,15 @@ private func applySubcommand(
   case "me": result.mode = .me
   case "status": result.mode = .status
   case "benchmark": result.mode = .benchmark
+  case "mcp":
+    switch rest.first {
+    case "list":
+      guard rest.count >= 2 else { throw CLIError.missingArgument("mcp server path") }
+      result.mode = .mcpList
+      result.mcpPaths = Array(rest.dropFirst())
+    default:
+      throw CLIError.unknownSubcommand("mcp \(rest.first ?? "")")
+    }
   case "devices":
     guard rest.isEmpty || rest.first == "list" else {
       throw CLIError.unknownSubcommand("devices \(rest.first ?? "")")

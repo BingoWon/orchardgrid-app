@@ -41,8 +41,12 @@ public struct RemoteEngine: LLMEngine {
   public func chat(
     messages: [ChatMessage],
     options: ChatOptions,
+    mcp: MCPManager?,
     onDelta: @Sendable (String) -> Void
   ) async throws -> ChatResult {
+    if mcp != nil {
+      throw OGError.usage("--mcp requires on-device inference; remove --host to run locally")
+    }
     let body = ChatRequestBody(messages: messages, options: options)
     var request = URLRequest(url: base.appendingPathComponent("v1/chat/completions"))
     request.httpMethod = "POST"
