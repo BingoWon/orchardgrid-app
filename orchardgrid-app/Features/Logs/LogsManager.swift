@@ -46,13 +46,13 @@ final class LogsManager: Refreshable {
       logs = result.logs
       total = result.total
       lastUpdated = Date()
-    } catch is CancellationError {
-      return
     } catch {
-      let apiError = APIError.classify(error)
-      if case .transport(let urlError) = apiError, urlError.code == .cancelled { return }
-      lastError = apiError
-      Logger.error(.app, "Load logs error: \(apiError)")
+      switch APIError.classify(error) {
+      case .cancelled: return
+      case let apiError:
+        lastError = apiError
+        Logger.error(.app, "Load logs error: \(apiError)")
+      }
     }
 
     isInitialLoading = false

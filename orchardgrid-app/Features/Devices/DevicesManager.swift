@@ -27,14 +27,13 @@ final class DevicesManager: Refreshable {
       devices = try await api.get("/devices")
       lastUpdated = Date()
       Logger.success(.devices, "Fetched \(devices.count) devices")
-    } catch is CancellationError {
-      return
     } catch {
-      let apiError = APIError.classify(error)
-      if case .transport(let urlError) = apiError, urlError.code == .cancelled { return }
-      lastError = apiError
-      devices = []
-      Logger.error(.devices, "Failed to fetch devices: \(apiError)")
+      switch APIError.classify(error) {
+      case .cancelled: return
+      case let apiError:
+        lastError = apiError
+        Logger.error(.devices, "Failed to fetch devices: \(apiError)")
+      }
     }
 
     isInitialLoading = false

@@ -27,13 +27,13 @@ final class APIKeysManager: Refreshable {
       let response: ListResponse = try await api.get("/api-keys")
       apiKeys = response.keys
       lastUpdated = Date()
-    } catch is CancellationError {
-      return
     } catch {
-      let apiError = APIError.classify(error)
-      if case .transport(let urlError) = apiError, urlError.code == .cancelled { return }
-      lastError = apiError
-      Logger.error(.api, "Failed to load API keys: \(apiError)")
+      switch APIError.classify(error) {
+      case .cancelled: return
+      case let apiError:
+        lastError = apiError
+        Logger.error(.api, "Failed to load API keys: \(apiError)")
+      }
     }
 
     isInitialLoading = false
@@ -47,8 +47,7 @@ final class APIKeysManager: Refreshable {
       await loadAPIKeys()
       return key
     } catch {
-      lastError = APIError.classify(error)
-      Logger.error(.api, "Failed to create API key: \(error)")
+      record(error, action: "create API key")
       return nil
     }
   }
@@ -58,8 +57,7 @@ final class APIKeysManager: Refreshable {
       try await api.patch(path(for: hint), body: ["name": name])
       await loadAPIKeys()
     } catch {
-      lastError = APIError.classify(error)
-      Logger.error(.api, "Failed to update API key: \(error)")
+      record(error, action: "update API key")
     }
   }
 
@@ -68,8 +66,16 @@ final class APIKeysManager: Refreshable {
       try await api.delete(path(for: hint))
       await loadAPIKeys()
     } catch {
-      lastError = APIError.classify(error)
-      Logger.error(.api, "Failed to delete API key: \(error)")
+      record(error, action: "delete API key")
+    }
+  }
+
+  private func record(_ error: any Error, action: String) {
+    switch APIError.classify(error) {
+    case .cancelled: return
+    case let apiError:
+      lastError = apiError
+      Logger.error(.api, "Failed to \(action): \(apiError)")
     }
   }
 
