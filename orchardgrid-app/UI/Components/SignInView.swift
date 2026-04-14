@@ -186,16 +186,11 @@ struct SignInView: View {
     HStack(spacing: 8) {
       oauthButton(label: "Apple", icon: "AppleLogo") {
         await oauthFlow {
-          do {
+          #if DEBUG
+            try await Clerk.shared.auth.signInWithOAuth(provider: .apple)
+          #else
             try await Clerk.shared.auth.signInWithApple()
-          } catch let error as NSError {
-            if error.domain == ASAuthorizationError.errorDomain &&
-               error.code == ASAuthorizationError.unknown.rawValue {
-              try await Clerk.shared.auth.signInWithOAuth(provider: .apple)
-            } else {
-              throw error
-            }
-          }
+          #endif
         }
       }
       oauthButton(label: "Google", icon: "GoogleLogo") {
