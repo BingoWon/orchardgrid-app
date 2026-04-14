@@ -8,7 +8,7 @@ final class ChatManager {
   private(set) var isResponding = false
   private(set) var streamingText = ""
   private(set) var respondingConversationId: UUID?
-  private(set) var contextSize = 4096
+  private(set) var contextSize: Int
   private(set) var conversationTokenCounts: [UUID: Int] = [:]
 
   private var responseTask: Task<Void, Never>?
@@ -40,8 +40,8 @@ final class ChatManager {
   }
 
   init() {
+    contextSize = model.contextSize
     loadConversations()
-    Task { contextSize = (try? await model.contextSize) ?? 4096 }
   }
 
   // MARK: - Token Usage Info
@@ -238,10 +238,6 @@ final class ChatManager {
       return session
     }
 
-    // Measure baseline: system prompt + tool definitions
-    let baselineTokens = await processor.measureInstructions(
-      Self.systemPrompt, tools: [tool])
-    let historyBudget = contextSize - baselineTokens - Self.tokenReserve
     var messages = Array(conversation.messages)
 
     // Iteratively trim until history fits within budget

@@ -26,9 +26,7 @@ final class LLMProcessor {
   }
 
   var contextSize: Int {
-    get async {
-      (try? await model.contextSize) ?? 4096
-    }
+    model.contextSize
   }
 
   /// Unified request handler — pass `onChunk` for streaming, omit for single response.
