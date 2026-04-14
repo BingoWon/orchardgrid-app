@@ -285,6 +285,21 @@ jobs:
     needs: [release, build-macos]
     runs-on: ubuntu-latest
     steps:
+      # The HOMEBREW_TAP_TOKEN is a fine-grained PAT scoped only to the
+      # homebrew-orchardgrid repo, so it can't read releases from this
+      # repo. Use GITHUB_TOKEN (automatic) to fetch the DMG, then swap to
+      # HOMEBREW_TAP_TOKEN for pushing into the tap.
+      - name: Download release DMG
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          V=${VERSION#v}
+          DMG="OrchardGrid-v${V}-macos.dmg"
+          gh release download "v${V}" -R BingoWon/orchardgrid-app -p "$DMG"
+          shasum -a 256 "$DMG" | awk '{print $1}' > dmg.sha256
+
       - name: Bump cask in homebrew-orchardgrid
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
@@ -292,10 +307,7 @@ jobs:
         run: |
           set -euo pipefail
           V=${VERSION#v}
-          DMG="OrchardGrid-v${V}-macos.dmg"
-
-          gh release download "v${V}" -R BingoWon/orchardgrid-app -p "$DMG"
-          SHA=$(shasum -a 256 "$DMG" | awk '{print $1}')
+          SHA=$(cat dmg.sha256)
 
           gh repo clone BingoWon/homebrew-orchardgrid tap
           cd tap
