@@ -5,7 +5,7 @@ import Foundation
 public struct Arguments: Sendable {
   public enum Mode: Sendable, Equatable {
     // Inference / info
-    case help, version, modelInfo, chat, run
+    case help, version, modelInfo, chat, run, benchmark
     // Local snapshot (App Group state + saved config)
     case status
     // Auth
@@ -47,6 +47,10 @@ public struct Arguments: Sendable {
   /// management-scope API key server-side.
   public var logoutRevoke: Bool = false
 
+  // `og benchmark` options.
+  public var benchRuns: Int? = nil
+  public var benchPrompt: String? = nil
+
   public init() {}
 }
 
@@ -75,7 +79,7 @@ public enum CLIError: Error, CustomStringConvertible, Equatable {
 /// Reserved subcommand words. If the first positional arg is one of these,
 /// we dispatch to subcommand mode instead of treating it as prompt text.
 private let subcommandWords: Set<String> = [
-  "login", "logout", "me", "keys", "devices", "logs", "status",
+  "login", "logout", "me", "keys", "devices", "logs", "status", "benchmark",
 ]
 
 /// Parse command-line arguments with environment-variable fallback.
@@ -129,7 +133,10 @@ public func parseArguments(_ args: [String], env: [String: String]) throws -> Ar
       guard let n = UInt64(v) else { throw CLIError.invalidValue(a, v) }
       result.seed = n
     case "--context-strategy":
-      result.contextStrategy = try nextValue(a)
+      let v = try nextValue(a)
+      guard ["newest-first", "oldest-first", "sliding-window", "strict", "summarize"].contains(v)
+      else { throw CLIError.invalidValue(a, v) }
+      result.contextStrategy = v
     case "--context-max-turns":
       let v = try nextValue(a)
       guard let n = Int(v) else { throw CLIError.invalidValue(a, v) }
@@ -156,6 +163,12 @@ public func parseArguments(_ args: [String], env: [String: String]) throws -> Ar
       result.keyName = try nextValue(a)
     case "--revoke":
       result.logoutRevoke = true
+    case "--runs":
+      let v = try nextValue(a)
+      guard let n = Int(v), n > 0 else { throw CLIError.invalidValue(a, v) }
+      result.benchRuns = n
+    case "--bench-prompt":
+      result.benchPrompt = try nextValue(a)
     default:
       if a.hasPrefix("-") { throw CLIError.unknownFlag(a) }
       positional.append(a)
@@ -192,6 +205,7 @@ private func applySubcommand(
   case "logout": result.mode = .logout
   case "me": result.mode = .me
   case "status": result.mode = .status
+  case "benchmark": result.mode = .benchmark
   case "devices":
     guard rest.isEmpty || rest.first == "list" else {
       throw CLIError.unknownSubcommand("devices \(rest.first ?? "")")

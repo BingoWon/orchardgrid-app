@@ -218,6 +218,9 @@ public final class LocalEngine: LLMEngine {
       let windowed = Array(history.suffix(maxTurns ?? history.count))
       return await trimBinary(
         base: base, history: windowed, prompt: prompt, budget: budget, fromEnd: true)
+    case "summarize":
+      return await trimWithSummary(
+        base: base, history: history, prompt: prompt, budget: budget)
     case "strict":
       let all = [base] + history + [prompt]
       if await tokenCount(all) <= budget { return history }
@@ -225,6 +228,101 @@ public final class LocalEngine: LLMEngine {
     default:
       throw OGError.usage("unknown context strategy: \(rawStrategy ?? "")")
     }
+  }
+
+  /// Compress old history into a short model-generated summary, keep recent
+  /// turns verbatim. On any failure (no model, empty text, summary still
+  /// overflows) degrade to `newest-first` so the caller never sees an error.
+  private func trimWithSummary(
+    base: Transcript.Entry,
+    history: [Transcript.Entry],
+    prompt: Transcript.Entry,
+    budget: Int
+  ) async -> [Transcript.Entry] {
+    let fallback: () async -> [Transcript.Entry] = {
+      await self.trimBinary(
+        base: base, history: history, prompt: prompt, budget: budget, fromEnd: true)
+    }
+    guard history.count > 2, case .available = model.availability else {
+      return await fallback()
+    }
+
+    // Reserve half the budget for recent verbatim turns.
+    let halfBudget = budget / 2
+    let recentCount = await maxSuffix(
+      base: base, history: history, prompt: prompt, budget: halfBudget)
+    let recent = Array(history.suffix(recentCount))
+    let old = Array(history.dropLast(recentCount))
+    guard !old.isEmpty else { return recent }
+
+    let oldText = Self.renderForSummary(old)
+    guard !oldText.isEmpty, let summary = await generateSummary(oldText) else {
+      return await fallback()
+    }
+
+    let summaryEntry = Transcript.Entry.response(
+      Transcript.Response(
+        assetIDs: [],
+        segments: [.text(.init(content: "[Summary of prior conversation]: \(summary)"))]
+      )
+    )
+    let assembled = [summaryEntry] + recent
+    if await tokenCount([base] + assembled + [prompt]) <= budget {
+      return assembled
+    }
+    return await fallback()
+  }
+
+  /// Largest `k` for which `history.suffix(k)` fits with `base` + `prompt`.
+  private func maxSuffix(
+    base: Transcript.Entry,
+    history: [Transcript.Entry],
+    prompt: Transcript.Entry,
+    budget: Int
+  ) async -> Int {
+    var lo = 0
+    var hi = history.count
+    while lo < hi {
+      let mid = (lo + hi + 1) / 2
+      if await tokenCount([base] + Array(history.suffix(mid)) + [prompt]) <= budget {
+        lo = mid
+      } else {
+        hi = mid - 1
+      }
+    }
+    return lo
+  }
+
+  private func generateSummary(_ text: String) async -> String? {
+    let session = LanguageModelSession(
+      model: model,
+      instructions: "Summarize the following conversation in 2-3 sentences. Be concise."
+    )
+    do {
+      let response = try await session.respond(to: text)
+      let trimmed = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+      return trimmed.isEmpty ? nil : trimmed
+    } catch {
+      return nil
+    }
+  }
+
+  private static func renderForSummary(_ entries: [Transcript.Entry]) -> String {
+    entries.compactMap { entry -> String? in
+      switch entry {
+      case .prompt(let p):
+        let text = p.segments.compactMap { seg -> String? in
+          if case .text(let t) = seg { return t.content } else { return nil }
+        }.joined()
+        return text.isEmpty ? nil : "User: \(text)"
+      case .response(let r):
+        let text = r.segments.compactMap { seg -> String? in
+          if case .text(let t) = seg { return t.content } else { return nil }
+        }.joined()
+        return text.isEmpty ? nil : "Assistant: \(text)"
+      default: return nil
+      }
+    }.joined(separator: "\n")
   }
 
   private func trimBinary(

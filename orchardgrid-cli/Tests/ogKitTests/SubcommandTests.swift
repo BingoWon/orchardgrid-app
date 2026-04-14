@@ -128,6 +128,32 @@ struct SubcommandTests {
     #expect(args.logLimit == 5)
   }
 
+  // MARK: - benchmark
+
+  @Test("`og benchmark` → .benchmark with default runs/prompt")
+  func benchmarkDefaults() throws {
+    let args = try parseArguments(["benchmark"], env: [:])
+    #expect(args.mode == .benchmark)
+    #expect(args.benchRuns == nil)
+    #expect(args.benchPrompt == nil)
+  }
+
+  @Test("`og benchmark --runs 3 --bench-prompt hi` sets both fields")
+  func benchmarkFlags() throws {
+    let args = try parseArguments(
+      ["benchmark", "--runs", "3", "--bench-prompt", "hi"], env: [:])
+    #expect(args.mode == .benchmark)
+    #expect(args.benchRuns == 3)
+    #expect(args.benchPrompt == "hi")
+  }
+
+  @Test("`og benchmark --runs 0` is rejected")
+  func benchmarkRejectsZeroRuns() {
+    #expect(throws: CLIError.self) {
+      _ = try parseArguments(["benchmark", "--runs", "0"], env: [:])
+    }
+  }
+
   // MARK: - flag vs subcommand priority
 
   @Test("`og --chat` ignores stray `login` positional")

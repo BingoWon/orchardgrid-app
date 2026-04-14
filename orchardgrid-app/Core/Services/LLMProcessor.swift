@@ -20,6 +20,9 @@ enum ContextStrategy: String, Sendable, CaseIterable {
   case oldestFirst = "oldest-first"
   /// Cap history at `maxTurns` first, then fit newest-first within budget.
   case slidingWindow = "sliding-window"
+  /// Compress oldest turns into a model-generated summary; keep recent
+  /// turns verbatim. Falls back to `newestFirst` on any failure.
+  case summarize
   /// No trimming — throw `contextOverflow` if history doesn't fit.
   case strict
 }
@@ -246,11 +249,92 @@ final class LLMProcessor {
       let windowed = Array(history.suffix(config.maxTurns ?? history.count))
       return await trimBinary(
         base: base, history: windowed, prompt: prompt, budget: budget, fromEnd: true)
+    case .summarize:
+      return await trimWithSummary(
+        base: base, history: history, prompt: prompt, budget: budget)
     case .strict:
       let all = [base] + history + [prompt]
       if await tokenCount(all) <= budget { return history }
       throw LLMError.contextOverflow
     }
+  }
+
+  /// Compress old history into a short model-generated summary, keep recent
+  /// turns verbatim. On any failure (model unavailable, empty text, result
+  /// still overflows) degrade silently to `newest-first`.
+  private func trimWithSummary(
+    base: Transcript.Entry,
+    history: [Transcript.Entry],
+    prompt: Transcript.Entry,
+    budget: Int
+  ) async -> [Transcript.Entry] {
+    let fallback: () async -> [Transcript.Entry] = {
+      await self.trimBinary(
+        base: base, history: history, prompt: prompt, budget: budget, fromEnd: true)
+    }
+    guard history.count > 2, isAvailable else { return await fallback() }
+
+    let halfBudget = budget / 2
+    var lo = 0
+    var hi = history.count
+    while lo < hi {
+      let mid = (lo + hi + 1) / 2
+      if await tokenCount([base] + Array(history.suffix(mid)) + [prompt]) <= halfBudget {
+        lo = mid
+      } else {
+        hi = mid - 1
+      }
+    }
+    let recent = Array(history.suffix(lo))
+    let old = Array(history.dropLast(lo))
+    guard !old.isEmpty else { return recent }
+
+    let oldText = Self.renderForSummary(old)
+    guard !oldText.isEmpty, let summary = await generateSummary(oldText) else {
+      return await fallback()
+    }
+
+    let summaryEntry = Transcript.Entry.response(
+      Transcript.Response(
+        assetIDs: [],
+        segments: [.text(.init(content: "[Summary of prior conversation]: \(summary)"))]
+      )
+    )
+    let assembled = [summaryEntry] + recent
+    if await tokenCount([base] + assembled + [prompt]) <= budget { return assembled }
+    return await fallback()
+  }
+
+  private func generateSummary(_ text: String) async -> String? {
+    let session = LanguageModelSession(
+      model: model,
+      instructions: "Summarize the following conversation in 2-3 sentences. Be concise."
+    )
+    do {
+      let response = try await session.respond(to: text)
+      let trimmed = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+      return trimmed.isEmpty ? nil : trimmed
+    } catch {
+      return nil
+    }
+  }
+
+  private static func renderForSummary(_ entries: [Transcript.Entry]) -> String {
+    entries.compactMap { entry -> String? in
+      switch entry {
+      case .prompt(let p):
+        let text = p.segments.compactMap { seg -> String? in
+          if case .text(let t) = seg { return t.content } else { return nil }
+        }.joined()
+        return text.isEmpty ? nil : "User: \(text)"
+      case .response(let r):
+        let text = r.segments.compactMap { seg -> String? in
+          if case .text(let t) = seg { return t.content } else { return nil }
+        }.joined()
+        return text.isEmpty ? nil : "Assistant: \(text)"
+      default: return nil
+      }
+    }.joined(separator: "\n")
   }
 
   /// Binary-search the largest `k` for which `history.suffix(k)` (or prefix,

@@ -75,6 +75,10 @@ do {
       engine: engine, args: args, prompt: prompt,
       systemPrompt: resolveSystemPrompt(args))
 
+  case .benchmark:
+    let engine = try EngineFactory.make(host: args.host, token: args.token)
+    try await runBenchmark(engine: engine, args: args)
+
   // ── local snapshot ──────────────────────────────────────────────
   case .status:
     runStatus(config: persistedConfig)
@@ -136,6 +140,8 @@ func printUsage() {
 
     \(styled("LOCAL SNAPSHOT:", .yellow, .bold))
       og status                     Show app/CLI state (local server, login, capabilities)
+      og benchmark [--runs N] [--bench-prompt "..."]
+                                    Measure ttft, total latency, tokens/sec
 
     \(styled("AUTH (logs in to orchardgrid.com):", .yellow, .bold))
       og login                      Open browser, authorize this CLI
@@ -161,7 +167,7 @@ func printUsage() {
           --temperature <n>         Sampling temperature
           --max-tokens <n>          Max response tokens
           --seed <n>                Random seed
-          --context-strategy <s>    newest-first | oldest-first | sliding-window | strict
+          --context-strategy <s>    newest-first | oldest-first | sliding-window | summarize | strict
           --context-max-turns <n>   Max turns for sliding-window
           --permissive              Permissive content guardrails
           --host <url>              Remote OrchardGrid host (default: on-device / saved from login)

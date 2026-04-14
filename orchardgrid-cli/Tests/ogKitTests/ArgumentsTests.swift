@@ -152,10 +152,20 @@ struct ArgumentsTests {
 
   // MARK: - Context options
 
-  @Test("--context-strategy stores raw string")
-  func contextStrategy() throws {
-    let args = try parseArguments(["--context-strategy", "strict"], env: [:])
-    #expect(args.contextStrategy == "strict")
+  @Test(
+    "--context-strategy accepts the five valid values",
+    arguments: ["newest-first", "oldest-first", "sliding-window", "summarize", "strict"]
+  )
+  func contextStrategyValid(_ value: String) throws {
+    let args = try parseArguments(["--context-strategy", value], env: [:])
+    #expect(args.contextStrategy == value)
+  }
+
+  @Test("--context-strategy rejects unknown values")
+  func contextStrategyInvalid() {
+    #expect(throws: CLIError.self) {
+      _ = try parseArguments(["--context-strategy", "bogus"], env: [:])
+    }
   }
 
   @Test("--context-max-turns parses Int")
