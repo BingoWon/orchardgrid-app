@@ -251,3 +251,29 @@ jobs:
       - name: Cleanup keychain
         if: always()
         run: security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true
+
+  update-tap:
+    needs: [release, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bump cask in homebrew-orchardgrid
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          V=${VERSION#v}
+          DMG="OrchardGrid-v${V}-macos.dmg"
+
+          gh release download "v${V}" -R BingoWon/orchardgrid-app -p "$DMG"
+          SHA=$(shasum -a 256 "$DMG" | awk '{print $1}')
+
+          gh repo clone BingoWon/homebrew-orchardgrid tap
+          cd tap
+          sed -i "s/version \".*\"/version \"${V}\"/" Casks/orchardgrid.rb
+          sed -i "s/sha256 \".*\"/sha256 \"${SHA}\"/" Casks/orchardgrid.rb
+
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -am "Update orchardgrid to v${V}"
+          git push
