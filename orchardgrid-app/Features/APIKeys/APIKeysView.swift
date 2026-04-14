@@ -3,7 +3,7 @@ import SwiftUI
 struct APIKeysView: View {
   @Environment(AuthManager.self) private var authManager
   @Environment(ObserverClient.self) private var observerClient
-  @State private var manager = APIKeysManager()
+  @Environment(APIKeysManager.self) private var manager
   @State private var editingHint: String?
   @State private var editingName = ""
   @State private var showDeleteConfirmation = false
@@ -45,17 +45,13 @@ struct APIKeysView: View {
       }
     }
     .task(id: authManager.userId) {
-      guard let token = await authManager.getToken() else { return }
-      await manager.loadAPIKeys(authToken: token)
+      await manager.loadAPIKeys()
     }
     .alert(String(localized: "Delete API Key?"), isPresented: $showDeleteConfirmation) {
       Button(String(localized: "Cancel"), role: .cancel) {}
       Button(String(localized: "Delete"), role: .destructive) {
         if let key = keyToDelete {
-          Task {
-            guard let token = await authManager.getToken() else { return }
-            await manager.deleteAPIKey(hint: key.keyHint, authToken: token)
-          }
+          Task { await manager.deleteAPIKey(hint: key.keyHint) }
         }
       }
     } message: {
@@ -126,11 +122,8 @@ struct APIKeysView: View {
               .frame(maxWidth: .infinity)
               .padding(.vertical, 60)
           } else if let error = manager.lastError {
-            ErrorBanner(message: error) {
-              Task {
-                guard let token = await authManager.getToken() else { return }
-                await manager.loadAPIKeys(authToken: token)
-              }
+            ErrorBanner(error: error) {
+              Task { await manager.loadAPIKeys() }
             }
           } else {
             apiReferenceCard
@@ -141,8 +134,7 @@ struct APIKeysView: View {
       }
     }
     .refreshable {
-      guard let token = await authManager.getToken() else { return }
-      await manager.loadAPIKeys(authToken: token, isManualRefresh: true)
+      await manager.loadAPIKeys(isManualRefresh: true)
     }
   }
 
@@ -342,9 +334,8 @@ struct APIKeysView: View {
 
   private func createKey() {
     Task {
-      guard let token = await authManager.getToken() else { return }
       let defaultName = Self.nameFormatter.string(from: Date())
-      if let created = await manager.createAPIKey(name: defaultName, authToken: token),
+      if let created = await manager.createAPIKey(name: defaultName),
         let fullKey = created.key
       {
         newlyCreatedKey = fullKey
@@ -354,8 +345,7 @@ struct APIKeysView: View {
 
   private func updateKeyName(_ key: APIKey) {
     Task {
-      guard let token = await authManager.getToken() else { return }
-      await manager.updateAPIKey(hint: key.keyHint, name: editingName, authToken: token)
+      await manager.updateAPIKey(hint: key.keyHint, name: editingName)
       editingHint = nil
       editingName = ""
     }
@@ -462,6 +452,7 @@ private struct APIKeyCard: View {
 
 #Preview {
   APIKeysView()
-    .environment(AuthManager())
+    .environment(AuthManager(api: .preview))
+    .environment(APIKeysManager(api: .preview))
     .environment(ObserverClient())
 }

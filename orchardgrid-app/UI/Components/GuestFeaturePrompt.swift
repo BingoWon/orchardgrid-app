@@ -68,6 +68,6 @@ struct GuestFeaturePrompt: View {
     ],
     buttonTitle: "Sign In to View Devices"
   )
-  .environment(AuthManager())
+  .environment(AuthManager(api: .preview))
   .padding()
 }

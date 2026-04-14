@@ -103,10 +103,7 @@ final class SharingManager {
   var localRequestCount: Int { localService.requestCount }
   var localPort: UInt16 { localService.port }
   var localIPAddress: String? { localService.localIPAddress }
-  var localErrorMessage: String? {
-    let msg = localService.errorMessage
-    return msg.isEmpty ? nil : msg
-  }
+  var localError: APIError? { localService.lastError }
   var localPortConflict: Bool { localService.portConflict }
   var localSuggestedPort: UInt16? { localService.suggestedPort }
 

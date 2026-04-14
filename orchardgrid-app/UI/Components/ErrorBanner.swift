@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ErrorBanner: View {
-  let message: String
+  let error: APIError
   let onRetry: () -> Void
 
   var body: some View {
@@ -9,7 +9,7 @@ struct ErrorBanner: View {
       Image(systemName: "exclamationmark.triangle.fill")
         .foregroundStyle(.orange)
 
-      Text(message)
+      Text(error.localizedDescription)
         .font(.subheadline)
 
       Spacer()

@@ -6,10 +6,16 @@ final class DevicesManager: Refreshable {
   private(set) var devices: [Device] = []
   private(set) var isInitialLoading = true
   private(set) var isRefreshing = false
-  private(set) var lastError: String?
+  private(set) var lastError: APIError?
   private(set) var lastUpdated: Date?
 
-  func fetchDevices(authToken: String, isManualRefresh: Bool = false) async {
+  private let api: APIClient
+
+  init(api: APIClient) {
+    self.api = api
+  }
+
+  func fetchDevices(isManualRefresh: Bool = false) async {
     if devices.isEmpty {
       isInitialLoading = true
     } else if isManualRefresh {
@@ -18,39 +24,17 @@ final class DevicesManager: Refreshable {
     lastError = nil
 
     do {
-      let url = URL(string: "\(Config.apiBaseURL)/devices")!
-      var request = URLRequest(url: url)
-      request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
-
-      let (data, response) = try await Config.urlSession.data(for: request)
-
-      guard let httpResponse = response as? HTTPURLResponse else {
-        throw URLError(.badServerResponse)
-      }
-
-      guard httpResponse.statusCode == 200 else {
-        if let body = String(data: data, encoding: .utf8) {
-          Logger.error(.devices, "HTTP \(httpResponse.statusCode): \(body)")
-        }
-        throw NSError(
-          domain: "DevicesManager",
-          code: httpResponse.statusCode,
-          userInfo: [NSLocalizedDescriptionKey: "HTTP \(httpResponse.statusCode)"]
-        )
-      }
-
-      devices = try JSONDecoder().decode([Device].self, from: data)
-      lastError = nil
+      devices = try await api.get("/devices")
       lastUpdated = Date()
       Logger.success(.devices, "Fetched \(devices.count) devices")
     } catch is CancellationError {
       return
-    } catch let error as URLError where error.code == .cancelled {
-      return
     } catch {
-      Logger.error(.devices, "Failed to fetch devices: \(error)")
-      lastError = error.localizedDescription
+      let apiError = APIError.classify(error)
+      if case .transport(let urlError) = apiError, urlError.code == .cancelled { return }
+      lastError = apiError
       devices = []
+      Logger.error(.devices, "Failed to fetch devices: \(apiError)")
     }
 
     isInitialLoading = false

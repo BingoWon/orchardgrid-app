@@ -119,6 +119,6 @@ struct MainView: View {
 
 #Preview {
   MainView()
-    .environment(AuthManager())
+    .environment(AuthManager(api: .preview))
     .environment(NavigationState())
 }

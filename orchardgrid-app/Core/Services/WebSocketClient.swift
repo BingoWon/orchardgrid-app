@@ -18,7 +18,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     case connecting
     case connected
     case reconnecting(attempt: Int, nextRetryIn: TimeInterval)
-    case failed(String)
+    case failed(APIError)
   }
 
   private(set) var connectionState: ConnectionState = .disconnected
@@ -222,14 +222,14 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     guard !Task.isCancelled else { return false }
 
     guard var urlComponents = URLComponents(string: serverURL) else {
-      connectionState = .failed("Invalid server URL")
+      connectionState = .failed(.local(String(localized: "Invalid server URL.")))
       Logger.error(.websocket, "Invalid server URL: \(serverURL)")
       return false
     }
 
     guard urlComponents.scheme == "wss" || urlComponents.scheme == "ws" else {
       let scheme = urlComponents.scheme ?? "nil"
-      connectionState = .failed("Invalid protocol: \(scheme)")
+      connectionState = .failed(.local("Invalid protocol: \(scheme)"))
       Logger.error(.websocket, "WebSocket URL must use wss:// or ws://, got: \(scheme)")
       return false
     }
@@ -252,7 +252,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     urlComponents.queryItems = queryItems
 
     guard let url = urlComponents.url else {
-      connectionState = .failed("Failed to construct URL")
+      connectionState = .failed(.local(String(localized: "Failed to construct URL.")))
       Logger.error(.websocket, "Failed to construct URL from components")
       return false
     }
@@ -284,7 +284,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
     if !isConnected {
       Logger.error(.websocket, "Connection timeout")
-      connectionState = .failed("Connection timeout")
+      connectionState = .failed(.local(String(localized: "Connection timeout.")))
       cleanupConnection()
     }
 
@@ -352,7 +352,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       if nsError.domain == NSURLErrorDomain, nsError.code == -999 { return }
 
       Logger.error(.websocket, "Connection error: \(error.localizedDescription)")
-      connectionState = .failed(error.localizedDescription)
+      connectionState = .failed(APIError.classify(error))
 
       if isEnabled, isNetworkAvailable, connectionTask == nil {
         startConnection()

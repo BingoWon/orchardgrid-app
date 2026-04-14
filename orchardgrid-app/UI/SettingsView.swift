@@ -328,6 +328,6 @@ struct SettingsView: View {
 
 #Preview {
   SettingsView()
-    .environment(AuthManager())
+    .environment(AuthManager(api: .preview))
     .environment(SharingManager())
 }

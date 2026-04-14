@@ -9,6 +9,7 @@ private let relativeFormatter: RelativeDateTimeFormatter = {
 @MainActor
 protocol Refreshable {
   var lastUpdated: Date? { get }
+  var lastError: APIError? { get }
 }
 
 extension Refreshable {

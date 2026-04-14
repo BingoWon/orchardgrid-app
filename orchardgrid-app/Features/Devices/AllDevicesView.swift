@@ -45,12 +45,8 @@ struct AllDevicesView: View {
             }
 
             if let error = devicesManager.lastError {
-              ErrorBanner(message: error) {
-                Task {
-                  if let token = await authManager.getToken() {
-                    await devicesManager.fetchDevices(authToken: token)
-                  }
-                }
+              ErrorBanner(error: error) {
+                Task { await devicesManager.fetchDevices() }
               }
             }
           } else {
@@ -74,9 +70,7 @@ struct AllDevicesView: View {
       }
     }
     .refreshable {
-      if let token = await authManager.getToken() {
-        await devicesManager.fetchDevices(authToken: token, isManualRefresh: true)
-      }
+      await devicesManager.fetchDevices(isManualRefresh: true)
     }
     .navigationTitle(String(localized: "Devices"))
     .toolbarRole(.editor)
@@ -87,9 +81,7 @@ struct AllDevicesView: View {
       }
     }
     .task(id: authManager.userId) {
-      if let token = await authManager.getToken() {
-        await devicesManager.fetchDevices(authToken: token)
-      }
+      await devicesManager.fetchDevices()
     }
   }
 
@@ -169,11 +161,7 @@ struct AllDevicesView: View {
 
   private var refreshButton: some View {
     Button {
-      Task {
-        if let token = await authManager.getToken() {
-          await devicesManager.fetchDevices(authToken: token, isManualRefresh: true)
-        }
-      }
+      Task { await devicesManager.fetchDevices(isManualRefresh: true) }
     } label: {
       Image(systemName: "arrow.clockwise")
         .symbolEffect(.rotate, isActive: devicesManager.isRefreshing)
@@ -264,8 +252,8 @@ private struct DeviceCard: View {
 
 #Preview {
   AllDevicesView()
-    .environment(DevicesManager())
-    .environment(AuthManager())
+    .environment(DevicesManager(api: .preview))
+    .environment(AuthManager(api: .preview))
     .environment(ObserverClient())
     .environment(SharingManager())
     .environment(NavigationState())

@@ -94,7 +94,7 @@ final class APIServer {
 
   private(set) var isRunning = false
   private(set) var requestCount = 0
-  private(set) var errorMessage = ""
+  private(set) var lastError: APIError?
   private(set) var localIPAddress: String?
   private(set) var portConflict = false
   private(set) var suggestedPort: UInt16?
@@ -190,16 +190,17 @@ final class APIServer {
           switch state {
           case .ready:
             self.isRunning = true
-            self.errorMessage = ""
+            self.lastError = nil
             self.portConflict = false
           case .failed(let nwError):
             self.isRunning = false
             if case .posix(let code) = nwError, code == .EADDRINUSE {
               self.portConflict = true
-              self.errorMessage = "Port \(self.port) is already in use"
+              self.lastError = .local(
+                String(localized: "Port \(self.port) is already in use."))
               self.suggestedPort = Self.findAvailablePort(from: self.port &+ 1)
             } else {
-              self.errorMessage = "Server error: \(nwError.localizedDescription)"
+              self.lastError = .local(nwError.localizedDescription)
             }
           case .cancelled:
             self.isRunning = false
@@ -218,7 +219,7 @@ final class APIServer {
       self.listener = listener
       listener.start(queue: .global())
     } catch {
-      errorMessage = "Failed to create server: \(error.localizedDescription)"
+      lastError = APIError.classify(error)
     }
   }
 
@@ -227,7 +228,7 @@ final class APIServer {
     port = newPort
     portConflict = false
     suggestedPort = nil
-    errorMessage = ""
+    lastError = nil
     if isEnabled {
       Task { await start() }
     }
@@ -263,7 +264,7 @@ final class APIServer {
     listener?.cancel()
     listener = nil
     isRunning = false
-    errorMessage = ""
+    lastError = nil
     portConflict = false
     suggestedPort = nil
   }

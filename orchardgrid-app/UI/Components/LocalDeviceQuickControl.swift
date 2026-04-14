@@ -94,7 +94,7 @@ struct LocalDeviceQuickControl: View {
 
   private var isLocalStarting: Bool {
     sharing.wantsLocalSharing && !sharing.isLocalActive
-      && !sharing.localPortConflict && sharing.localErrorMessage == nil
+      && !sharing.localPortConflict && sharing.localError == nil
   }
 
   private var togglesRow: some View {

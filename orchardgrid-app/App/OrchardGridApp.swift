@@ -16,8 +16,9 @@ struct OrchardGridApp: App {
   @State private var observerClient: ObserverClient
   @State private var backgroundManager = BackgroundManager()
   @State private var navigationState = NavigationState()
-  @State private var devicesManager = DevicesManager()
-  @State private var logsManager = LogsManager()
+  @State private var devicesManager: DevicesManager
+  @State private var apiKeysManager: APIKeysManager
+  @State private var logsManager: LogsManager
   @State private var chatManager = ChatManager()
   @Environment(\.scenePhase) private var scenePhase
 
@@ -27,13 +28,20 @@ struct OrchardGridApp: App {
 
     let clerk = Clerk.configure(publishableKey: Config.clerkPublishableKey)
 
+    let tokenProvider: @Sendable () async -> String? = {
+      try? await Clerk.shared.session?.getToken()
+    }
+
+    guard let baseURL = URL(string: Config.apiBaseURL) else {
+      fatalError("Invalid API_BASE_URL: \(Config.apiBaseURL)")
+    }
+    let api = APIClient(baseURL: baseURL, tokenProvider: tokenProvider)
+
+    let authManager = AuthManager(api: api)
     let sharingManager = SharingManager()
-    let authManager = AuthManager()
     let observerClient = ObserverClient()
 
-    authManager.onUserIDChanged = { _ in
-      sharingManager.setAuth { await authManager.getToken() }
-    }
+    sharingManager.setAuth(tokenProvider: tokenProvider)
 
     authManager.onLogout = {
       sharingManager.clearAuth()
@@ -44,6 +52,9 @@ struct OrchardGridApp: App {
     _sharingManager = State(initialValue: sharingManager)
     _authManager = State(initialValue: authManager)
     _observerClient = State(initialValue: observerClient)
+    _devicesManager = State(initialValue: DevicesManager(api: api))
+    _apiKeysManager = State(initialValue: APIKeysManager(api: api))
+    _logsManager = State(initialValue: LogsManager(api: api))
 
     Logger.success(.app, "Initialization complete")
   }
@@ -62,6 +73,7 @@ struct OrchardGridApp: App {
             .environment(backgroundManager)
             .environment(navigationState)
             .environment(devicesManager)
+            .environment(apiKeysManager)
             .environment(logsManager)
             .environment(chatManager)
         } else {
@@ -79,9 +91,9 @@ struct OrchardGridApp: App {
       .frame(minWidth: 375.0, minHeight: 375.0)
       .task(id: clerk.user?.id) {
         guard clerk.isLoaded else { return }
-        if let userId = clerk.user?.id {
-          Logger.log(.app, "Auth sync: \(userId)")
-          authManager.onUserIDChanged?(userId)
+        if clerk.user?.id != nil {
+          Logger.log(.app, "Auth sync: \(clerk.user?.id ?? "?")")
+          sharingManager.retryCloudConnection()
           connectObserver()
         } else {
           authManager.onLogout?()
@@ -110,18 +122,13 @@ struct OrchardGridApp: App {
   }
 
   private func connectObserver() {
-    observerClient.connect(tokenProvider: { await authManager.getToken() })
-    observerClient.onDevicesChanged = { [devicesManager, authManager] in
-      Task {
-        guard let token = await authManager.getToken() else { return }
-        await devicesManager.fetchDevices(authToken: token, isManualRefresh: false)
-      }
+    observerClient.connect(
+      tokenProvider: { try? await Clerk.shared.session?.getToken() })
+    observerClient.onDevicesChanged = { [devicesManager] in
+      Task { await devicesManager.fetchDevices() }
     }
-    observerClient.onTasksChanged = { [logsManager, authManager] in
-      Task {
-        guard let token = await authManager.getToken() else { return }
-        await logsManager.reload(authToken: token, isManualRefresh: false)
-      }
+    observerClient.onTasksChanged = { [logsManager] in
+      Task { await logsManager.reload() }
     }
   }
 

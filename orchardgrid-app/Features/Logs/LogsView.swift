@@ -67,7 +67,7 @@ struct LogsView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 60)
     } else if let error = manager.lastError {
-      ErrorBanner(message: error) {
+      ErrorBanner(error: error) {
         Task { await loadData(isManualRefresh: true) }
       }
     } else {
@@ -313,14 +313,12 @@ struct LogsView: View {
   }
 
   private func loadData(isManualRefresh: Bool = false) async {
-    guard let token = await authManager.getToken() else { return }
     let offset = (page - 1) * pageSize
     await manager.loadLogs(
       limit: pageSize,
       offset: offset,
       status: statusFilter == "all" ? nil : statusFilter,
       role: roleFilter == "all" ? nil : roleFilter,
-      authToken: token,
       isManualRefresh: isManualRefresh
     )
   }
@@ -404,7 +402,7 @@ private struct LogRow: View {
 
 #Preview {
   LogsView()
-    .environment(AuthManager())
-    .environment(LogsManager())
+    .environment(AuthManager(api: .preview))
+    .environment(LogsManager(api: .preview))
     .environment(ObserverClient())
 }

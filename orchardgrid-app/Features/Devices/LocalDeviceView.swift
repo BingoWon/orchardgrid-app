@@ -139,7 +139,7 @@ struct LocalDeviceView: View {
           icon: "exclamationmark.triangle.fill",
           iconColor: .orange,
           title: "Connection Failed",
-          subtitle: LocalizedStringKey(error)
+          subtitle: LocalizedStringKey(error.localizedDescription)
         )
 
         Button(String(localized: "Retry")) {
@@ -157,7 +157,7 @@ struct LocalDeviceView: View {
 
   private var isLocalStarting: Bool {
     sharing.wantsLocalSharing && !sharing.isLocalActive
-      && !sharing.localPortConflict && sharing.localErrorMessage == nil
+      && !sharing.localPortConflict && sharing.localError == nil
   }
 
   private var portNeedsApply: Bool {
@@ -260,12 +260,12 @@ struct LocalDeviceView: View {
         title: "Running",
         subtitle: "Port \(sharing.localPort)"
       )
-    } else if let error = sharing.localErrorMessage {
+    } else if let error = sharing.localError {
       StatusRow(
         icon: "exclamationmark.triangle.fill",
         iconColor: .red,
         title: "Failed to Start",
-        subtitle: LocalizedStringKey(error)
+        subtitle: LocalizedStringKey(error.localizedDescription)
       )
     }
   }

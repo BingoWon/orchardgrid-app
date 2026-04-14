@@ -6,13 +6,16 @@ final class APIKeysManager: Refreshable {
   private(set) var apiKeys: [APIKey] = []
   private(set) var isInitialLoading = true
   private(set) var isRefreshing = false
-  private(set) var lastError: String?
+  private(set) var lastError: APIError?
   private(set) var lastUpdated: Date?
 
-  private let apiURL = Config.apiBaseURL
-  private let urlSession = Config.urlSession
+  private let api: APIClient
 
-  func loadAPIKeys(authToken: String, isManualRefresh: Bool = false) async {
+  init(api: APIClient) {
+    self.api = api
+  }
+
+  func loadAPIKeys(isManualRefresh: Bool = false) async {
     if apiKeys.isEmpty {
       isInitialLoading = true
     } else if isManualRefresh {
@@ -21,31 +24,16 @@ final class APIKeysManager: Refreshable {
     lastError = nil
 
     do {
-      let url = URL(string: "\(apiURL)/api-keys")!
-      var request = URLRequest(url: url)
-      request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
-
-      let (data, response) = try await urlSession.data(for: request)
-
-      guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-        let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
-        throw NSError(domain: errorText, code: -1)
-      }
-
-      struct Response: Codable {
-        let keys: [APIKey]
-      }
-
-      let result = try JSONDecoder().decode(Response.self, from: data)
-      apiKeys = result.keys
+      let response: ListResponse = try await api.get("/api-keys")
+      apiKeys = response.keys
       lastUpdated = Date()
     } catch is CancellationError {
       return
-    } catch let error as URLError where error.code == .cancelled {
-      return
     } catch {
-      Logger.error(.api, "Failed to load API keys: \(error.localizedDescription)")
-      lastError = error.localizedDescription
+      let apiError = APIError.classify(error)
+      if case .transport(let urlError) = apiError, urlError.code == .cancelled { return }
+      lastError = apiError
+      Logger.error(.api, "Failed to load API keys: \(apiError)")
     }
 
     isInitialLoading = false
@@ -53,75 +41,44 @@ final class APIKeysManager: Refreshable {
   }
 
   @discardableResult
-  func createAPIKey(name: String, authToken: String) async -> APIKey? {
+  func createAPIKey(name: String) async -> APIKey? {
     do {
-      let url = URL(string: "\(apiURL)/api-keys")!
-      var request = URLRequest(url: url)
-      request.httpMethod = "POST"
-      request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
-      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-      request.httpBody = try JSONEncoder().encode(["name": name])
-
-      let (data, response) = try await urlSession.data(for: request)
-
-      guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-        let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
-        throw NSError(domain: errorText, code: -1)
-      }
-
-      let key = try JSONDecoder().decode(APIKey.self, from: data)
-      await loadAPIKeys(authToken: authToken)
+      let key: APIKey = try await api.post("/api-keys", body: ["name": name])
+      await loadAPIKeys()
       return key
     } catch {
-      Logger.error(.api, "Failed to create API key: \(error.localizedDescription)")
-      lastError = error.localizedDescription
+      lastError = APIError.classify(error)
+      Logger.error(.api, "Failed to create API key: \(error)")
       return nil
     }
   }
 
-  func updateAPIKey(hint: String, name: String, authToken: String) async {
+  func updateAPIKey(hint: String, name: String) async {
     do {
-      let encoded = hint.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? hint
-      let url = URL(string: "\(apiURL)/api-keys/\(encoded)")!
-      var request = URLRequest(url: url)
-      request.httpMethod = "PATCH"
-      request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
-      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-      request.httpBody = try JSONEncoder().encode(["name": name])
-
-      let (data, response) = try await urlSession.data(for: request)
-
-      guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-        let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
-        throw NSError(domain: errorText, code: -1)
-      }
-
-      await loadAPIKeys(authToken: authToken)
+      try await api.patch(path(for: hint), body: ["name": name])
+      await loadAPIKeys()
     } catch {
-      Logger.error(.api, "Failed to update API key: \(error.localizedDescription)")
-      lastError = error.localizedDescription
+      lastError = APIError.classify(error)
+      Logger.error(.api, "Failed to update API key: \(error)")
     }
   }
 
-  func deleteAPIKey(hint: String, authToken: String) async {
+  func deleteAPIKey(hint: String) async {
     do {
-      let encoded = hint.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? hint
-      let url = URL(string: "\(apiURL)/api-keys/\(encoded)")!
-      var request = URLRequest(url: url)
-      request.httpMethod = "DELETE"
-      request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
-
-      let (data, response) = try await urlSession.data(for: request)
-
-      guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-        let errorText = String(data: data, encoding: .utf8) ?? "Unknown error"
-        throw NSError(domain: errorText, code: -1)
-      }
-
-      await loadAPIKeys(authToken: authToken)
+      try await api.delete(path(for: hint))
+      await loadAPIKeys()
     } catch {
-      Logger.error(.api, "Failed to delete API key: \(error.localizedDescription)")
-      lastError = error.localizedDescription
+      lastError = APIError.classify(error)
+      Logger.error(.api, "Failed to delete API key: \(error)")
     }
+  }
+
+  private func path(for hint: String) -> String {
+    let encoded = hint.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? hint
+    return "/api-keys/\(encoded)"
+  }
+
+  private struct ListResponse: Decodable {
+    let keys: [APIKey]
   }
 }
