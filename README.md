@@ -116,8 +116,17 @@ Every capability is accessible both through the **local direct API** (on your LA
 ### Install via Homebrew (macOS)
 
 ```bash
-brew install --cask orchardgrid
+brew install --cask bingowon/orchardgrid/orchardgrid
 ```
+
+Installs both the **OrchardGrid.app** menu-bar app and the **`og`** CLI (symlinked to `/opt/homebrew/bin/og`). The two share state via macOS App Group `group.com.orchardgrid.shared`.
+
+```bash
+og "What is the capital of Austria?"   # on-device FoundationModels
+og status                              # live view of the running app
+```
+
+See [orchardgrid-cli/README.md](orchardgrid-cli/README.md) for the full CLI reference.
 
 ### Install from App Store (iOS · iPadOS · macOS)
 

@@ -34,8 +34,11 @@ In scope:
 - **Cloud relay worker** (WebSocket `/device/connect`, `/observe`) — token auth, message validation, rate limits.
 - **Local HTTP API** (`:8888`) — endpoint auth, request parsing, capability dispatch.
 - **Auth flow** — Clerk session handling, token storage, account deletion.
-- **Build & release pipeline** — signing, notarization, Homebrew tap integrity.
-- **Entitlements** — any over-scoped capability on macOS or iOS.
+- **CLI OAuth loopback** (`orchardgrid.com/cli/login`) — PKCE exchange, management-scope key issuance, `~/.config/orchardgrid` handling.
+- **API key scopes** — `inference` vs `management` separation; privilege escalation between scopes.
+- **App Group `group.com.orchardgrid.shared`** — state shared between app and `og` CLI; any cross-process trust assumption.
+- **Build & release pipeline** — signing, notarization, Homebrew tap integrity (both `app` and `binary` stanzas).
+- **Entitlements** — any over-scoped capability on macOS or iOS (5 app entitlement files + `og.entitlements`).
 
 Out of scope:
 
@@ -63,4 +66,4 @@ Once a fix ships, we publish a GitHub Security Advisory with:
 
 ---
 
-*Last reviewed: 2026-04-14*
+*Last reviewed: 2026-04-15*

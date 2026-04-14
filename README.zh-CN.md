@@ -116,8 +116,17 @@ flowchart LR
 ### 通过 Homebrew 安装 (macOS)
 
 ```bash
-brew install --cask orchardgrid
+brew install --cask bingowon/orchardgrid/orchardgrid
 ```
+
+一次安装同时获得 **OrchardGrid.app** 菜单栏应用和 **`og`** 命令行工具（软链到 `/opt/homebrew/bin/og`）。两者通过 macOS App Group `group.com.orchardgrid.shared` 共享状态。
+
+```bash
+og "奥地利的首都是哪里？"   # 设备端 FoundationModels 直接推理
+og status                   # 查看正在运行的 App 实时状态
+```
+
+完整 CLI 参考见 [orchardgrid-cli/README.md](orchardgrid-cli/README.md)。
 
 ### 从 App Store 安装 (iOS · iPadOS · macOS)
 

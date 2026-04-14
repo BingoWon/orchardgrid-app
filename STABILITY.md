@@ -16,6 +16,8 @@ The version in `Config/Release.xcconfig` and the Homebrew cask is the source of 
 
 - **Local HTTP API on `:8888`** — endpoint paths, request shapes, and response shapes are stable within a major version. OpenAI-compatible paths (`/v1/chat/completions`, `/v1/images/generations`, etc.) follow the OpenAI schema unless explicitly documented otherwise.
 - **Cloud-facing WebSocket frame schema** — the task/chunk/done message shape between device and cloud is stable within a major version.
+- **`og` CLI public surface** — documented flags, environment variables (`ORCHARDGRID_HOST`, `ORCHARDGRID_TOKEN`), and exit codes are stable within a major version. New flags and new exit codes above the current max are minor additions.
+- **API key scopes** — `inference` and `management` are stable scope names; renaming either is a major bump.
 - **Entitlements set** — adding entitlements requires a minor bump; removing one is a major bump.
 - **Config keys** (`API_BASE_URL`, `CLERK_PUBLISHABLE_KEY`) — renaming is a major bump.
 - **Semantic behaviour of capability toggles** — enabling `llm` will always route LLM tasks; we won't silently redefine what a capability means.
@@ -44,4 +46,4 @@ We don't do long deprecation windows. This is a solo-dev shipping app — a depr
 
 ---
 
-*Last reviewed: 2026-04-14*
+*Last reviewed: 2026-04-15*
