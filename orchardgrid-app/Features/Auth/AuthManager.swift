@@ -9,8 +9,6 @@ final class AuthManager {
   var isAuthenticated: Bool { Clerk.shared.user != nil }
   var userId: String? { Clerk.shared.user?.id }
 
-  var onLogout: (() -> Void)?
-
   private let api: APIClient
 
   init(api: APIClient) {

@@ -43,11 +43,6 @@ struct OrchardGridApp: App {
 
     sharingManager.setAuth(tokenProvider: tokenProvider)
 
-    authManager.onLogout = {
-      sharingManager.clearAuth()
-      observerClient.disconnect()
-    }
-
     _clerk = State(initialValue: clerk)
     _sharingManager = State(initialValue: sharingManager)
     _authManager = State(initialValue: authManager)
@@ -91,12 +86,13 @@ struct OrchardGridApp: App {
       .frame(minWidth: 375.0, minHeight: 375.0)
       .task(id: clerk.user?.id) {
         guard clerk.isLoaded else { return }
-        if clerk.user?.id != nil {
-          Logger.log(.app, "Auth sync: \(clerk.user?.id ?? "?")")
+        if let userId = clerk.user?.id {
+          Logger.log(.app, "Auth sync: \(userId)")
           sharingManager.retryCloudConnection()
           connectObserver()
         } else {
-          authManager.onLogout?()
+          sharingManager.clearAuth()
+          observerClient.disconnect()
         }
       }
       .onChange(of: sharingManager.isAnySharingActive) { _, isActive in
