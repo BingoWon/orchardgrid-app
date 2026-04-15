@@ -152,7 +152,14 @@ Four test tiers, three of them run on CI:
 | og CLI e2e | [orchardgrid-cli/Tests/integration/](orchardgrid-app/orchardgrid-cli/Tests/integration/) | pytest + mock HTTP server | `og` subprocess behaviour against a scripted server; MCP via Python calculator | ✅ |
 | Xcode app | [OrchardGridTests/](orchardgrid-app/OrchardGridTests/) | Swift Testing | `APIClient` networking, URL protocol stubs | local only |
 
-Xcode app tests need a real Apple development certificate (App Group + hardened-runtime entitlements reject ad-hoc signing). Run `make test-xcode` locally before opening a PR. `smoke-live` (live Apple Intelligence) is release-gate only.
+Xcode app tests need a real Apple development certificate (App Group + hardened-runtime entitlements reject ad-hoc signing). Run `make test-xcode` locally before opening a PR.
+
+Release-gate live smoke (requires a running OrchardGrid.app + Apple Intelligence):
+
+| Surface | Command | What it covers |
+|---|---|---|
+| `og` CLI | `make -C orchardgrid-cli smoke-live` | Real FoundationModels via the `og` binary |
+| All 6 capabilities | `make smoke-live-capabilities` | Chat · Image · NLP · Vision · Speech · Sound through the `:8888` HTTP server. The only layer that catches non-chat regressions (ImagePlayground broken, Speech transcribing empty, etc.) — every other tier mocks these frameworks. Append `SMOKE_ARGS='--worker-key sk-…'` to also exercise the cloud relay. |
 
 **Swift version:** 5.0 (treat as Swift 6 concurrency — strict concurrency warnings enabled via @Observable).
 **Deployment targets:** macOS 26.0, iOS 26.0 (required for FoundationModels).

@@ -15,6 +15,7 @@ IOS_DST := platform=iOS Simulator,name=iPhone 17
 
 .PHONY: help build build-macos build-ios debug \
         test test-core test-xcode test-xcode-macos test-xcode-ios test-cli \
+        smoke-live-capabilities \
         format clean open release-notes bundle bundle-cli
 
 help: ## Show this help
@@ -83,6 +84,16 @@ test-xcode-ios: ## Xcode app test target on iPhone 17 simulator
 
 test-cli: ## og CLI Swift unit + pytest integration suites
 	$(MAKE) -C $(CLI_DIR) test
+
+# ── Live smoke (release gate, requires running app + Apple Intelligence)
+
+smoke-live-capabilities: ## Hit every /v1/* endpoint of a running OrchardGrid.app
+	@command -v python3 >/dev/null || { echo "python3 required"; exit 1; }
+	@python3 -c 'import requests' 2>/dev/null || { \
+		echo "→ installing requests for this run"; \
+		python3 -m pip install --quiet --break-system-packages --user requests; \
+	}
+	python3 scripts/smoke-live/capabilities.py $(SMOKE_ARGS)
 
 format: ## Format all Swift sources (swift-format)
 	@command -v swift-format >/dev/null || { echo "swift-format not found — brew install swift-format"; exit 1; }
