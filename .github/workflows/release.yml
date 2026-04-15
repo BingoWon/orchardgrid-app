@@ -320,6 +320,9 @@ jobs:
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit -am "Update orchardgrid to v${V}"
-          git remote set-url origin \
-            "https://x-access-token:${TAP_TOKEN}@github.com/BingoWon/homebrew-orchardgrid.git"
-          git push
+
+          # Authenticate via HTTP header rather than URL-embedded credentials.
+          # GitHub's git backend rejects fine-grained PATs in `user:pass@host`
+          # form ("Password authentication is not supported"); Bearer works.
+          git -c http.extraheader="Authorization: Bearer ${TAP_TOKEN}" \
+              push origin HEAD:main
