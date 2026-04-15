@@ -14,7 +14,7 @@ MAC_DST := generic/platform=macOS
 IOS_DST := platform=iOS Simulator,name=iPhone 17
 
 .PHONY: help build build-macos build-ios debug \
-        test test-xcode test-xcode-macos test-xcode-ios test-cli \
+        test test-core test-xcode test-xcode-macos test-xcode-ios test-cli \
         format clean open release-notes bundle bundle-cli
 
 help: ## Show this help
@@ -67,14 +67,15 @@ bundle-cli: ## Compile og + copy into the most recent OrchardGrid.app, ad-hoc si
 # Testing unit suite and pytest integration suite. Sub-targets are
 # composable so CI can parallelise them.
 
-test: test-xcode test-cli ## Run every test in the repo (Xcode app + og CLI)
+test: test-core test-xcode test-cli ## Run every test in the repo (Core + Xcode + og CLI)
+
+test-core: ## OrchardGridCore package (shared primitives, CI-runnable)
+	cd Packages/OrchardGridCore && swift test
 
 test-xcode: test-xcode-macos test-xcode-ios ## Xcode app test target on macOS + iOS
 
-test-xcode-macos: ## Xcode app test target on macOS
-	$(XCB) -configuration Debug -destination 'platform=macOS' \
-		CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO \
-		CODE_SIGNING_ALLOWED=YES test
+test-xcode-macos: ## Xcode app test target on macOS (uses local dev cert)
+	$(XCB) -configuration Debug -destination 'platform=macOS' test
 
 test-xcode-ios: ## Xcode app test target on iPhone 17 simulator
 	$(XCB) -configuration Debug -destination '$(IOS_DST)' \

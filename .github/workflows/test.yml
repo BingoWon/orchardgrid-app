@@ -11,6 +11,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  core:
+    name: OrchardGridCore (shared primitives)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Run OrchardGridCore tests
+        working-directory: Packages/OrchardGridCore
+        run: swift test
+
   cli:
     name: og CLI (Swift unit + pytest e2e)
     runs-on: macos-26
@@ -30,7 +44,7 @@ jobs:
 
   # The Xcode app test target can't run on CI: the app entitlements
   # (App Group, hardened runtime, Clerk) require a development signing
-  # certificate that the runner doesn't have. Contributors are expected
-  # to run `make test-xcode` locally before opening a PR. Once the
-  # pure-logic types (APIClient, context trimming, etc.) are extracted
-  # into an SPM target, that target will be added to this workflow.
+  # certificate that the runner doesn't have. Contributors run
+  # `make test-xcode` locally before opening a PR. Shared pure-logic
+  # primitives live in Packages/OrchardGridCore and DO run on CI via
+  # the `core` job above.

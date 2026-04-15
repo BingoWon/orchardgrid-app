@@ -25,6 +25,7 @@ The cloud never sees your model inputs or outputs — it only routes a task id t
 5. **No backward-compatibility shims.** This is a solo-dev shipping app — delete, don't deprecate.
 6. **Conventional commits drive releases.** `feat:` → minor bump, `fix:`/`perf:`/`refactor:` → patch bump. Anything else skips release.
 7. **App + CLI ship as one.** The `og` CLI lives in `orchardgrid-cli/` (sibling to the Xcode project) and is bundled inside `OrchardGrid.app/Contents/Resources/og` by `make bundle-cli` (locally) or the `release.yml` "Build og CLI" + "Bundle og into the .app" steps (CI). State is shared via App Group `group.com.orchardgrid.shared` (5 entitlement files + `og.entitlements`).
+8. **Shared on-device primitives live in `Packages/OrchardGridCore/`.** Context trimming, token counting, transcript assembly, and summary-based fallback are implemented once in `ContextTools.swift` and consumed by both the app's `LLMProcessor` (via Xcode local package dependency) and the CLI's `LocalEngine` (via SPM `.package(path:)`). The package's own tests run in CI.
 
 ---
 
@@ -83,6 +84,7 @@ Both WebSocketClient and APIServer dispatch to the same processors — one code 
 | Cloud WebSocket (observer) | [orchardgrid-app/Core/Services/ObserverClient.swift](orchardgrid-app/Core/Services/ObserverClient.swift) |
 | Local HTTP API (`:8888`) | [orchardgrid-app/Core/Services/APIServer.swift](orchardgrid-app/Core/Services/APIServer.swift) |
 | FoundationModels chat | [orchardgrid-app/Core/Services/LLMProcessor.swift](orchardgrid-app/Core/Services/LLMProcessor.swift) |
+| Shared on-device primitives | [Packages/OrchardGridCore/Sources/OrchardGridCore/ContextTools.swift](Packages/OrchardGridCore/Sources/OrchardGridCore/ContextTools.swift) |
 | Runtime config | [orchardgrid-app/Core/Utilities/Config.swift](orchardgrid-app/Core/Utilities/Config.swift) |
 | Logging | [orchardgrid-app/Core/Utilities/Logger.swift](orchardgrid-app/Core/Utilities/Logger.swift) |
 | Build config (Debug) | [Config/Debug.xcconfig](Config/Debug.xcconfig) |
@@ -134,21 +136,23 @@ Command line:
 make build         # release build for macOS
 make debug         # debug build for macOS
 make format        # swift-format in place
-make test          # Xcode app tests (macOS + iOS) + og CLI suites
-make test-xcode    # Xcode app target only
+make test          # Core + Xcode + og CLI — every test in the repo
+make test-core     # OrchardGridCore package (shared on-device primitives)
+make test-xcode    # Xcode app target (macOS + iOS)
 make test-cli      # og CLI: Swift unit + pytest integration
 make clean         # xcodebuild clean
 ```
 
-Three test tiers:
+Four test tiers, three of them run on CI:
 
-| Tier | Location | Framework | What it covers |
-|---|---|---|---|
-| Xcode app | [OrchardGridTests/](orchardgrid-app/OrchardGridTests/) | Swift Testing | `APIClient` networking, URL protocol stubs |
-| og CLI unit | [orchardgrid-cli/Tests/ogKitTests/](orchardgrid-app/orchardgrid-cli/Tests/ogKitTests/) | Swift Testing | Argument parsing, error mapping, MCP protocol, benchmark stats, login flow, config store |
-| og CLI e2e | [orchardgrid-cli/Tests/integration/](orchardgrid-app/orchardgrid-cli/Tests/integration/) | pytest + mock HTTP server | Subprocess `og` behaviour against a scripted server; MCP via self-contained Python calculator |
+| Tier | Location | Framework | What it covers | CI |
+|---|---|---|---|:---:|
+| Shared core | [Packages/OrchardGridCore/](orchardgrid-app/Packages/OrchardGridCore/) | Swift Testing | Context trimming, token counting, transcript assembly, summary-based fallback | ✅ |
+| og CLI unit | [orchardgrid-cli/Tests/ogKitTests/](orchardgrid-app/orchardgrid-cli/Tests/ogKitTests/) | Swift Testing | Argument parsing, error mapping, MCP protocol, benchmark stats, login flow | ✅ |
+| og CLI e2e | [orchardgrid-cli/Tests/integration/](orchardgrid-app/orchardgrid-cli/Tests/integration/) | pytest + mock HTTP server | `og` subprocess behaviour against a scripted server; MCP via Python calculator | ✅ |
+| Xcode app | [OrchardGridTests/](orchardgrid-app/OrchardGridTests/) | Swift Testing | `APIClient` networking, URL protocol stubs | local only |
 
-GitHub CI ([.github/workflows/test.yml](orchardgrid-app/.github/workflows/test.yml)) runs the full CLI suite (127 unit + 96 e2e) on every push and PR. Xcode app tests stay local-only — the app's entitlements require a development signing certificate no CI runner has. Run `make test-xcode` locally before opening a PR. `smoke-live` (live Apple Intelligence) is release-gate only.
+Xcode app tests need a real Apple development certificate (App Group + hardened-runtime entitlements reject ad-hoc signing). Run `make test-xcode` locally before opening a PR. `smoke-live` (live Apple Intelligence) is release-gate only.
 
 **Swift version:** 5.0 (treat as Swift 6 concurrency — strict concurrency warnings enabled via @Observable).
 **Deployment targets:** macOS 26.0, iOS 26.0 (required for FoundationModels).

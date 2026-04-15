@@ -1,5 +1,6 @@
 import Foundation
 @preconcurrency import FoundationModels
+import OrchardGridCore
 
 // MARK: - LLM Result
 
@@ -176,11 +177,13 @@ final class LLMProcessor {
     )
 
     let budget = max(0, contextSize - Config.llmOutputReserve)
-    guard await tokenCount([instrEntry, promptEntry]) <= budget else {
+    guard await ContextTools.tokenCount([instrEntry, promptEntry], model: model) <= budget
+    else {
       throw LLMError.contextOverflow
     }
 
-    let historyEntries = Self.transcriptEntries(for: history)
+    let historyEntries = ContextTools.transcriptEntries(
+      from: history.map { (role: $0.role, content: $0.content) })
     let trimmed = try await trimHistory(
       base: instrEntry, history: historyEntries, prompt: promptEntry,
       budget: budget, config: options.contextConfig)
@@ -196,41 +199,13 @@ final class LLMProcessor {
     )
   }
 
-  // MARK: - Token Counting
-
-  private func tokenCount(_ entries: [Transcript.Entry]) async -> Int {
-    guard !entries.isEmpty else { return 0 }
-    if #available(iOS 26.4, macOS 26.4, *) {
-      return (try? await model.tokenCount(for: entries)) ?? fallbackCount(entries)
-    }
-    return fallbackCount(entries)
-  }
-
-  /// chars/4 approximation used when the real API is unavailable (pre 26.4)
-  /// or fails. Walks all text segments the entry exposes.
-  private func fallbackCount(_ entries: [Transcript.Entry]) -> Int {
-    entries.reduce(0) { $0 + Self.textSegments(of: $1).reduce(0) { $0 + max(1, $1.count / 4) } }
-  }
-
-  private static func textSegments(of entry: Transcript.Entry) -> [String] {
-    let segments: [Transcript.Segment]
-    switch entry {
-    case .instructions(let i): segments = i.segments
-    case .prompt(let p): segments = p.segments
-    case .response(let r): segments = r.segments
-    case .toolOutput(let o): segments = o.segments
-    case .toolCalls: return []
-    @unknown default: return []
-    }
-    return segments.compactMap {
-      if case .text(let t) = $0 { return t.content } else { return nil }
-    }
-  }
-
   // MARK: - History Trimming
+  //
+  // Primitives (token counting, binary trim, summary-based trim) live in
+  // the shared OrchardGridCore package so the CLI's LocalEngine and this
+  // processor use the same implementation. The dispatch below maps our
+  // typed ContextStrategy onto those primitives.
 
-  /// Dispatches to the configured strategy. Strict mode throws if the full
-  /// history doesn't fit; other modes trim until it does.
   private func trimHistory(
     base: Transcript.Entry,
     history: [Transcript.Entry],
@@ -240,124 +215,27 @@ final class LLMProcessor {
   ) async throws -> [Transcript.Entry] {
     switch config.strategy {
     case .newestFirst:
-      return await trimBinary(
-        base: base, history: history, prompt: prompt, budget: budget, fromEnd: true)
+      return await ContextTools.trimBinary(
+        base: base, history: history, prompt: prompt,
+        budget: budget, fromEnd: true, model: model)
     case .oldestFirst:
-      return await trimBinary(
-        base: base, history: history, prompt: prompt, budget: budget, fromEnd: false)
+      return await ContextTools.trimBinary(
+        base: base, history: history, prompt: prompt,
+        budget: budget, fromEnd: false, model: model)
     case .slidingWindow:
       let windowed = Array(history.suffix(config.maxTurns ?? history.count))
-      return await trimBinary(
-        base: base, history: windowed, prompt: prompt, budget: budget, fromEnd: true)
+      return await ContextTools.trimBinary(
+        base: base, history: windowed, prompt: prompt,
+        budget: budget, fromEnd: true, model: model)
     case .summarize:
-      return await trimWithSummary(
-        base: base, history: history, prompt: prompt, budget: budget)
+      return await ContextTools.trimWithSummary(
+        base: base, history: history, prompt: prompt,
+        budget: budget, model: model)
     case .strict:
       let all = [base] + history + [prompt]
-      if await tokenCount(all) <= budget { return history }
+      if await ContextTools.tokenCount(all, model: model) <= budget { return history }
       throw LLMError.contextOverflow
     }
-  }
-
-  /// Compress old history into a short model-generated summary, keep recent
-  /// turns verbatim. On any failure (model unavailable, empty text, result
-  /// still overflows) degrade silently to `newest-first`.
-  private func trimWithSummary(
-    base: Transcript.Entry,
-    history: [Transcript.Entry],
-    prompt: Transcript.Entry,
-    budget: Int
-  ) async -> [Transcript.Entry] {
-    let fallback: () async -> [Transcript.Entry] = {
-      await self.trimBinary(
-        base: base, history: history, prompt: prompt, budget: budget, fromEnd: true)
-    }
-    guard history.count > 2, isAvailable else { return await fallback() }
-
-    let halfBudget = budget / 2
-    var lo = 0
-    var hi = history.count
-    while lo < hi {
-      let mid = (lo + hi + 1) / 2
-      if await tokenCount([base] + Array(history.suffix(mid)) + [prompt]) <= halfBudget {
-        lo = mid
-      } else {
-        hi = mid - 1
-      }
-    }
-    let recent = Array(history.suffix(lo))
-    let old = Array(history.dropLast(lo))
-    guard !old.isEmpty else { return recent }
-
-    let oldText = Self.renderForSummary(old)
-    guard !oldText.isEmpty, let summary = await generateSummary(oldText) else {
-      return await fallback()
-    }
-
-    let summaryEntry = Transcript.Entry.response(
-      Transcript.Response(
-        assetIDs: [],
-        segments: [.text(.init(content: "[Summary of prior conversation]: \(summary)"))]
-      )
-    )
-    let assembled = [summaryEntry] + recent
-    if await tokenCount([base] + assembled + [prompt]) <= budget { return assembled }
-    return await fallback()
-  }
-
-  private func generateSummary(_ text: String) async -> String? {
-    let session = LanguageModelSession(
-      model: model,
-      instructions: "Summarize the following conversation in 2-3 sentences. Be concise."
-    )
-    do {
-      let response = try await session.respond(to: text)
-      let trimmed = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
-      return trimmed.isEmpty ? nil : trimmed
-    } catch {
-      return nil
-    }
-  }
-
-  private static func renderForSummary(_ entries: [Transcript.Entry]) -> String {
-    entries.compactMap { entry -> String? in
-      switch entry {
-      case .prompt(let p):
-        let text = p.segments.compactMap { seg -> String? in
-          if case .text(let t) = seg { return t.content } else { return nil }
-        }.joined()
-        return text.isEmpty ? nil : "User: \(text)"
-      case .response(let r):
-        let text = r.segments.compactMap { seg -> String? in
-          if case .text(let t) = seg { return t.content } else { return nil }
-        }.joined()
-        return text.isEmpty ? nil : "Assistant: \(text)"
-      default: return nil
-      }
-    }.joined(separator: "\n")
-  }
-
-  /// Binary-search the largest `k` for which `history.suffix(k)` (or prefix,
-  /// if `fromEnd == false`) fits inside the budget with `base` and `prompt`.
-  private func trimBinary(
-    base: Transcript.Entry,
-    history: [Transcript.Entry],
-    prompt: Transcript.Entry,
-    budget: Int,
-    fromEnd: Bool
-  ) async -> [Transcript.Entry] {
-    var lo = 0
-    var hi = history.count
-    while lo < hi {
-      let mid = (lo + hi + 1) / 2
-      let slice = fromEnd ? history.suffix(mid) : history.prefix(mid)
-      if await tokenCount([base] + Array(slice) + [prompt]) <= budget {
-        lo = mid
-      } else {
-        hi = mid - 1
-      }
-    }
-    return fromEnd ? Array(history.suffix(lo)) : Array(history.prefix(lo))
   }
 
   // MARK: - Token Measurement (post-response)
@@ -435,19 +313,4 @@ final class LLMProcessor {
     return full
   }
 
-  // MARK: - Transcript Entry Builder
-
-  static func transcriptEntries(for messages: [ChatMessage]) -> [Transcript.Entry] {
-    messages.compactMap { message in
-      switch message.role {
-      case "user":
-        .prompt(Transcript.Prompt(segments: [.text(.init(content: message.content))]))
-      case "assistant":
-        .response(
-          Transcript.Response(assetIDs: [], segments: [.text(.init(content: message.content))]))
-      default:
-        nil
-      }
-    }
-  }
 }

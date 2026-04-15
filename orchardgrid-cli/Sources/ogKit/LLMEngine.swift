@@ -1,5 +1,6 @@
 import Foundation
 @preconcurrency import FoundationModels
+import OrchardGridCore
 
 // MARK: - Engine Protocol
 
@@ -186,11 +187,12 @@ public final class LocalEngine: LLMEngine {
     )
 
     let budget = max(0, model.contextSize - outputReserve)
-    guard await tokenCount([instrEntry, promptEntry]) <= budget else {
+    guard await ContextTools.tokenCount([instrEntry, promptEntry], model: model) <= budget else {
       throw OGError.contextOverflow("Prompt + system instructions exceed context window")
     }
 
-    let historyEntries = Self.transcriptEntries(for: history)
+    let historyEntries = ContextTools.transcriptEntries(
+      from: history.map { (role: $0.role, content: $0.content) })
     let trimmed = try await trimHistory(
       base: instrEntry, history: historyEntries, prompt: promptEntry,
       budget: budget, strategy: options.contextStrategy, maxTurns: options.contextMaxTurns)
@@ -217,141 +219,29 @@ public final class LocalEngine: LLMEngine {
   ) async throws -> [Transcript.Entry] {
     switch rawStrategy ?? "newest-first" {
     case "newest-first":
-      return await trimBinary(
-        base: base, history: history, prompt: prompt, budget: budget, fromEnd: true)
+      return await ContextTools.trimBinary(
+        base: base, history: history, prompt: prompt,
+        budget: budget, fromEnd: true, model: model)
     case "oldest-first":
-      return await trimBinary(
-        base: base, history: history, prompt: prompt, budget: budget, fromEnd: false)
+      return await ContextTools.trimBinary(
+        base: base, history: history, prompt: prompt,
+        budget: budget, fromEnd: false, model: model)
     case "sliding-window":
       let windowed = Array(history.suffix(maxTurns ?? history.count))
-      return await trimBinary(
-        base: base, history: windowed, prompt: prompt, budget: budget, fromEnd: true)
+      return await ContextTools.trimBinary(
+        base: base, history: windowed, prompt: prompt,
+        budget: budget, fromEnd: true, model: model)
     case "summarize":
-      return await trimWithSummary(
-        base: base, history: history, prompt: prompt, budget: budget)
+      return await ContextTools.trimWithSummary(
+        base: base, history: history, prompt: prompt,
+        budget: budget, model: model)
     case "strict":
       let all = [base] + history + [prompt]
-      if await tokenCount(all) <= budget { return history }
+      if await ContextTools.tokenCount(all, model: model) <= budget { return history }
       throw OGError.contextOverflow("History exceeds context with --context-strategy strict")
     default:
       throw OGError.usage("unknown context strategy: \(rawStrategy ?? "")")
     }
-  }
-
-  /// Compress old history into a short model-generated summary, keep recent
-  /// turns verbatim. On any failure (no model, empty text, summary still
-  /// overflows) degrade to `newest-first` so the caller never sees an error.
-  private func trimWithSummary(
-    base: Transcript.Entry,
-    history: [Transcript.Entry],
-    prompt: Transcript.Entry,
-    budget: Int
-  ) async -> [Transcript.Entry] {
-    let fallback: () async -> [Transcript.Entry] = {
-      await self.trimBinary(
-        base: base, history: history, prompt: prompt, budget: budget, fromEnd: true)
-    }
-    guard history.count > 2, case .available = model.availability else {
-      return await fallback()
-    }
-
-    // Reserve half the budget for recent verbatim turns.
-    let halfBudget = budget / 2
-    let recentCount = await maxSuffix(
-      base: base, history: history, prompt: prompt, budget: halfBudget)
-    let recent = Array(history.suffix(recentCount))
-    let old = Array(history.dropLast(recentCount))
-    guard !old.isEmpty else { return recent }
-
-    let oldText = Self.renderForSummary(old)
-    guard !oldText.isEmpty, let summary = await generateSummary(oldText) else {
-      return await fallback()
-    }
-
-    let summaryEntry = Transcript.Entry.response(
-      Transcript.Response(
-        assetIDs: [],
-        segments: [.text(.init(content: "[Summary of prior conversation]: \(summary)"))]
-      )
-    )
-    let assembled = [summaryEntry] + recent
-    if await tokenCount([base] + assembled + [prompt]) <= budget {
-      return assembled
-    }
-    return await fallback()
-  }
-
-  /// Largest `k` for which `history.suffix(k)` fits with `base` + `prompt`.
-  private func maxSuffix(
-    base: Transcript.Entry,
-    history: [Transcript.Entry],
-    prompt: Transcript.Entry,
-    budget: Int
-  ) async -> Int {
-    var lo = 0
-    var hi = history.count
-    while lo < hi {
-      let mid = (lo + hi + 1) / 2
-      if await tokenCount([base] + Array(history.suffix(mid)) + [prompt]) <= budget {
-        lo = mid
-      } else {
-        hi = mid - 1
-      }
-    }
-    return lo
-  }
-
-  private func generateSummary(_ text: String) async -> String? {
-    let session = LanguageModelSession(
-      model: model,
-      instructions: "Summarize the following conversation in 2-3 sentences. Be concise."
-    )
-    do {
-      let response = try await session.respond(to: text)
-      let trimmed = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
-      return trimmed.isEmpty ? nil : trimmed
-    } catch {
-      return nil
-    }
-  }
-
-  private static func renderForSummary(_ entries: [Transcript.Entry]) -> String {
-    entries.compactMap { entry -> String? in
-      switch entry {
-      case .prompt(let p):
-        let text = p.segments.compactMap { seg -> String? in
-          if case .text(let t) = seg { return t.content } else { return nil }
-        }.joined()
-        return text.isEmpty ? nil : "User: \(text)"
-      case .response(let r):
-        let text = r.segments.compactMap { seg -> String? in
-          if case .text(let t) = seg { return t.content } else { return nil }
-        }.joined()
-        return text.isEmpty ? nil : "Assistant: \(text)"
-      default: return nil
-      }
-    }.joined(separator: "\n")
-  }
-
-  private func trimBinary(
-    base: Transcript.Entry,
-    history: [Transcript.Entry],
-    prompt: Transcript.Entry,
-    budget: Int,
-    fromEnd: Bool
-  ) async -> [Transcript.Entry] {
-    var lo = 0
-    var hi = history.count
-    while lo < hi {
-      let mid = (lo + hi + 1) / 2
-      let slice = fromEnd ? history.suffix(mid) : history.prefix(mid)
-      if await tokenCount([base] + Array(slice) + [prompt]) <= budget {
-        lo = mid
-      } else {
-        hi = mid - 1
-      }
-    }
-    return fromEnd ? Array(history.suffix(lo)) : Array(history.prefix(lo))
   }
 
   // MARK: - Streaming + usage
@@ -387,49 +277,6 @@ public final class LocalEngine: LLMEngine {
   }
 
   // MARK: - Helpers
-
-  private func tokenCount(_ entries: [Transcript.Entry]) async -> Int {
-    guard !entries.isEmpty else { return 0 }
-    if #available(macOS 26.4, *) {
-      return (try? await model.tokenCount(for: entries)) ?? Self.fallbackCount(entries)
-    }
-    return Self.fallbackCount(entries)
-  }
-
-  private static func fallbackCount(_ entries: [Transcript.Entry]) -> Int {
-    entries.reduce(0) {
-      $0 + textSegments(of: $1).reduce(0) { $0 + max(1, $1.count / 4) }
-    }
-  }
-
-  private static func textSegments(of entry: Transcript.Entry) -> [String] {
-    let segments: [Transcript.Segment]
-    switch entry {
-    case .instructions(let i): segments = i.segments
-    case .prompt(let p): segments = p.segments
-    case .response(let r): segments = r.segments
-    case .toolOutput(let o): segments = o.segments
-    case .toolCalls: return []
-    @unknown default: return []
-    }
-    return segments.compactMap {
-      if case .text(let t) = $0 { return t.content } else { return nil }
-    }
-  }
-
-  private static func transcriptEntries(for messages: [ChatMessage]) -> [Transcript.Entry] {
-    messages.compactMap { message in
-      switch message.role {
-      case "user":
-        .prompt(Transcript.Prompt(segments: [.text(.init(content: message.content))]))
-      case "assistant":
-        .response(
-          Transcript.Response(assetIDs: [], segments: [.text(.init(content: message.content))]))
-      default:
-        nil
-      }
-    }
-  }
 
   private func makeGenerationOptions(_ options: ChatOptions) -> GenerationOptions {
     let sampling: GenerationOptions.SamplingMode? = options.seed.map {

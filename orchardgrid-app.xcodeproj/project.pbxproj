@@ -117,6 +117,7 @@
 				D7D717802ED56620007E5111 /* GoogleSignInSwift */,
 				D7D35DAA2F63E4DE002A01B3 /* ClerkKit */,
 				D7D35DAC2F63E4DE002A01B3 /* ClerkKitUI */,
+				D7000CC7E000000000000002 /* OrchardGridCore */,
 			);
 			productName = "orchardgrid-app";
 			productReference = 1F5D97D72E8CFE2C006FE734 /* OrchardGrid Dev.app */;
@@ -177,6 +178,7 @@
 			packageReferences = (
 				D7D7177D2ED56620007E5111 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 				D7D35DA92F63E4DE002A01B3 /* XCRemoteSwiftPackageReference "clerk-ios" */,
+				D7000CC7E000000000000001 /* XCLocalSwiftPackageReference "Packages/OrchardGridCore" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1F5D97D82E8CFE2C006FE734 /* Products */;
@@ -545,7 +547,19 @@
 		};
 /* End XCRemoteSwiftPackageReference section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		D7000CC7E000000000000001 /* XCLocalSwiftPackageReference "Packages/OrchardGridCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/OrchardGridCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
+		D7000CC7E000000000000002 /* OrchardGridCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D7000CC7E000000000000001 /* XCLocalSwiftPackageReference "Packages/OrchardGridCore" */;
+			productName = OrchardGridCore;
+		};
 		D7D35DAA2F63E4DE002A01B3 /* ClerkKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = D7D35DA92F63E4DE002A01B3 /* XCRemoteSwiftPackageReference "clerk-ios" */;

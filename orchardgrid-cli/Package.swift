@@ -7,8 +7,19 @@ let package = Package(
   products: [
     .executable(name: "og", targets: ["og"])
   ],
+  dependencies: [
+    // OrchardGridCore hosts the on-device primitives shared with the
+    // OrchardGrid menu-bar app (context trimming, token counting,
+    // transcript assembly, summary-based trim fallback).
+    .package(path: "../Packages/OrchardGridCore")
+  ],
   targets: [
-    .target(name: "ogKit", path: "Sources/ogKit"),
+    .target(
+      name: "ogKit",
+      dependencies: [
+        .product(name: "OrchardGridCore", package: "OrchardGridCore")
+      ],
+      path: "Sources/ogKit"),
     .executableTarget(
       name: "og", dependencies: ["ogKit"], path: "Sources/og"),
     .testTarget(
