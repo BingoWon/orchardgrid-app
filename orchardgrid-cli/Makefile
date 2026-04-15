@@ -49,7 +49,7 @@ uninstall: ## Remove installed binary
 
 test: test-unit test-int ## Run unit + integration tests
 
-test-unit: ## Swift Testing unit suite (no network, no binary needed)
+test-unit: build-info ## Swift Testing unit suite (no network, no binary needed)
 	swift test
 
 test-int: release ## pytest integration suite against a mock server
