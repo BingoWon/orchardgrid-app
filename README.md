@@ -212,6 +212,8 @@ og --version             # version
 og --help                # full flag reference
 ```
 
+Deep-dive docs: [`docs/cli-reference.md`](docs/cli-reference.md) · [`docs/openai-api-compatibility.md`](docs/openai-api-compatibility.md) · [`docs/context-strategies.md`](docs/context-strategies.md) · [`demo/`](demo/) (capability-combining shell scripts).
+
 ### Environment variables
 
 | Variable | Meaning |

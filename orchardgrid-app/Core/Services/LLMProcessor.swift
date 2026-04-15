@@ -82,7 +82,9 @@ final class LLMProcessor {
           content = try await streamJSON(
             session: session, prompt: prompt, schema: schema, options: genOpts, onChunk: onChunk)
         } else {
-          content = try await withRetry {
+          content = try await Retry.withRetry(
+            isRetryable: { LLMError.classify($0).isRetryable }
+          ) {
             try await session.respond(to: prompt, schema: schema, options: genOpts).content
               .jsonString
           }
@@ -91,7 +93,9 @@ final class LLMProcessor {
         content = try await streamText(
           session: session, prompt: prompt, options: genOpts, onChunk: onChunk)
       } else {
-        content = try await withRetry {
+        content = try await Retry.withRetry(
+          isRetryable: { LLMError.classify($0).isRetryable }
+        ) {
           try await session.respond(to: prompt, options: genOpts).content
         }
       }
@@ -188,25 +192,6 @@ final class LLMProcessor {
       return LLMResult(content: content, promptTokens: 0, completionTokens: 0)
     }
     return LLMResult(content: content, promptTokens: u.prompt, completionTokens: u.completion)
-  }
-
-  // MARK: - Retry (exponential back-off)
-
-  private func withRetry<T>(
-    maxAttempts: Int = 3,
-    _ operation: () async throws -> T
-  ) async throws -> T {
-    var attempt = 0
-    while true {
-      do {
-        return try await operation()
-      } catch {
-        let classified = LLMError.classify(error)
-        attempt += 1
-        guard classified.isRetryable, attempt < maxAttempts else { throw classified }
-        try? await Task.sleep(for: .seconds(Double(1 << (attempt - 1))))  // 1 s, 2 s, 4 s
-      }
-    }
   }
 
   // MARK: - Stream Helpers

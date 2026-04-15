@@ -59,7 +59,7 @@ public final class LocalEngine: LLMEngine {
     } catch let og as OGError {
       throw og
     } catch {
-      throw OGError.fromGenerationError(error)
+      throw OGError.fromModelError(error)
     }
   }
 

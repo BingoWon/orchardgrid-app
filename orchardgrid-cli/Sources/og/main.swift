@@ -13,6 +13,7 @@
 // ============================================================================
 
 import Foundation
+import OrchardGridCore
 import ogKit
 
 // MARK: - Parse
@@ -44,7 +45,7 @@ case .help:
   printUsage()
   exit(ExitCode.success.rawValue)
 case .version:
-  print("og v\(ogVersion)")
+  print("og v\(ogVersion) (\(ogBuildCommit), \(ogBuildDate))")
   exit(ExitCode.success.rawValue)
 default: break
 }

@@ -1,9 +1,10 @@
 import Foundation
-@preconcurrency import FoundationModels
+import OrchardGridCore
 
 /// Semantic error type for on-device LLM operations.
-/// Normalizes `LanguageModelSession.GenerationError` into domain-level cases
-/// and exposes OpenAI-compatible HTTP status + error type for the API layer.
+/// The taxonomy decision (what GenerationError case maps to which
+/// concept) lives in `OrchardGridCore.ModelIssue`; this enum adds the
+/// HTTP-layer wrapping the API server needs.
 enum LLMError: Error, Sendable {
   case modelUnavailable
   case invalidRequest(String)
@@ -14,24 +15,22 @@ enum LLMError: Error, Sendable {
   case assetsUnavailable
   case generationFailed(String)
 
-  /// Map any thrown error to a typed `LLMError`. Unknown errors become
-  /// `.generationFailed` with the underlying `localizedDescription`.
+  /// Map any thrown error to a typed `LLMError`. Delegates the
+  /// FoundationModels classification to `ModelIssue.classify`, so this
+  /// and the CLI's `OGError.fromModelError` stay in lock-step.
   static func classify(_ error: Error) -> LLMError {
     if let already = error as? LLMError { return already }
-    if let gen = error as? LanguageModelSession.GenerationError {
-      return switch gen {
-      case .exceededContextWindowSize: .contextOverflow
-      case .guardrailViolation, .refusal: .guardrailViolation
-      case .rateLimited: .rateLimited
-      case .concurrentRequests: .concurrentRequest
-      case .assetsUnavailable: .assetsUnavailable
-      case .unsupportedGuide: .invalidRequest("Unsupported generation guide")
-      case .unsupportedLanguageOrLocale: .invalidRequest("Unsupported language or locale")
-      case .decodingFailure: .generationFailed("Model output could not be decoded")
-      @unknown default: .generationFailed(error.localizedDescription)
-      }
+    switch ModelIssue.classify(error) {
+    case .contextOverflow: return .contextOverflow
+    case .guardrail: return .guardrailViolation
+    case .rateLimited: return .rateLimited
+    case .concurrentRequests: return .concurrentRequest
+    case .assetsUnavailable: return .assetsUnavailable
+    case .unsupportedGuide: return .invalidRequest("Unsupported generation guide")
+    case .unsupportedLanguage: return .invalidRequest("Unsupported language or locale")
+    case .decodingFailure: return .generationFailed("Model output could not be decoded")
+    case .unknown: return .generationFailed(error.localizedDescription)
     }
-    return .generationFailed(error.localizedDescription)
   }
 
   /// Whether the underlying condition is transient and worth retrying.

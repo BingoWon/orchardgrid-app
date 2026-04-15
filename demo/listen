@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# listen — Record from the mic, transcribe via OrchardGrid's Speech
+# endpoint, then let the chat model act on the transcript.
+#
+# Usage:
+#   demo/listen                               # 5-second capture, summarise
+#   demo/listen 10 "what should I do next?"   # 10-second capture, custom follow-up
+set -euo pipefail
+
+SECONDS_TO_RECORD=${1:-5}
+QUESTION=${2:-"Summarise what I said in one sentence."}
+HOST=${ORCHARDGRID_HOST:-http://localhost:8888}
+
+TMP=$(mktemp -t orchardgrid.XXXXXX).wav
+trap 'rm -f "$TMP"' EXIT
+
+if ! command -v sox >/dev/null 2>&1; then
+  echo "error: sox required — brew install sox" >&2
+  exit 1
+fi
+
+printf '\033[33m● recording %ss — speak now\033[0m\n' "$SECONDS_TO_RECORD"
+sox -q -d -r 16000 -c 1 "$TMP" trim 0 "$SECONDS_TO_RECORD"
+
+B64=$(base64 < "$TMP" | tr -d '\n')
+
+TEXT=$(curl -fsS "$HOST/v1/audio/transcriptions" \
+  -H "Content-Type: application/json" \
+  -d "$(printf '{"audio":"%s","language":"en-US"}' "$B64")" \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin).get("text",""))')
+
+if [ -z "$TEXT" ]; then
+  echo "(couldn't transcribe — try speaking closer to the mic)"
+  exit 0
+fi
+
+printf '\033[2m--- transcript ---\033[0m\n%s\n\033[2m------------------\033[0m\n\n' "$TEXT"
+og "$QUESTION"$'\n\nTranscript:\n'"$TEXT"

@@ -1,4 +1,5 @@
 import Foundation
+import OrchardGridCore
 
 // MARK: - `og mcp list <path> [<path>…]`
 //

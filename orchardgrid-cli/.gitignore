@@ -2,3 +2,4 @@
 .swiftpm/
 Package.resolved
 *.xcodeproj
+Sources/ogKit/BuildInfo.swift

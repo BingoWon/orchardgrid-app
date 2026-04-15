@@ -212,6 +212,8 @@ og --version             # 版本
 og --help                # 完整 flag 参考
 ```
 
+深入文档:[`docs/cli-reference.md`](docs/cli-reference.md) · [`docs/openai-api-compatibility.md`](docs/openai-api-compatibility.md) · [`docs/context-strategies.md`](docs/context-strategies.md) · [`demo/`](demo/) 多能力组合脚本。
+
 ### 环境变量
 
 | 变量 | 含义 |

@@ -1,5 +1,6 @@
 import Foundation
 @preconcurrency import FoundationModels
+import OrchardGridCore
 
 // MARK: - Model Context Protocol — stdio transport + tool registry
 //
@@ -51,7 +52,10 @@ final class MCPConnection: @unchecked Sendable {
     try proc.run()
     do {
       _ = try MCPProtocol.parseInitializeResponse(
-        try roundtrip(MCPProtocol.initializeRequest(id: allocId()), label: "initialize"))
+        try roundtrip(
+          MCPProtocol.initializeRequest(
+            id: allocId(), clientName: "og", clientVersion: ogVersion),
+          label: "initialize"))
       send(MCPProtocol.initializedNotification())
       self.tools = try MCPProtocol.parseToolsListResponse(
         try roundtrip(MCPProtocol.toolsListRequest(id: allocId()), label: "tools/list"))

@@ -5,17 +5,31 @@ BIN_DIR := $(PREFIX)/bin
 BUILD_DIR := .build/release
 BINARY := $(BUILD_DIR)/og
 
-.PHONY: help build release install uninstall test test-unit test-int test-all smoke-live clean format
+.PHONY: help build release install uninstall test test-unit test-int test-all smoke-live clean format check-toolchain build-info
 
 help: ## Show this help
 	@awk 'BEGIN{FS=":.*##"; printf "Targets:\n"} /^[a-zA-Z_-]+:.*##/ {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 # ── Build ───────────────────────────────────────────────────────────────────
 
-build: ## Debug build
+check-toolchain: ## Verify the active Apple SDK meets FoundationModels' 26.4 floor
+	@sdk=$$(xcrun --show-sdk-version 2>/dev/null || echo 0); \
+	major=$${sdk%%.*}; minor=$${sdk#*.}; minor=$${minor%%.*}; \
+	if [ -z "$$minor" ] || [ "$$minor" = "$$major" ]; then minor=0; fi; \
+	if [ "$$major" -lt 26 ] || { [ "$$major" -eq 26 ] && [ "$$minor" -lt 4 ]; }; then \
+		echo "error: og requires the macOS 26.4 SDK or newer (found $$sdk)." >&2; \
+		echo "  xcode-select -p                  # show active developer dir" >&2; \
+		echo "  sudo xcode-select -s <Xcode.app> # point at a 26.4+ Xcode" >&2; \
+		exit 1; \
+	fi
+
+build-info: ## Regenerate Sources/ogKit/BuildInfo.swift (git commit + build date)
+	@scripts/generate-build-info.sh
+
+build: build-info ## Debug build
 	swift build
 
-release: ## Release build
+release: check-toolchain build-info ## Release build
 	swift build -c release
 
 install: release ## Install release build (targets https://orchardgrid.com)

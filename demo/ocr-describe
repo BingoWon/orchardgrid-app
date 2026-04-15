@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# ocr-describe — OCR an image with Vision, then let the chat model
+# summarise / explain what it says.
+#
+# Usage:
+#   demo/ocr-describe path/to/screenshot.png
+#   demo/ocr-describe receipt.jpg "what was the total?"
+set -euo pipefail
+
+IMAGE=${1:?"usage: ocr-describe <image> [follow-up question]"}
+QUESTION=${2:-"Summarise the text in 2 sentences."}
+HOST=${ORCHARDGRID_HOST:-http://localhost:8888}
+
+if [ ! -f "$IMAGE" ]; then
+  echo "error: $IMAGE not found" >&2
+  exit 1
+fi
+
+B64=$(base64 < "$IMAGE" | tr -d '\n')
+
+TEXT=$(curl -fsS "$HOST/v1/vision/analyze" \
+  -H "Content-Type: application/json" \
+  -d "$(printf '{"image":"%s","tasks":["ocr"]}' "$B64")" \
+  | python3 -c 'import json,sys; d=json.load(sys.stdin); print("\n".join(x["text"] for x in d.get("ocr", [])))')
+
+if [ -z "$TEXT" ]; then
+  echo "(no text detected in image)"
+  exit 0
+fi
+
+printf '\033[2m--- OCR ---\033[0m\n%s\n\033[2m-----------\033[0m\n\n' "$TEXT"
+og -s "You are summarising OCR output from an image." \
+   "$QUESTION"$'\n\nOCR text:\n'"$TEXT"

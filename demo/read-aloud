@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# read-aloud — Ask the on-device model a question and pipe the answer
+# straight into macOS `say`. Voice-first loop, no screen needed.
+#
+# Usage:
+#   demo/read-aloud "What time is it in Vienna?"
+#   demo/read-aloud -v Daniel "Tell me a short joke"   # pick a voice
+#   echo "translate: hello" | demo/read-aloud          # stdin works too
+set -euo pipefail
+
+VOICE=""
+if [ "${1-}" = "-v" ]; then
+  VOICE=$2
+  shift 2
+fi
+
+PROMPT=${*:-$(cat)}
+if [ -z "$PROMPT" ]; then
+  echo "usage: read-aloud [-v voice] <prompt>" >&2
+  exit 2
+fi
+
+ANSWER=$(og -q "$PROMPT")
+
+printf '\033[2m--- answer ---\033[0m\n%s\n\033[2m--------------\033[0m\n' "$ANSWER"
+
+if [ -n "$VOICE" ]; then
+  say -v "$VOICE" "$ANSWER"
+else
+  say "$ANSWER"
+fi

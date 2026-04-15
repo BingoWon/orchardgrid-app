@@ -40,13 +40,17 @@ public enum MCPProtocol {
 
   // MARK: - Request framing
 
-  public static func initializeRequest(id: Int) -> String {
+  public static func initializeRequest(
+    id: Int,
+    clientName: String,
+    clientVersion: String
+  ) -> String {
     jsonRPC(
       id: id, method: "initialize",
       params: [
         "protocolVersion": protocolVersion,
         "capabilities": [:] as [String: Any],
-        "clientInfo": ["name": "og", "version": ogVersion],
+        "clientInfo": ["name": clientName, "version": clientVersion],
       ])
   }
 
