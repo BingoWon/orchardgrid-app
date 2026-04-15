@@ -321,8 +321,11 @@ jobs:
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit -am "Update orchardgrid to v${V}"
 
-          # Authenticate via HTTP header rather than URL-embedded credentials.
-          # GitHub's git backend rejects fine-grained PATs in `user:pass@host`
-          # form ("Password authentication is not supported"); Bearer works.
-          git -c http.extraheader="Authorization: Bearer ${TAP_TOKEN}" \
+          # Authenticate exactly the way actions/checkout does internally:
+          # a URL-qualified http.extraheader carrying HTTP Basic auth with
+          # x-access-token:<PAT> base64-encoded. GitHub's git backend
+          # rejects Bearer and URL-embedded `user:pass@host` forms for
+          # fine-grained PATs, but accepts this one.
+          AUTH_B64=$(printf 'x-access-token:%s' "$TAP_TOKEN" | base64 | tr -d '\n')
+          git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $AUTH_B64" \
               push origin HEAD:main
