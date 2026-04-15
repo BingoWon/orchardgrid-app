@@ -1,5 +1,6 @@
 import Foundation
 import FoundationModels
+import OrchardGridCore
 import SwiftUI
 
 // MARK: - Capabilities
@@ -124,7 +125,7 @@ struct AnyCodable: Codable, @unchecked Sendable {
 
 // MARK: - OpenAI-Compatible API Types
 
-struct ChatMessage: Codable, Sendable {
+struct ChatMessage: Codable, Sendable, TranscriptMessage {
   let role: String
   let content: String
 }
@@ -160,15 +161,24 @@ extension ChatRequest {
   }
 
   /// Build `SessionOptions` from wire parameters, falling back to defaults
-  /// for anything the client didn't specify.
+  /// for anything the client didn't specify. The string ↔ enum mapping
+  /// for `x_context_strategy` happens once here, at the HTTP boundary.
   var sessionOptions: SessionOptions {
-    let strategy = contextStrategy.flatMap(ContextStrategy.init(rawValue:)) ?? .newestFirst
+    let strategy: ContextStrategy =
+      switch contextStrategy {
+      case "newest-first": .newestFirst
+      case "oldest-first": .oldestFirst
+      case "sliding-window": .slidingWindow(maxTurns: contextMaxTurns)
+      case "summarize": .summarize
+      case "strict": .strict
+      default: .newestFirst
+      }
     return SessionOptions(
       temperature: temperature,
       maxTokens: maxTokens,
       seed: seed,
       permissive: permissive ?? false,
-      contextConfig: ContextConfig(strategy: strategy, maxTurns: contextMaxTurns)
+      contextStrategy: strategy
     )
   }
 }

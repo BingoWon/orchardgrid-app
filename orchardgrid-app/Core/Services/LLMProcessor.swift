@@ -11,49 +11,22 @@ struct LLMResult: Sendable {
   var totalTokens: Int { promptTokens + completionTokens }
 }
 
-// MARK: - Context Strategy
-
-/// How to trim conversation history when it exceeds the token budget.
-enum ContextStrategy: String, Sendable, CaseIterable {
-  /// Keep the largest *suffix* that fits. The default — preserves recency.
-  case newestFirst = "newest-first"
-  /// Keep the largest *prefix* that fits. Preserves the conversation start.
-  case oldestFirst = "oldest-first"
-  /// Cap history at `maxTurns` first, then fit newest-first within budget.
-  case slidingWindow = "sliding-window"
-  /// Compress oldest turns into a model-generated summary; keep recent
-  /// turns verbatim. Falls back to `newestFirst` on any failure.
-  case summarize
-  /// No trimming — throw `contextOverflow` if history doesn't fit.
-  case strict
-}
-
-struct ContextConfig: Sendable {
-  let strategy: ContextStrategy
-  let maxTurns: Int?
-
-  init(strategy: ContextStrategy = .newestFirst, maxTurns: Int? = nil) {
-    self.strategy = strategy
-    self.maxTurns = maxTurns
-  }
-
-  nonisolated static let defaults = ContextConfig()
-}
-
 // MARK: - Session Options
 
-/// Per-request generation + context parameters forwarded from the CLI/HTTP
-/// request all the way into the FoundationModels call.
+/// Per-request generation + context parameters forwarded from the HTTP
+/// request all the way into the FoundationModels call. `contextStrategy`
+/// is `OrchardGridCore.ContextStrategy` directly — CLI and app share the
+/// same 5-case enum, parsing happens at the boundary in `SharedTypes`.
 struct SessionOptions: Sendable {
   let temperature: Double?
   let maxTokens: Int?
   let seed: UInt64?
   let permissive: Bool
-  let contextConfig: ContextConfig
+  let contextStrategy: ContextStrategy
 
   nonisolated static let defaults = SessionOptions(
     temperature: nil, maxTokens: nil, seed: nil,
-    permissive: false, contextConfig: .defaults
+    permissive: false, contextStrategy: .newestFirst
   )
 }
 
@@ -176,17 +149,22 @@ final class LLMProcessor {
       Transcript.Prompt(segments: [.text(.init(content: prompt))])
     )
 
-    let budget = max(0, contextSize - Config.llmOutputReserve)
+    let budget = max(0, contextSize - ContextBudget.defaultOutputReserve)
     guard await ContextTools.tokenCount([instrEntry, promptEntry], model: model) <= budget
     else {
       throw LLMError.contextOverflow
     }
 
-    let historyEntries = ContextTools.transcriptEntries(
-      from: history.map { (role: $0.role, content: $0.content) })
-    let trimmed = try await trimHistory(
-      base: instrEntry, history: historyEntries, prompt: promptEntry,
-      budget: budget, config: options.contextConfig)
+    let historyEntries = ContextTools.transcriptEntries(from: history)
+    let trimmed: [Transcript.Entry]
+    do {
+      trimmed = try await ContextTools.trim(
+        options.contextStrategy,
+        base: instrEntry, history: historyEntries,
+        prompt: promptEntry, budget: budget, model: model)
+    } catch is ContextOverflowError {
+      throw LLMError.contextOverflow
+    }
 
     let sessionModel =
       options.permissive
@@ -199,62 +177,17 @@ final class LLMProcessor {
     )
   }
 
-  // MARK: - History Trimming
-  //
-  // Primitives (token counting, binary trim, summary-based trim) live in
-  // the shared OrchardGridCore package so the CLI's LocalEngine and this
-  // processor use the same implementation. The dispatch below maps our
-  // typed ContextStrategy onto those primitives.
-
-  private func trimHistory(
-    base: Transcript.Entry,
-    history: [Transcript.Entry],
-    prompt: Transcript.Entry,
-    budget: Int,
-    config: ContextConfig
-  ) async throws -> [Transcript.Entry] {
-    switch config.strategy {
-    case .newestFirst:
-      return await ContextTools.trimBinary(
-        base: base, history: history, prompt: prompt,
-        budget: budget, fromEnd: true, model: model)
-    case .oldestFirst:
-      return await ContextTools.trimBinary(
-        base: base, history: history, prompt: prompt,
-        budget: budget, fromEnd: false, model: model)
-    case .slidingWindow:
-      let windowed = Array(history.suffix(config.maxTurns ?? history.count))
-      return await ContextTools.trimBinary(
-        base: base, history: windowed, prompt: prompt,
-        budget: budget, fromEnd: true, model: model)
-    case .summarize:
-      return await ContextTools.trimWithSummary(
-        base: base, history: history, prompt: prompt,
-        budget: budget, model: model)
-    case .strict:
-      let all = [base] + history + [prompt]
-      if await ContextTools.tokenCount(all, model: model) <= budget { return history }
-      throw LLMError.contextOverflow
-    }
-  }
-
   // MARK: - Token Measurement (post-response)
 
   /// Compute prompt/completion split from the transcript after inference.
-  /// Uses a single overload (`[Transcript.Entry]`) so the two counts stay on
-  /// the same scale — prompt + completion always equals total.
+  /// Delegates to `ContextTools.measureUsage`; wraps the shared
+  /// `TokenUsage` into the app-local `LLMResult` type.
   private func measureUsage(content: String, session: LanguageModelSession) async -> LLMResult {
-    guard #available(iOS 26.4, macOS 26.4, *) else {
+    guard let u = await ContextTools.measureUsage(session: session, model: model)
+    else {
       return LLMResult(content: content, promptTokens: 0, completionTokens: 0)
     }
-    let all = Array(session.transcript)
-    let total = (try? await model.tokenCount(for: all)) ?? 0
-    let input = (try? await model.tokenCount(for: Array(all.dropLast()))) ?? 0
-    return LLMResult(
-      content: content,
-      promptTokens: input,
-      completionTokens: max(0, total - input)
-    )
+    return LLMResult(content: content, promptTokens: u.prompt, completionTokens: u.completion)
   }
 
   // MARK: - Retry (exponential back-off)

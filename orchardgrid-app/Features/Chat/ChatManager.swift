@@ -1,5 +1,6 @@
 import Foundation
 @preconcurrency import FoundationModels
+import OrchardGridCore
 
 @MainActor
 @Observable
@@ -225,7 +226,7 @@ final class ChatManager {
 
     let tool = ImageGenerationTool(collector: imageCollector)
     let messages = conversation(for: conversationId)?.messages ?? []
-    let budget = contextSize - Config.llmOutputReserve
+    let budget = contextSize - ContextBudget.defaultOutputReserve
 
     var lo = 0
     var hi = messages.count

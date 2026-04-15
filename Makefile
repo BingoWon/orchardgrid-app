@@ -70,7 +70,7 @@ bundle-cli: ## Compile og + copy into the most recent OrchardGrid.app, ad-hoc si
 test: test-core test-xcode test-cli ## Run every test in the repo (Core + Xcode + og CLI)
 
 test-core: ## OrchardGridCore package (shared primitives, CI-runnable)
-	cd Packages/OrchardGridCore && swift test
+	swift test --package-path Packages/OrchardGridCore
 
 test-xcode: test-xcode-macos test-xcode-ios ## Xcode app test target on macOS + iOS
 
