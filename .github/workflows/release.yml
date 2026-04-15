@@ -302,17 +302,22 @@ jobs:
 
       - name: Bump cask in homebrew-orchardgrid
         env:
-          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
           VERSION: ${{ needs.release.outputs.version }}
         run: |
           set -euo pipefail
           V=${VERSION#v}
           SHA=$(cat dmg.sha256)
 
-          # Clone anonymously (tap is public), then push over HTTPS with
-          # the fine-grained PAT embedded in the remote URL. Avoids gh's
-          # GraphQL calls which need scopes this PAT doesn't have.
-          git clone https://github.com/BingoWon/homebrew-orchardgrid.git tap
+          # Auth via a Deploy Key scoped to homebrew-orchardgrid only.
+          # No PATs, no rotation, no leak risk through API responses.
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          export GIT_SSH_COMMAND='ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes'
+
+          git clone git@github.com:BingoWon/homebrew-orchardgrid.git tap
           cd tap
           sed -i "s/version \".*\"/version \"${V}\"/" Casks/orchardgrid.rb
           sed -i "s/sha256 \".*\"/sha256 \"${SHA}\"/" Casks/orchardgrid.rb
@@ -320,12 +325,4 @@ jobs:
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit -am "Update orchardgrid to v${V}"
-
-          # Authenticate exactly the way actions/checkout does internally:
-          # a URL-qualified http.extraheader carrying HTTP Basic auth with
-          # x-access-token:<PAT> base64-encoded. GitHub's git backend
-          # rejects Bearer and URL-embedded `user:pass@host` forms for
-          # fine-grained PATs, but accepts this one.
-          AUTH_B64=$(printf 'x-access-token:%s' "$TAP_TOKEN" | base64 | tr -d '\n')
-          git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $AUTH_B64" \
-              push origin HEAD:main
+          git push
