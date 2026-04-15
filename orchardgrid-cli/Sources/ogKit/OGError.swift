@@ -7,6 +7,13 @@ import OrchardGridCore
 // `fromHTTP`; FoundationModels errors via `fromModelError` (in
 // `OGError+Generation.swift`). Each case carries a fixed exit code so
 // shells can branch on `og`'s status without parsing stderr.
+//
+// Exit-code contract (OrchardGrid-specific):
+//   0 success · 1 runtime · 2 usage · 3 guardrail · 4 context overflow
+//   5 model unavailable · 6 rate limited
+// Parse / validation errors produced by swift-argument-parser itself
+// (unknown flag, bad Int, missing required argument) follow the BSD
+// `sysexits.h` convention and exit 64 (EX_USAGE).
 
 public enum OGError: Error, Equatable {
   case usage(String)

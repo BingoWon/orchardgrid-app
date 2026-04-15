@@ -21,11 +21,9 @@ struct Keys: AsyncParsableCommand {
     func run() async throws {
       format.applyColor()
       let (host, token) = network.resolved()
-      try await withOGErrorHandling {
-        let client = try cloudClient(
-          host: host, token: token, config: ConfigStore.load())
-        try await runKeysList(client: client)
-      }
+      let client = try cloudClient(
+        host: host, token: token, config: ConfigStore.load())
+      try await runKeysList(client: client)
     }
   }
 
@@ -38,20 +36,15 @@ struct Keys: AsyncParsableCommand {
     @OptionGroup var network: NetworkOptions
     @OptionGroup var format: FormatOptions
 
-    @Option(help: "Human-readable name for the key.")
+    @Argument(help: "Human-readable name for the key.")
     var name: String?
-
-    @Argument(help: "Alternative positional form of --name.")
-    var positionalName: String?
 
     func run() async throws {
       format.applyColor()
       let (host, token) = network.resolved()
-      try await withOGErrorHandling {
-        let client = try cloudClient(
-          host: host, token: token, config: ConfigStore.load())
-        try await runKeysCreate(client: client, name: name ?? positionalName)
-      }
+      let client = try cloudClient(
+        host: host, token: token, config: ConfigStore.load())
+      try await runKeysCreate(client: client, name: name)
     }
   }
 
@@ -70,11 +63,9 @@ struct Keys: AsyncParsableCommand {
     func run() async throws {
       format.applyColor()
       let (host, token) = network.resolved()
-      try await withOGErrorHandling {
-        let client = try cloudClient(
-          host: host, token: token, config: ConfigStore.load())
-        try await runKeysDelete(client: client, hint: hint)
-      }
+      let client = try cloudClient(
+        host: host, token: token, config: ConfigStore.load())
+      try await runKeysDelete(client: client, hint: hint)
     }
   }
 }

@@ -13,8 +13,6 @@ struct Login: AsyncParsableCommand {
   func run() async throws {
     format.applyColor()
     let (host, _) = network.resolved()
-    try await withOGErrorHandling {
-      try await runLogin(host: host)
-    }
+    try await runLogin(host: host)
   }
 }

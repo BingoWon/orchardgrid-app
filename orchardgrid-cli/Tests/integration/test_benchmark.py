@@ -32,5 +32,5 @@ def test_benchmark_json_output(run_og, mock_server):
 
 def test_benchmark_rejects_zero_runs(run_og):
     result = run_og("benchmark", "--runs", "0")
-    assert result.returncode == 2
-    assert "invalid" in result.stderr.lower() or "runs" in result.stderr.lower()
+    assert result.returncode == 64  # BSD EX_USAGE for validation failures
+    assert "runs" in result.stderr.lower()

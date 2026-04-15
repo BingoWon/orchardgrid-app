@@ -26,7 +26,7 @@ def test_mcp_list_json(run_og):
 
 def test_mcp_list_requires_path(run_og):
     result = run_og("mcp", "list")
-    assert result.returncode == 2
+    assert result.returncode == 64  # BSD EX_USAGE for validation failure
     assert "server path" in result.stderr
 
 

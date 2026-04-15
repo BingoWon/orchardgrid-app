@@ -181,7 +181,7 @@ def test_keys_delete_sends_hint_in_path(run_og, mock_server, config_for):
 def test_keys_delete_without_hint_errors(run_og, scratch_home):
     result = run_og("keys", "delete")
     assert not result.crashed
-    assert result.returncode == 2  # usage error
+    assert result.returncode == 64  # BSD EX_USAGE for missing required argument
     assert "hint" in result.stderr.lower() or "missing" in result.stderr.lower()
 
 

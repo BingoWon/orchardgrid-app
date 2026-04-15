@@ -25,14 +25,12 @@ struct Benchmark: AsyncParsableCommand {
     inference.format.applyColor()
     let (host, token) = inference.network.resolved()
     let engine = try EngineFactory.make(host: host, token: token)
-    try await withOGErrorHandling {
-      try await runBenchmark(
-        engine: engine,
-        prompt: benchPrompt,
-        runs: runs,
-        chatOptions: inference.chatOptions,
-        outputFormat: inference.format.output,
-        quiet: inference.format.quiet)
-    }
+    try await runBenchmark(
+      engine: engine,
+      prompt: benchPrompt,
+      runs: runs,
+      chatOptions: inference.chatOptions,
+      outputFormat: inference.format.output,
+      quiet: inference.format.quiet)
   }
 }

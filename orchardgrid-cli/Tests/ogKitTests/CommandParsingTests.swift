@@ -265,9 +265,9 @@ struct CommandParsingTests {
     #expect(revoked.revoke == true)
   }
 
-  @Test("`og me` dispatches to MeCommand")
+  @Test("`og me` dispatches to Me")
   func meCommand() throws {
-    _ = try #require(try Og.parseAsRoot(["me"]) as? MeCommand)
+    _ = try #require(try Og.parseAsRoot(["me"]) as? Me)
   }
 
   @Test("`og devices` and `og devices list` both hit Devices.List")
@@ -286,19 +286,11 @@ struct CommandParsingTests {
   func keysCreateBare() throws {
     let cmd = try #require(try Og.parseAsRoot(["keys", "create"]) as? Keys.Create)
     #expect(cmd.name == nil)
-    #expect(cmd.positionalName == nil)
   }
 
   @Test("`og keys create my-bot` sets positional name")
   func keysCreatePositional() throws {
     let cmd = try #require(try Og.parseAsRoot(["keys", "create", "my-bot"]) as? Keys.Create)
-    #expect(cmd.positionalName == "my-bot")
-  }
-
-  @Test("`og keys create --name my-bot` sets flag name")
-  func keysCreateFlag() throws {
-    let cmd = try #require(
-      try Og.parseAsRoot(["keys", "create", "--name", "my-bot"]) as? Keys.Create)
     #expect(cmd.name == "my-bot")
   }
 

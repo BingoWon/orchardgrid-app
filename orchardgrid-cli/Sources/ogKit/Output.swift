@@ -33,10 +33,6 @@ public enum ANSI {
 /// during argument parsing; readers after that point see a stable value.
 public nonisolated(unsafe) var noColor = false
 
-/// Setter used by command-layer `FormatOptions.applyColor()`. Kept as a
-/// free function so call sites don't need to worry about module prefix.
-public func applyGlobalNoColor(_ value: Bool) { noColor = value }
-
 /// Convenience wrapper for the common "print to a TTY" case.
 public func styled(_ text: String, _ styles: Style...) -> String {
   ANSI.apply(text, styles: styles, enabled: !noColor && isatty(STDOUT_FILENO) != 0)

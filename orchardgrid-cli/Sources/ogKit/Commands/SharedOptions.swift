@@ -49,7 +49,7 @@ public struct FormatOptions: ParsableArguments {
   /// Install into the module-level `noColor` sink read by `ANSI.apply`.
   public func applyColor() {
     let envNoColor = ProcessInfo.processInfo.environment["NO_COLOR"] != nil
-    ogKit.applyGlobalNoColor(noColor || envNoColor)
+    ogKit.noColor = noColor || envNoColor
   }
 }
 

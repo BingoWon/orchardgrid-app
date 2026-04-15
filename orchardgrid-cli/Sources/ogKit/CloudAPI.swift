@@ -21,7 +21,7 @@ public struct CloudAPI: Sendable {
 
   // MARK: - Endpoints
 
-  public func me() async throws -> Me {
+  public func me() async throws -> UserInfo {
     try await getJSON("/api/me")
   }
 
@@ -121,7 +121,7 @@ public struct CloudAPI: Sendable {
 
 // MARK: - Wire Types
 
-public struct Me: Codable, Sendable {
+public struct UserInfo: Codable, Sendable {
   public let id: String
   public let isAdmin: Bool
 }

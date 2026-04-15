@@ -25,12 +25,10 @@ struct Logs: AsyncParsableCommand {
   func run() async throws {
     format.applyColor()
     let (host, token) = network.resolved()
-    try await withOGErrorHandling {
-      let client = try cloudClient(
-        host: host, token: token, config: ConfigStore.load())
-      try await runLogsList(
-        client: client, role: role, status: status,
-        limit: limit, offset: offset)
-    }
+    let client = try cloudClient(
+      host: host, token: token, config: ConfigStore.load())
+    try await runLogsList(
+      client: client, role: role, status: status,
+      limit: limit, offset: offset)
   }
 }

@@ -15,8 +15,6 @@ struct ModelInfo: AsyncParsableCommand {
     format.applyColor()
     let (host, token) = network.resolved()
     let engine = try EngineFactory.make(host: host, token: token)
-    try await withOGErrorHandling {
-      try await runModelInfo(engine: engine)
-    }
+    try await runModelInfo(engine: engine)
   }
 }

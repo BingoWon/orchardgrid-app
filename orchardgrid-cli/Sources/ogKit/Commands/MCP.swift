@@ -35,12 +35,10 @@ struct MCP: AsyncParsableCommand {
 
     func run() async throws {
       format.applyColor()
-      try await withOGErrorHandling {
-        try await runMCPList(
-          paths: paths,
-          timeoutSeconds: timeoutSeconds,
-          outputFormat: format.output)
-      }
+      try await runMCPList(
+        paths: paths,
+        timeoutSeconds: timeoutSeconds,
+        outputFormat: format.output)
     }
   }
 }

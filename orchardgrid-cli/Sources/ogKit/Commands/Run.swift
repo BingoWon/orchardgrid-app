@@ -30,22 +30,20 @@ struct Run: AsyncParsableCommand {
     }
 
     let engine = try EngineFactory.make(host: host, token: token)
-    try await withOGErrorHandling {
-      try await withMCP(
-        paths: inference.mcp.paths,
-        timeoutSeconds: inference.mcp.timeoutSeconds,
-        host: host,
-        quiet: inference.format.quiet
-      ) { mcp in
-        try await runPrompt(
-          engine: engine,
-          prompt: prompt,
-          systemPrompt: resolveSystemPrompt(
-            system: inference.system, systemFile: inference.systemFile),
-          chatOptions: inference.chatOptions,
-          outputFormat: inference.format.output,
-          mcp: mcp)
-      }
+    try await withMCP(
+      paths: inference.mcp.paths,
+      timeoutSeconds: inference.mcp.timeoutSeconds,
+      host: host,
+      quiet: inference.format.quiet
+    ) { mcp in
+      try await runPrompt(
+        engine: engine,
+        prompt: prompt,
+        systemPrompt: resolveSystemPrompt(
+          system: inference.system, systemFile: inference.systemFile),
+        chatOptions: inference.chatOptions,
+        outputFormat: inference.format.output,
+        mcp: mcp)
     }
   }
 }

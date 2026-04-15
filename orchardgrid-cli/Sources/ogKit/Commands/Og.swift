@@ -27,7 +27,7 @@ public struct Og: AsyncParsableCommand {
       Status.self,
       Login.self,
       Logout.self,
-      MeCommand.self,
+      Me.self,
       Keys.self,
       Devices.self,
       Logs.self,

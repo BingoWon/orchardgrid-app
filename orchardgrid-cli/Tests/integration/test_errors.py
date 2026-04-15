@@ -25,25 +25,25 @@ def test_http_error_maps_to_exit_code(
 
 def test_unknown_flag_exits_with_usage(run_og):
     result = run_og("--no-such-flag")
-    assert result.returncode == 2
+    assert result.returncode == 64  # BSD EX_USAGE
     assert "Unknown option" in result.stderr
 
 
 def test_invalid_output_format_exits_with_usage(run_og):
     result = run_og("-o", "yaml", "hi")
-    assert result.returncode == 2
+    assert result.returncode == 64
     assert "invalid for '-o" in result.stderr
 
 
 def test_invalid_temperature_exits_with_usage(run_og):
     result = run_og("--temperature", "hot", "hi")
-    assert result.returncode == 2
+    assert result.returncode == 64
     assert "invalid for '--temperature" in result.stderr
 
 
 def test_missing_value_exits_with_usage(run_og):
     result = run_og("--temperature")
-    assert result.returncode == 2
+    assert result.returncode == 64
     assert "Missing value for '--temperature" in result.stderr
 
 

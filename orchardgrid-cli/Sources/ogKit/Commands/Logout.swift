@@ -14,8 +14,6 @@ struct Logout: AsyncParsableCommand {
 
   func run() async throws {
     format.applyColor()
-    try await withOGErrorHandling {
-      try await runLogout(revoke: revoke)
-    }
+    try await runLogout(revoke: revoke)
   }
 }
