@@ -100,7 +100,7 @@ struct ChatsView: View {
       VStack(spacing: 6) {
         Text(String(localized: "No Conversations"))
           .font(.title3.weight(.semibold))
-        Text(String(localized: "Start a new chat with Apple Intelligence"))
+        Text(String(localized: "Start a new on-device chat"))
           .font(.subheadline)
           .foregroundStyle(.secondary)
       }

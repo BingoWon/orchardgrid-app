@@ -1,6 +1,6 @@
 /**
  * ChatDetailView.swift
- * Chat interface with streaming Apple Intelligence responses
+ * Chat interface with streaming Apple Foundation Model responses
  */
 
 import PhotosUI
@@ -95,7 +95,7 @@ struct ChatDetailView: View {
         .foregroundStyle(.secondary)
         .symbolColorRenderingMode(.gradient)
 
-      Text("Apple Intelligence")
+      Text("Apple's built-in AI")
         .font(.title3)
         .fontWeight(.semibold)
 

@@ -1,5 +1,5 @@
 // ============================================================================
-// og — OrchardGrid CLI for Apple Intelligence
+// og — OrchardGrid CLI for Apple Foundation Model
 //
 // Inference (default):  runs FoundationModels directly in-process.
 // Management (login, keys, logs, devices): talks to orchardgrid.com / local
@@ -152,7 +152,7 @@ do {
 func printUsage() {
   print(
     """
-    \(styled("og", .cyan, .bold)) v\(ogVersion) — OrchardGrid CLI for Apple Intelligence
+    \(styled("og", .cyan, .bold)) v\(ogVersion) — OrchardGrid CLI for Apple Foundation Model
 
     \(styled("INFERENCE (on-device by default):", .yellow, .bold))
       og [OPTIONS] <prompt>         Send a single prompt

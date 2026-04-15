@@ -204,7 +204,7 @@ struct LocalDeviceView: View {
           Divider()
 
           VStack(alignment: .leading, spacing: 12) {
-            InfoRow(label: "Model", value: "apple-intelligence")
+            InfoRow(label: "Model", value: "apple-foundationmodel")
             EndpointRow(
               label: "Local",
               url: "http://localhost:\(sharing.localPort)/v1/chat/completions"
@@ -330,7 +330,7 @@ struct AIStatusCard: View {
           .font(.headline)
       }
 
-      Text("Both sharing modes require Apple Intelligence to function.")
+      Text("Both sharing modes require Apple's built-in AI to function.")
         .font(.subheadline)
         .foregroundStyle(.secondary)
 
@@ -355,7 +355,7 @@ struct AIStatusCard: View {
 
     case .unavailable(.deviceNotEligible):
       VStack(alignment: .leading, spacing: 12) {
-        Text("This device doesn't support Apple Intelligence. Compatible devices include:")
+        Text("This device doesn't support Apple's built-in AI. Compatible devices include:")
           .font(.caption)
           .foregroundStyle(.secondary)
 

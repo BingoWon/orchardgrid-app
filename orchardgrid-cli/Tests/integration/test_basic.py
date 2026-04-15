@@ -26,7 +26,7 @@ def test_no_args_exits_with_usage(run_og):
 def test_model_info_reaches_mock_health(run_og, mock_server):
     result = run_og("--model-info")
     assert result.returncode == 0
-    assert "apple-intelligence" in result.stdout
+    assert "apple-foundationmodel" in result.stdout
     assert "ok" in result.stdout
     # The server saw exactly one GET /health.
     healths = [r for r in mock_server.config.recorded if r.path == "/health"]

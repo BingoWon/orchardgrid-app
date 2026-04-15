@@ -176,11 +176,11 @@ public final class LocalEngine: LLMEngine {
     case .unavailable(.appleIntelligenceNotEnabled):
       (false, "Apple Intelligence is not enabled in System Settings")
     case .unavailable(.deviceNotEligible):
-      (false, "this device does not support Apple Intelligence")
+      (false, "this device does not support Apple Foundation Model")
     case .unavailable(.modelNotReady):
       (false, "model is downloading — try again later")
     case .unavailable:
-      (false, "Apple Intelligence is unavailable")
+      (false, "Apple Foundation Model is unavailable")
     }
   }
 }

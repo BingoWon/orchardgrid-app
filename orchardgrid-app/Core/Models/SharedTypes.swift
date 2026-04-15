@@ -235,7 +235,7 @@ struct ChatResponse: Codable, Sendable {
       id: "chatcmpl-\(UUID().uuidString.prefix(8))",
       object: "chat.completion",
       created: Int(Date().timeIntervalSince1970),
-      model: "apple-intelligence",
+      model: "apple-foundationmodel",
       choices: [
         .init(
           index: 0,
@@ -276,7 +276,7 @@ struct StreamChunk: Codable, Sendable {
       id: id,
       object: "chat.completion.chunk",
       created: Int(Date().timeIntervalSince1970),
-      model: "apple-intelligence",
+      model: "apple-foundationmodel",
       choices: [
         .init(
           index: 0,
@@ -297,7 +297,7 @@ struct StreamChunk: Codable, Sendable {
       id: id,
       object: "chat.completion.chunk",
       created: Int(Date().timeIntervalSince1970),
-      model: "apple-intelligence",
+      model: "apple-foundationmodel",
       choices: [
         .init(
           index: 0,
@@ -392,7 +392,7 @@ extension SystemLanguageModel.Availability {
   var statusTitle: String {
     switch self {
     case .available:
-      String(localized: "Apple Intelligence Ready")
+      String(localized: "Apple Foundation Model Ready")
     case .unavailable(.deviceNotEligible):
       String(localized: "Device Not Supported")
     case .unavailable(.appleIntelligenceNotEnabled):
@@ -400,7 +400,7 @@ extension SystemLanguageModel.Availability {
     case .unavailable(.modelNotReady):
       String(localized: "Downloading Model...")
     case .unavailable:
-      String(localized: "Apple Intelligence Unavailable")
+      String(localized: "Apple Foundation Model Unavailable")
     }
   }
 }

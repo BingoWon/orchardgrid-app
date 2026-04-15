@@ -89,7 +89,7 @@ make smoke-live-capabilities          # six capabilities end-to-end, requires ru
 make -C orchardgrid-cli smoke-live    # og CLI end-to-end
 ```
 
-`smoke-live*` are release-gate only — they hit real Apple Intelligence and can't run on any CI runner. If one fails after a risky change, don't push.
+`smoke-live*` are release-gate only — they hit real Apple Foundation Model and can't run on any CI runner. If one fails after a risky change, don't push.
 
 ## Manual fallback
 

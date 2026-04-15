@@ -44,7 +44,7 @@ targets: [
 ## Adding a new API
 
 1. Add the function to [`ContextTools.swift`](Sources/OrchardGridCore/ContextTools.swift) — keep it pure Swift over FoundationModels types. Don't leak app-specific types in.
-2. Cover every branch in [`ContextToolsTests.swift`](Tests/OrchardGridCoreTests/ContextToolsTests.swift) — tests must run on CI runners without Apple Intelligence, so guard model-dependent assertions so they still pass on the fallback path.
+2. Cover every branch in [`ContextToolsTests.swift`](Tests/OrchardGridCoreTests/ContextToolsTests.swift) — tests must run on CI runners without Apple Foundation Model, so guard model-dependent assertions so they still pass on the fallback path.
 3. Call it from both `orchardgrid-cli/Sources/ogKit/LocalEngine.swift` and `orchardgrid-app/Core/Services/LLMProcessor.swift` (or wherever else it's shared). If you only have one caller, it doesn't belong here.
 
 ## Running tests

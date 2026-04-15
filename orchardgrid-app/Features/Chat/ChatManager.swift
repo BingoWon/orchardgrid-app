@@ -18,7 +18,7 @@ final class ChatManager {
   private let imageCollector = ImageCollector()
 
   private static let systemPrompt = """
-    You are a helpful, friendly AI assistant powered by Apple Intelligence. \
+    You are a helpful, friendly AI assistant running on Apple's on-device foundation model. \
     Be concise, clear, and informative in your responses. \
     You can generate images when asked using the generateImage tool.
     """
@@ -143,7 +143,7 @@ final class ChatManager {
         let userMessage: String
         if desc.contains("GenerationError") {
           userMessage =
-            "Apple Intelligence could not generate a response. "
+            "Apple Foundation Model could not generate a response. "
             + "Please ensure Apple Intelligence is fully set up in "
             + "Settings → Apple Intelligence & Siri, and that the "
             + "on-device model has finished downloading."

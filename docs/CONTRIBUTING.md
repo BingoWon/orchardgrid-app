@@ -66,7 +66,7 @@ Before requesting review:
 | SwiftUI views, managers, Clerk, Network framework | `orchardgrid-app/` |
 | Shared types on the `/v1/*` wire | `orchardgrid-app/Core/Models/SharedTypes.swift` |
 
-If something *could* be tested without Apple Intelligence or code signing, it belongs in OrchardGridCore. That's the rule for every refactor.
+If something *could* be tested without Apple Foundation Model or code signing, it belongs in OrchardGridCore. That's the rule for every refactor.
 
 ## Tests & quality gates
 

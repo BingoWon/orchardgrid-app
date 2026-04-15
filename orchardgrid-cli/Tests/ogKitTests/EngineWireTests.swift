@@ -24,7 +24,7 @@ struct EngineWireTests {
     )
     let dict = try json(body)
 
-    #expect(dict["model"] as? String == "apple-intelligence")
+    #expect(dict["model"] as? String == "apple-foundationmodel")
     #expect(dict["stream"] as? Bool == true)
     #expect(dict["temperature"] == nil)
     #expect(dict["max_tokens"] == nil)

@@ -7,7 +7,7 @@ Start here before reading code. When in doubt, grep the repo.
 
 ## Golden goal
 
-**Turn idle Apple devices into a shared Apple Intelligence compute pool.**
+**Turn idle Apple devices into a shared Apple's built-in AI compute pool.**
 
 Each device you install OrchardGrid on becomes both:
 
@@ -154,7 +154,7 @@ Four test tiers, three of them run on CI:
 
 Xcode app tests need a real Apple development certificate (App Group + hardened-runtime entitlements reject ad-hoc signing). Run `make test-xcode` locally before opening a PR.
 
-Release-gate live smoke (requires a running OrchardGrid.app + Apple Intelligence):
+Release-gate live smoke (requires a running OrchardGrid.app + Apple's built-in AI):
 
 | Surface | Command | What it covers |
 |---|---|---|

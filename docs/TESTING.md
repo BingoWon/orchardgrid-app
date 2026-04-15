@@ -1,6 +1,6 @@
 # Testing
 
-Six test tiers, three tool stacks. Each tier covers what the others can't — together they give us coverage from pure logic all the way out to real Apple Intelligence. The matrix below tells you where to put a new test.
+Six test tiers, three tool stacks. Each tier covers what the others can't — together they give us coverage from pure logic all the way out to real Apple Foundation Model. The matrix below tells you where to put a new test.
 
 ## Tiers
 
@@ -44,7 +44,7 @@ cd ../orchardgrid && pnpm test
 
 Ask in order:
 
-1. **Can this be tested without Apple Intelligence, without signing, without a running app?**
+1. **Can this be tested without Apple Foundation Model, without signing, without a running app?**
    → `Packages/OrchardGridCore/Tests/` (unit, runs on Linux-grade CI)
 2. **Does it test a CLI argument / subprocess / flag / config file?**
    → `orchardgrid-cli/Tests/ogKitTests/` (Swift unit) or `Tests/integration/` (pytest, if it needs a running `og` binary + HTTP)
@@ -64,7 +64,7 @@ Ask in order:
 
 The Xcode app target can't run here — its entitlements (App Group, hardened runtime, Clerk keychain) require a real Apple development certificate. Contributors run `make test-xcode` locally before opening a PR; that gate is honor-system.
 
-Live smoke is never in CI. It requires real Apple Intelligence on the runner; no GitHub runner has that.
+Live smoke is never in CI. It requires real Apple Foundation Model on the runner; no GitHub runner has that.
 
 ## Pyramid philosophy
 

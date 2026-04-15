@@ -115,7 +115,7 @@ private struct RemoteHealth: Decodable {
 
 /// Request body for `POST /v1/chat/completions`.
 struct ChatRequestBody: Encodable {
-  let model = "apple-intelligence"
+  let model = "apple-foundationmodel"
   let stream = true
   let messages: [ChatMessage]
   let temperature: Double?

@@ -38,7 +38,7 @@ final class SharingManager {
     switch capability {
     case .chat:
       isModelAvailable
-        ? nil : String(localized: "Apple Intelligence is not available.")
+        ? nil : String(localized: "Apple Foundation Model is not available.")
     case .image: ImageProcessor.unavailabilityReason
     case .nlp:
       NLPProcessor.isAvailable

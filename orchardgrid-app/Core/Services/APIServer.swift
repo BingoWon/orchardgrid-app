@@ -576,7 +576,7 @@ final class APIServer {
     }
     await sendJSON(
       HealthResponse(
-        status: "ok", model: "apple-intelligence", available: llmProcessor.isAvailable),
+        status: "ok", model: "apple-foundationmodel", available: llmProcessor.isAvailable),
       to: connection
     )
   }
@@ -587,7 +587,7 @@ final class APIServer {
 
     if enabledCapabilities.contains(.chat), llmProcessor.isAvailable {
       models.append(
-        .init(id: "apple-intelligence", object: "model", created: now, ownedBy: "apple"))
+        .init(id: "apple-foundationmodel", object: "model", created: now, ownedBy: "apple"))
     }
 
     for (path, capability) in Self.routeToCapability {
@@ -596,7 +596,7 @@ final class APIServer {
       }
       models.append(
         .init(
-          id: "apple-intelligence-\(capability.rawValue)", object: "model", created: now,
+          id: "apple-foundationmodel-\(capability.rawValue)", object: "model", created: now,
           ownedBy: "apple"))
     }
 

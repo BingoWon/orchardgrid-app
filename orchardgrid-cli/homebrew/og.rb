@@ -14,7 +14,7 @@
 # build without installing the GUI. It builds from the in-repo SPM package.
 
 class Og < Formula
-  desc "OrchardGrid CLI — Apple Intelligence from the command line"
+  desc "OrchardGrid CLI — Apple's built-in AI from the command line"
   homepage "https://github.com/BingoWon/orchardgrid-apple"
   url "https://github.com/BingoWon/orchardgrid-apple/archive/refs/tags/og-v0.1.0.tar.gz"
   sha256 "REPLACE_ON_RELEASE"

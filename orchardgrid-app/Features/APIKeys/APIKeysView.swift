@@ -174,7 +174,7 @@ struct APIKeysView: View {
           endpointSection(
             method: "POST",
             path: "/v1/chat/completions",
-            model: "apple-intelligence",
+            model: "apple-foundationmodel",
             fields: [
               ("messages", "array", "[{role, content}]"),
               ("stream", "bool?", "false — set true for SSE"),
@@ -186,7 +186,7 @@ struct APIKeysView: View {
           endpointSection(
             method: "POST",
             path: "/v1/images/generations",
-            model: "apple-intelligence-image",
+            model: "apple-foundationmodel-image",
             fields: [
               ("prompt", "string", "Text description"),
               ("n", "int?", "1 — number of images"),

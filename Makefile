@@ -85,7 +85,7 @@ test-xcode-ios: ## Xcode app test target on iPhone 17 simulator
 test-cli: ## og CLI Swift unit + pytest integration suites
 	$(MAKE) -C $(CLI_DIR) test
 
-# ── Live smoke (release gate, requires running app + Apple Intelligence)
+# ── Live smoke (release gate, requires running app + Apple's built-in AI)
 
 smoke-live-capabilities: ## Hit every /v1/* endpoint of a running OrchardGrid.app
 	@command -v python3 >/dev/null || { echo "python3 required"; exit 1; }

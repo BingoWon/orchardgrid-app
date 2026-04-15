@@ -97,7 +97,7 @@ struct TranscriptEntriesTests {
 
 // MARK: - tokenCount + trim primitives (exercise fallback path when the
 // real `tokenCount(for:)` API throws / is unavailable — i.e. CI without
-// Apple Intelligence)
+// Apple's built-in AI)
 
 @Suite("tokenCount")
 struct TokenCountTests {
@@ -171,7 +171,7 @@ struct TrimWithSummaryTests {
 
   @Test("falls back to newest-first when the model is unavailable")
   func modelUnavailableFallsBack() async {
-    // With no Apple Intelligence in CI the availability guard kicks in
+    // With no Apple's built-in AI in CI the availability guard kicks in
     // and returns the newest-first fallback. On a dev box where the
     // model IS available, summarisation may succeed — either way the
     // result stays within the budget.

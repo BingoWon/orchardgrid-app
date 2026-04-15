@@ -7,7 +7,7 @@ import Foundation
 // doesn't ship a stream reader that respects a timeout, so we do buffered
 // reads against the raw fd with `poll(2)` as the deadline gate.
 
-public final class MCPLineReader: @unchecked Sendable {
+public final class BufferedLineReader: @unchecked Sendable {
   private let fd: Int32
   private let bufferSize: Int
   private var leftover = Data()

@@ -77,7 +77,7 @@ class MockConfig:
     health: dict = field(
         default_factory=lambda: {
             "status": "ok",
-            "model": "apple-intelligence",
+            "model": "apple-foundationmodel",
             "available": True,
         }
     )

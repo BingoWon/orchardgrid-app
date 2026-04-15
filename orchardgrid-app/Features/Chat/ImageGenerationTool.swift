@@ -1,6 +1,6 @@
 /**
  * ImageGenerationTool.swift
- * Foundation Models tool that enables image generation via Apple Intelligence
+ * Foundation Models tool that enables image generation via Apple Foundation Model tool calling
  */
 
 import Foundation

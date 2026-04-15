@@ -37,7 +37,8 @@ Cloud-side relay (Cloudflare Workers + React dashboard + D1) lives in the separa
 │   ModelIssue         abstract GenerationError classifier      │
 │   Retry.withRetry    exponential-backoff primitive            │
 │   MCPProtocol        JSON-RPC 2.0 framing + parsing           │
-│   MCPLineReader      poll(2)-gated buffered stdio reader      │
+│   BufferedLineReader poll(2)-gated buffered stdio reader      │
+│   AppIdentity        model / CLI / product name constants     │
 └──────────────────────────────────────────────────────────────┘
                          ▲
                          │   imports
@@ -86,11 +87,11 @@ static func handle(_ data: Data) async throws -> Data
 
 ## Why the three-way split
 
-- **OrchardGridCore** stays pure (Foundation + FoundationModels only) so its tests run on CI runners without Apple development certificates or Apple Intelligence.
+- **OrchardGridCore** stays pure (Foundation + FoundationModels only) so its tests run on CI runners without Apple development certificates or Apple's built-in AI.
 - **ogKit** adds HTTP / subprocess / config-file concerns that only the CLI needs. No UI.
 - **The Xcode target** pulls in Clerk, GoogleSignIn, SwiftUI, Network framework, App Group entitlements — everything that requires code signing.
 
-When you're adding a primitive that could be tested without a running app or Apple Intelligence, it belongs in OrchardGridCore. When it requires spawning subprocesses or speaking HTTP, it belongs in ogKit. When it renders UI or touches Clerk, it's an app-target concern.
+When you're adding a primitive that could be tested without a running app or Apple's built-in AI, it belongs in OrchardGridCore. When it requires spawning subprocesses or speaking HTTP, it belongs in ogKit. When it renders UI or touches Clerk, it's an app-target concern.
 
 ## Conventions
 

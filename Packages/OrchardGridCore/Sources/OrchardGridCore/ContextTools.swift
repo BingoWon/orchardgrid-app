@@ -58,7 +58,7 @@ public enum ContextBudget {
 // Pure on-device context-management primitives shared between the CLI's
 // `LocalEngine` and the app's `LLMProcessor`. Static functions — the
 // model is passed in explicitly so tests can run against the fallback
-// path without Apple Intelligence.
+// path without Apple Foundation Model.
 
 public enum ContextTools {
 

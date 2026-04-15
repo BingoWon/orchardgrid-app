@@ -3,14 +3,14 @@
 OrchardGrid — Live smoke test for all six on-device capabilities.
 
 Exercises the running OrchardGrid.app's local HTTP API (and, optionally,
-the cloud relay) end-to-end against real Apple Intelligence. Unit and
+the cloud relay) end-to-end against real Apple Foundation Model. Unit and
 integration tiers elsewhere in this repo mock Apple's frameworks; this
 one is the only layer that catches regressions like "ImagePlayground
 broken" or "Speech transcribing empty" before a release.
 
 Prerequisites
   1. OrchardGrid.app is running with **Share Locally** enabled on :8888
-  2. Apple Intelligence is available on this Mac (M1+, macOS 26+)
+  2. Apple's built-in AI is available on this Mac (M1+, macOS 26+)
   3. `requests` is installed (pip3 install --user requests)
 
 Usage
@@ -151,7 +151,7 @@ def suite(base_url: str, headers: dict, target: str, out_dir: Path):
 
     def chat_basic():
         r = post("/v1/chat/completions", {
-            "model": "apple-intelligence",
+            "model": "apple-foundationmodel",
             "messages": [{"role": "user", "content": "Say 'hello' and nothing else."}],
         })
         _assert_ok(r)
@@ -162,7 +162,7 @@ def suite(base_url: str, headers: dict, target: str, out_dir: Path):
 
     def chat_stream():
         r = post("/v1/chat/completions", {
-            "model": "apple-intelligence",
+            "model": "apple-foundationmodel",
             "messages": [{"role": "user", "content": "Count from 1 to 3."}],
             "stream": True,
         }, stream=True)

@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>Apple Intelligence — from every device, for every app.</strong>
+  <strong>Apple's built-in AI — from every device, for every app.</strong>
 </p>
 
 <p align="center">
@@ -33,7 +33,7 @@
 
 ---
 
-Apple Intelligence runs **only on Apple's Neural Engine** — it cannot be shipped to traditional cloud GPUs. OrchardGrid turns that constraint into a feature: install the app on any Mac, iPhone, or iPad; your device becomes a node in a **programmable pool of on-device AI**, reachable over your LAN or through OrchardGrid's cloud relay. Every byte of inference happens on the devices you own.
+Apple's built-in AI runs **only on Apple's Neural Engine** — it cannot be shipped to traditional cloud GPUs. OrchardGrid turns that constraint into a feature: install the app on any Mac, iPhone, or iPad; your device becomes a node in a **programmable pool of on-device AI**, reachable over your LAN or through OrchardGrid's cloud relay. Every byte of inference happens on the devices you own.
 
 ## Screenshots
 
@@ -66,7 +66,7 @@ Apple Intelligence runs **only on Apple's Neural Engine** — it cannot be shipp
 | Pool many devices as one API | — | ✅ |
 | App Store distribution | — | ✅ |
 
-**The short version.** If you have one Mac and want a single-binary CLI for Apple Intelligence, `apfel` is excellent — use it. If you want the same model **also from your iPhone**, **also via Image / Vision / Speech / Sound / NLP**, **also sharable with your team as a unified API**, **also packaged as a menu-bar app your family members can install from the App Store** — that's OrchardGrid.
+**The short version.** If you have one Mac and want a single-binary CLI for Apple's built-in AI, `apfel` is excellent — use it. If you want the same model **also from your iPhone**, **also via Image / Vision / Speech / Sound / NLP**, **also sharable with your team as a unified API**, **also packaged as a menu-bar app your family members can install from the App Store** — that's OrchardGrid.
 
 ## 🚀 Quick Start
 
@@ -100,14 +100,14 @@ That's it — the prompt runs **in-process** against `SystemLanguageModel.defaul
 
 | You want to… | Do this |
 |---|---|
-| Use Apple Intelligence from the shell | `og "..."` (or `og --chat`) |
+| Use Apple's built-in AI from the shell | `og "..."` (or `og --chat`) |
 | Call it from another app via OpenAI SDK | Enable **Share Locally** → hit `http://<mac>.local:8888/v1/chat/completions` |
 | Reach your Mac's AI from your iPhone / CI / a laptop | Enable **Share to Cloud** → `https://orchardgrid.com/v1/chat/completions` with your API key |
 | Do image / vision / speech / sound / NLP | Hit the corresponding `/v1/*` endpoint (see [Capabilities](#-capabilities)) |
 
 ## ⌨️ The `og` CLI
 
-`og` is a thin, opinionated shell wrapper around Apple Intelligence. By default it runs on-device in the same process. Pass `--host` to talk to a peer or to OrchardGrid cloud instead.
+`og` is a thin, opinionated shell wrapper around Apple's built-in AI. By default it runs on-device in the same process. Pass `--host` to talk to a peer or to OrchardGrid cloud instead.
 
 ### Inference
 
@@ -157,7 +157,7 @@ og --chat --context-strategy strict          # refuse to trim — throw on overf
 
 ### Tool calling via MCP (Model Context Protocol)
 
-Attach any stdio MCP server; `og` discovers its tools, registers them natively with `LanguageModelSession`, and Apple Intelligence decides when to call them.
+Attach any stdio MCP server; `og` discovers its tools, registers them natively with `LanguageModelSession`, and Apple's built-in AI decides when to call them.
 
 ```bash
 og --mcp ./server.py "what is 41 + 1?"              # on-device tool call
@@ -325,7 +325,7 @@ flowchart LR
 
 | Constraint | Detail |
 |---|---|
-| Context window | 4096 tokens (Apple Intelligence hard limit) |
+| Context window | 4096 tokens (Apple's built-in AI hard limit) |
 | Platform | Apple Silicon Macs (M1+) and Apple Intelligence-capable iPhone / iPad |
 | Model | One model per modality — whatever Apple ships |
 | Streaming | Chat and vision stream; image generation is one-shot |

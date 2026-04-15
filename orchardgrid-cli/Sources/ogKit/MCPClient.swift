@@ -20,7 +20,7 @@ final class MCPConnection: @unchecked Sendable {
   private let process: Process
   private let stdinPipe: Pipe
   private let stdoutPipe: Pipe
-  private let reader: MCPLineReader
+  private let reader: BufferedLineReader
   private let lock = NSLock()
   private var nextId = 1
 
@@ -47,7 +47,7 @@ final class MCPConnection: @unchecked Sendable {
     self.process = proc
     self.stdinPipe = stdin
     self.stdoutPipe = stdout
-    self.reader = MCPLineReader(fileDescriptor: stdout.fileHandleForReading.fileDescriptor)
+    self.reader = BufferedLineReader(fileDescriptor: stdout.fileHandleForReading.fileDescriptor)
 
     try proc.run()
     do {

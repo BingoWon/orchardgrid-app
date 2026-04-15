@@ -3,7 +3,7 @@
 # Assumes:
 #   1. `og` is built (`make release` or on PATH)
 #   2. OrchardGrid.app is running with Local Sharing enabled
-#   3. Apple Intelligence is available on this Mac
+#   3. Apple's built-in AI is available on this Mac
 set -euo pipefail
 
 OG="${OG:-$(dirname "$0")/../.build/release/og}"
@@ -27,7 +27,7 @@ if ! out=$("$OG" --model-info 2>&1); then
   fail "model-info" "$out"
 fi
 pass "og --model-info succeeded"
-echo "$out" | grep -q "apple-intelligence" || fail "model id" "expected 'apple-intelligence'"
+echo "$out" | grep -q "apple-foundationmodel" || fail "model id" "expected 'apple-foundationmodel'"
 pass "reports apple-intelligence"
 echo "$out" | grep -q "ok" || fail "status" "expected 'ok'"
 pass "reports status=ok"

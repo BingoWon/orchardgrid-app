@@ -1,6 +1,6 @@
 # og — OrchardGrid CLI
 
-Apple Intelligence from the command line. Runs **on-device FoundationModels
+Apple's built-in AI from the command line. Runs **on-device FoundationModels
 directly in-process** — no GUI app required, no local HTTP hop. Pass
 `--host` to talk to a LAN peer or the OrchardGrid cloud instead.
 
@@ -48,7 +48,7 @@ See `og --help` for the full flag list.
 
 ## MCP (Model Context Protocol)
 
-Attach any MCP-compliant tool server and let Apple Intelligence call it.
+Attach any MCP-compliant tool server and let Apple's built-in AI call it.
 Stdio transport only — pass a path to the server binary or `.py` script;
 `og` spawns it, handshakes, and registers its tools natively with
 `LanguageModelSession`:
@@ -115,16 +115,16 @@ Three independent tiers:
 make test-unit    # Swift Testing — 64 unit tests, no network, no model
 make test-int     # pytest + mock HTTP server — 43 E2E tests for RemoteEngine
 make test         # both
-make smoke-live   # live on-device smoke (requires Apple Intelligence)
+make smoke-live   # live on-device smoke (requires Apple's built-in AI)
 ```
 
 | Tier | What | Requires |
 |---|---|---|
 | Unit (`test-unit`) | Argument parsing, error mapping, wire coding, ANSI styling, engine factory | — |
 | E2E mock (`test-int`) | Spawns `og --host <mock>` as subprocess; asserts stdout/stderr/exit code against a stubbed HTTP server | Python 3.9+, `pytest` |
-| Live smoke (`smoke-live`) | Real `og` → real FoundationModels | Apple Intelligence on this Mac |
+| Live smoke (`smoke-live`) | Real `og` → real FoundationModels | Apple's built-in AI on this Mac |
 
-Unit + E2E-mock run on any macOS 26 machine (no Apple Intelligence needed).
+Unit + E2E-mock run on any macOS 26 machine (no Apple's built-in AI needed).
 Live smoke is release-gate only.
 
 ## Architecture
