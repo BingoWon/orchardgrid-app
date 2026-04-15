@@ -212,7 +212,7 @@ og --version             # version
 og --help                # full flag reference
 ```
 
-Deep-dive docs: [`docs/cli-reference.md`](docs/cli-reference.md) · [`docs/openai-api-compatibility.md`](docs/openai-api-compatibility.md) · [`docs/context-strategies.md`](docs/context-strategies.md) · [`demo/`](demo/) (capability-combining shell scripts).
+Deep-dive docs: [orchardgrid.com/docs/cli-reference](https://orchardgrid.com/docs/cli-reference) · [orchardgrid.com/docs/context-strategies](https://orchardgrid.com/docs/context-strategies) · [orchardgrid.com/docs/mcp](https://orchardgrid.com/docs/mcp) · [API Reference](https://orchardgrid.com/reference) · [`demo/`](demo/) (capability-combining shell scripts).
 
 ### Environment variables
 
@@ -351,12 +351,11 @@ flowchart LR
 
 Bug reports, feature ideas, pull requests — all welcome.
 
-1. Fork and branch from `main`.
-2. Commit in [Conventional Commits](https://www.conventionalcommits.org) style (`feat:` / `fix:` / `perf:` / `refactor:`) — these drive the automated release pipeline.
-3. Run `make format` (Swift) and `make test` before opening the PR.
-4. Describe the **why**, not just the what.
-
-New to the codebase? Start with [CLAUDE.md](CLAUDE.md) — the operator guide — then grep the repo.
+- **Start here**: [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) — dev loop, commit style, PR checklist
+- **Architecture map**: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — three targets, one product
+- **Test pyramid**: [`docs/TESTING.md`](docs/TESTING.md) — six tiers, where new tests go
+- **Release flow**: [`docs/RELEASING.md`](docs/RELEASING.md) — Conventional Commits → notarized DMG → tap
+- **Operator guide**: [`CLAUDE.md`](CLAUDE.md) — the AI / human onboarding primer
 
 <p align="center">
   <sub>Built with Swift 6 and Apple Silicon. No cloud GPUs were harmed in the making of this AI.</sub>

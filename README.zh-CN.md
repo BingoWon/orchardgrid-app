@@ -212,7 +212,7 @@ og --version             # 版本
 og --help                # 完整 flag 参考
 ```
 
-深入文档:[`docs/cli-reference.md`](docs/cli-reference.md) · [`docs/openai-api-compatibility.md`](docs/openai-api-compatibility.md) · [`docs/context-strategies.md`](docs/context-strategies.md) · [`demo/`](demo/) 多能力组合脚本。
+深入文档:[orchardgrid.com/docs/cli-reference](https://orchardgrid.com/docs/cli-reference) · [orchardgrid.com/docs/context-strategies](https://orchardgrid.com/docs/context-strategies) · [orchardgrid.com/docs/mcp](https://orchardgrid.com/docs/mcp) · [API 参考](https://orchardgrid.com/reference) · [`demo/`](demo/) 多能力组合脚本。
 
 ### 环境变量
 
@@ -351,12 +351,11 @@ flowchart LR
 
 Bug 反馈、新功能建议、PR —— 都欢迎。
 
-1. fork 仓库,从 `main` 切分支。
-2. 提交遵循 [Conventional Commits](https://www.conventionalcommits.org)(`feat:` / `fix:` / `perf:` / `refactor:`) —— 自动发版流水线靠这个识别版本变更。
-3. 提 PR 前跑 `make format`(Swift)和 `make test`。
-4. 说明**为什么**,不仅是**做了什么**。
-
-刚接触代码?从 [CLAUDE.md](CLAUDE.md) —— 操作员指南 —— 开始,然后直接 grep 仓库。
+- **从这里开始**:[`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) —— 开发循环、commit 规范、PR 清单
+- **架构地图**:[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) —— 三个目标、一个产品
+- **测试金字塔**:[`docs/TESTING.md`](docs/TESTING.md) —— 六层、新测试该放哪
+- **发版流程**:[`docs/RELEASING.md`](docs/RELEASING.md) —— Conventional Commits → 公证 DMG → tap 同步
+- **操作员指南**:[`CLAUDE.md`](CLAUDE.md) —— AI / 真人上手文档
 
 <p align="center">
   <sub>由 Swift 6 和 Apple Silicon 构建。制作本 AI 过程中没有云端 GPU 受到伤害。</sub>
