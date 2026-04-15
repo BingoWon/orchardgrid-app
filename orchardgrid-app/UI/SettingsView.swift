@@ -29,7 +29,7 @@ struct SettingsView: View {
     return "system"
   }()
 
-  private let repoURL = URL(string: "https://github.com/BingoWon/orchardgrid-app")!
+  private let repoURL = URL(string: "https://github.com/BingoWon/orchardgrid-apple")!
 
   var body: some View {
     ScrollView {
@@ -263,7 +263,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 2) {
           Text(String(localized: "Source Code"))
             .font(.subheadline.weight(.medium))
-          Text("BingoWon/orchardgrid-app")
+          Text("BingoWon/orchardgrid-apple")
             .font(.caption)
             .foregroundStyle(.secondary)
         }

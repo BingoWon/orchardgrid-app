@@ -8,7 +8,7 @@ Only the **latest released version** on Homebrew / App Store receives security f
 
 **Do not open a public issue.** Report privately via GitHub's security advisory form:
 
-https://github.com/BingoWon/orchardgrid-app/security/advisories/new
+https://github.com/BingoWon/orchardgrid-apple/security/advisories/new
 
 Include:
 

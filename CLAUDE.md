@@ -205,7 +205,7 @@ Never build the DMG locally for release — notarization requires the exact work
 | Local API server reports port in use | Another dev build is running, or port 8888 is occupied — `APIServer.setPort()` picks alternate |
 | WebSocket reconnect loop | Check `ObserverClient` logs — auth token may be stale; sign out/in resets it |
 | `feat:` commit pushed but no release | Check `release.yml` run logs; commits must match regex `^(feat|fix|perf|refactor)` case-insensitively |
-| Homebrew installs old version | Tap update job requires `HOMEBREW_TAP_TOKEN` secret on `orchardgrid-app` repo |
+| Homebrew installs old version | Tap update job requires `HOMEBREW_TAP_DEPLOY_KEY` secret on `orchardgrid-apple` repo |
 
 ---
 

@@ -51,20 +51,20 @@ Apple Intelligence runs **only on Apple's Neural Engine** — it cannot be shipp
 
 ## ✨ Why OrchardGrid?
 
-On-device AI projects usually pick one trade-off. OrchardGrid picks none of them.
+[`apfel`](https://github.com/Arthur-Ficial/apfel) is the closest sibling project — it exposes the same Apple on-device foundation model through a UNIX-style CLI. OrchardGrid starts from the same premise and extends it across more capabilities, more platforms, and more devices.
 
-| | Cloud LLM APIs | [Ollama](https://ollama.com) | [apfel](https://github.com/Arthur-Ficial/apfel) | **OrchardGrid** |
-|---|:---:|:---:|:---:|:---:|
-| On-device inference | ❌ | ✅ | ✅ | ✅ |
-| Uses Apple's Neural Engine / foundation model | ❌ | ❌ | ✅ | ✅ |
-| Capabilities beyond chat (image · vision · speech · sound · NLP) | varies | ❌ | ❌ | **✅ all six** |
-| iOS and iPadOS | browser only | ❌ | ❌ | ✅ |
-| Menu-bar app (not just a CLI) | — | — | — | ✅ |
-| Pool many devices as one API | ❌ | ❌ | ❌ | ✅ |
-| Reachable from anywhere (your phone, CI, a teammate) | ✅ | localhost only | localhost only | ✅ |
-| OpenAI-compatible `/v1/*` | ✅ | ✅ | ✅ | ✅ |
-| MCP tool calling | varies | ❌ | ✅ | ✅ |
-| Free | ❌ | ✅ | ✅ | ✅ |
+| | [apfel](https://github.com/Arthur-Ficial/apfel) | **OrchardGrid** |
+|---|:---:|:---:|
+| Uses Apple's Neural Engine / on-device foundation model | ✅ | ✅ |
+| OpenAI-compatible `/v1/*` | ✅ | ✅ |
+| MCP tool calling | ✅ | ✅ |
+| Streaming chat + context strategies | ✅ | ✅ |
+| Capabilities | Chat | **Chat + Image + Vision + Speech + Sound + NLP** |
+| Platforms | macOS | **macOS + iOS + iPadOS** |
+| Menu-bar app in the same install | — | ✅ |
+| Reachable from another device / CI / teammate | localhost only | ✅ (LAN + cloud relay) |
+| Pool many devices as one API | — | ✅ |
+| App Store distribution | — | ✅ |
 
 **The short version.** If you have one Mac and want a single-binary CLI for Apple Intelligence, `apfel` is excellent — use it. If you want the same model **also from your iPhone**, **also via Image / Vision / Speech / Sound / NLP**, **also sharable with your team as a unified API**, **also packaged as a menu-bar app your family members can install from the App Store** — that's OrchardGrid.
 

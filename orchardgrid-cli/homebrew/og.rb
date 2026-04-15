@@ -15,11 +15,11 @@
 
 class Og < Formula
   desc "OrchardGrid CLI — Apple Intelligence from the command line"
-  homepage "https://github.com/BingoWon/orchardgrid-app"
-  url "https://github.com/BingoWon/orchardgrid-app/archive/refs/tags/og-v0.1.0.tar.gz"
+  homepage "https://github.com/BingoWon/orchardgrid-apple"
+  url "https://github.com/BingoWon/orchardgrid-apple/archive/refs/tags/og-v0.1.0.tar.gz"
   sha256 "REPLACE_ON_RELEASE"
   license "MIT"
-  head "https://github.com/BingoWon/orchardgrid-app.git", branch: "main"
+  head "https://github.com/BingoWon/orchardgrid-apple.git", branch: "main"
 
   depends_on macos: :tahoe   # macOS 26+, FoundationModels
   depends_on xcode: ["26.0", :build]

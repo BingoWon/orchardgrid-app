@@ -297,7 +297,7 @@ jobs:
           set -euo pipefail
           V=${VERSION#v}
           DMG="OrchardGrid-v${V}-macos.dmg"
-          gh release download "v${V}" -R BingoWon/orchardgrid-app -p "$DMG"
+          gh release download "v${V}" -R BingoWon/orchardgrid-apple -p "$DMG"
           shasum -a 256 "$DMG" | awk '{print $1}' > dmg.sha256
 
       - name: Bump cask in homebrew-orchardgrid

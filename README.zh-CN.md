@@ -51,20 +51,20 @@ Apple Intelligence **只能在 Apple 自家的 Neural Engine 上运行** —— 
 
 ## ✨ 为什么选 OrchardGrid
 
-本地 AI 项目通常得做取舍,OrchardGrid 不需要。
+最接近的同类项目是 [`apfel`](https://github.com/Arthur-Ficial/apfel) —— 它也用 UNIX 风格的 CLI 暴露同一个 Apple 设备端基础模型。OrchardGrid 从相同前提出发,把能力、平台、设备维度都扩展了一层。
 
-| | 云端 LLM API | [Ollama](https://ollama.com) | [apfel](https://github.com/Arthur-Ficial/apfel) | **OrchardGrid** |
-|---|:---:|:---:|:---:|:---:|
-| 设备端推理 | ❌ | ✅ | ✅ | ✅ |
-| 使用 Apple Neural Engine / 官方基础模型 | ❌ | ❌ | ✅ | ✅ |
-| 除对话外的能力(图像·视觉·语音·声音·NLP) | 因厂商而异 | ❌ | ❌ | **✅ 六项全支持** |
-| 原生支持 iOS / iPadOS | 仅浏览器 | ❌ | ❌ | ✅ |
-| 菜单栏 App(不只是 CLI) | — | — | — | ✅ |
-| 把多台设备聚合成一个 API | ❌ | ❌ | ❌ | ✅ |
-| 任意位置可达(手机、CI、同事的电脑) | ✅ | 仅 localhost | 仅 localhost | ✅ |
-| OpenAI 兼容 `/v1/*` | ✅ | ✅ | ✅ | ✅ |
-| MCP 工具调用 | 因厂商而异 | ❌ | ✅ | ✅ |
-| 免费 | ❌ | ✅ | ✅ | ✅ |
+| | [apfel](https://github.com/Arthur-Ficial/apfel) | **OrchardGrid** |
+|---|:---:|:---:|
+| 使用 Apple Neural Engine / 设备端基础模型 | ✅ | ✅ |
+| OpenAI 兼容 `/v1/*` | ✅ | ✅ |
+| MCP 工具调用 | ✅ | ✅ |
+| 流式对话 + 上下文策略 | ✅ | ✅ |
+| 能力范围 | 对话 | **对话 + 图像 + 视觉 + 语音 + 声音 + NLP** |
+| 平台 | macOS | **macOS + iOS + iPadOS** |
+| 菜单栏 App 一同分发 | — | ✅ |
+| 从别的设备 / CI / 同事那里可达 | 仅 localhost | ✅(LAN + 云端中继) |
+| 聚合多设备为单一 API | — | ✅ |
+| App Store 发行 | — | ✅ |
 
 **一句话总结**。如果你只有一台 Mac,只想用命令行跑 Apple Intelligence —— `apfel` 很优秀,放心用。如果你想让**同一个模型**也能**从 iPhone 调用**、也能走**图像 / 视觉 / 语音 / 声音 / NLP**、也能**作为统一 API 分享给团队**、也能**让家人从 App Store 装个菜单栏 App 直接用** —— 那就是 OrchardGrid。
 
