@@ -342,7 +342,8 @@ flowchart LR
 | Cloud backend | Cloudflare Workers · Durable Objects · D1 (SQLite) · Hono |
 | Auth | Clerk · Apple Sign-In · Bearer API keys (scoped: inference / management) |
 | Distribution | Homebrew cask (app + CLI) · App Store (iOS / iPadOS / macOS) |
-| CLI | Swift Package · 123 unit tests + 96 pytest integration tests |
+| CLI | Swift Package · 127 Swift Testing unit tests + 96 pytest integration tests |
+| Quality gate | GitHub Actions · CLI + Xcode app run on every push and PR |
 
 ## 🤝 Contributing
 

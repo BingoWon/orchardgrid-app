@@ -1,0 +1,31 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cli:
+    name: og CLI (Swift unit + pytest e2e)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run CLI tests
+        working-directory: orchardgrid-cli
+        run: make test
+
+  xcode:
+    name: Xcode app tests (macOS)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Xcode app tests
+        run: make test-xcode-macos

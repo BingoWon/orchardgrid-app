@@ -13,7 +13,8 @@ XCB     := xcodebuild -project $(PROJECT) -scheme $(SCHEME) -quiet \
 MAC_DST := generic/platform=macOS
 IOS_DST := platform=iOS Simulator,name=iPhone 17
 
-.PHONY: help build build-macos build-ios debug test test-macos test-ios \
+.PHONY: help build build-macos build-ios debug \
+        test test-xcode test-xcode-macos test-xcode-ios test-cli \
         format clean open release-notes bundle bundle-cli
 
 help: ## Show this help
@@ -60,13 +61,24 @@ bundle-cli: ## Compile og + copy into the most recent OrchardGrid.app, ad-hoc si
 		"$$APP/Contents/Resources/og"; \
 	echo "✓ og bundled (ad-hoc signed). Path: $$APP/Contents/Resources/og"
 
-test: test-macos test-ios ## Run tests on macOS and iOS
+# ── Tests ────────────────────────────────────────────────────────────────
+# Single entry point: `make test` runs EVERYTHING in this repo — the
+# Xcode app test target on both macOS and iOS, plus the og CLI's Swift
+# Testing unit suite and pytest integration suite. Sub-targets are
+# composable so CI can parallelise them.
 
-test-macos: ## Run tests on macOS
+test: test-xcode test-cli ## Run every test in the repo (Xcode app + og CLI)
+
+test-xcode: test-xcode-macos test-xcode-ios ## Xcode app test target on macOS + iOS
+
+test-xcode-macos: ## Xcode app test target on macOS
 	$(XCB) -configuration Debug -destination 'platform=macOS' test
 
-test-ios: ## Run tests on iPhone 17 simulator
+test-xcode-ios: ## Xcode app test target on iPhone 17 simulator
 	$(XCB) -configuration Debug -destination '$(IOS_DST)' test
+
+test-cli: ## og CLI Swift unit + pytest integration suites
+	$(MAKE) -C $(CLI_DIR) test
 
 format: ## Format all Swift sources (swift-format)
 	@command -v swift-format >/dev/null || { echo "swift-format not found — brew install swift-format"; exit 1; }

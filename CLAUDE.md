@@ -134,9 +134,21 @@ Command line:
 make build         # release build for macOS
 make debug         # debug build for macOS
 make format        # swift-format in place
-make test          # xcodebuild test (no unit tests yet — runs SwiftUI previews)
+make test          # Xcode app tests (macOS + iOS) + og CLI suites
+make test-xcode    # Xcode app target only
+make test-cli      # og CLI: Swift unit + pytest integration
 make clean         # xcodebuild clean
 ```
+
+Three test tiers:
+
+| Tier | Location | Framework | What it covers |
+|---|---|---|---|
+| Xcode app | [OrchardGridTests/](orchardgrid-app/OrchardGridTests/) | Swift Testing | `APIClient` networking, URL protocol stubs |
+| og CLI unit | [orchardgrid-cli/Tests/ogKitTests/](orchardgrid-app/orchardgrid-cli/Tests/ogKitTests/) | Swift Testing | Argument parsing, error mapping, MCP protocol, benchmark stats, login flow, config store |
+| og CLI e2e | [orchardgrid-cli/Tests/integration/](orchardgrid-app/orchardgrid-cli/Tests/integration/) | pytest + mock HTTP server | Subprocess `og` behaviour against a scripted server; MCP via self-contained Python calculator |
+
+GitHub CI ([.github/workflows/test.yml](orchardgrid-app/.github/workflows/test.yml)) runs Xcode macOS tests and the full CLI suite on every push and PR. iOS simulator tests and `smoke-live` (live Apple Intelligence) stay local-only.
 
 **Swift version:** 5.0 (treat as Swift 6 concurrency — strict concurrency warnings enabled via @Observable).
 **Deployment targets:** macOS 26.0, iOS 26.0 (required for FoundationModels).
