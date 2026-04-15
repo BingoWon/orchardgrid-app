@@ -54,7 +54,7 @@ final class MCPConnection: @unchecked Sendable {
       _ = try MCPProtocol.parseInitializeResponse(
         try roundtrip(
           MCPProtocol.initializeRequest(
-            id: allocId(), clientName: "og", clientVersion: ogVersion),
+            id: allocId(), clientName: AppIdentity.cliName, clientVersion: ogVersion),
           label: "initialize"))
       send(MCPProtocol.initializedNotification())
       self.tools = try MCPProtocol.parseToolsListResponse(

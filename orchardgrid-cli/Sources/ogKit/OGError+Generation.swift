@@ -32,9 +32,11 @@ extension OGError {
   }
 
   /// Whether this error should be retried by `Retry.withRetry`.
+  /// `serverUnreachable` covers transient TCP / TLS hiccups; rate-limits
+  /// the server told us to back off from. Everything else is terminal.
   var isRetryable: Bool {
     switch self {
-    case .rateLimited: true
+    case .rateLimited, .serverUnreachable: true
     default: false
     }
   }

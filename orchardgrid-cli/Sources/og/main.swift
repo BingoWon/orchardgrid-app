@@ -45,7 +45,7 @@ case .help:
   printUsage()
   exit(ExitCode.success.rawValue)
 case .version:
-  print("og v\(ogVersion) (\(ogBuildCommit), \(ogBuildDate))")
+  print("\(AppIdentity.cliName) v\(ogVersion) (\(ogBuildCommit), \(ogBuildDate))")
   exit(ExitCode.success.rawValue)
 default: break
 }
@@ -152,7 +152,7 @@ do {
 func printUsage() {
   print(
     """
-    \(styled("og", .cyan, .bold)) v\(ogVersion) — OrchardGrid CLI for Apple Foundation Model
+    \(styled(AppIdentity.cliName, .cyan, .bold)) v\(ogVersion) — OrchardGrid CLI for Apple Foundation Model
 
     \(styled("INFERENCE (on-device by default):", .yellow, .bold))
       og [OPTIONS] <prompt>         Send a single prompt

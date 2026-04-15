@@ -1,4 +1,5 @@
 import Foundation
+import OrchardGridCore
 import os
 
 // MARK: - `og benchmark` — user-facing throughput probe
@@ -73,7 +74,7 @@ public func runBenchmark(engine: LLMEngine, args: Arguments) async throws {
 
   let chrome = args.outputFormat == .plain && !args.quiet
   if chrome {
-    print("\(styled("og", .cyan, .bold)) v\(ogVersion) — benchmark")
+    print("\(styled(AppIdentity.cliName, .cyan, .bold)) v\(ogVersion) — benchmark")
     print("\(styled("├", .dim)) source:  \(sourceLabel)")
     print("\(styled("├", .dim)) runs:    \(runs)")
     let preview = prompt.count > 64 ? "\(prompt.prefix(64))…" : prompt

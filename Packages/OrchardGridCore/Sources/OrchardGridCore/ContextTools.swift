@@ -25,6 +25,26 @@ public enum ContextStrategy: Sendable, Equatable {
   case summarize
   /// No trimming — throw `ContextOverflowError` if history doesn't fit.
   case strict
+
+  /// Wire / CLI identifiers for each strategy. Single source of truth
+  /// for argument validation (CLI `--context-strategy`) and parsing.
+  public static let knownNames = [
+    "newest-first", "oldest-first", "sliding-window", "summarize", "strict",
+  ]
+
+  /// Map a wire identifier (validated against `knownNames`) onto the
+  /// typed strategy. `nil` raw → `.newestFirst` (default). Returns
+  /// `nil` for unknown identifiers — caller decides how to surface.
+  public static func parse(_ raw: String?, maxTurns: Int? = nil) -> ContextStrategy? {
+    switch raw ?? "newest-first" {
+    case "newest-first": .newestFirst
+    case "oldest-first": .oldestFirst
+    case "sliding-window": .slidingWindow(maxTurns: maxTurns)
+    case "summarize": .summarize
+    case "strict": .strict
+    default: nil
+    }
+  }
 }
 
 /// Thrown by `ContextTools.trim` when the `.strict` strategy can't fit

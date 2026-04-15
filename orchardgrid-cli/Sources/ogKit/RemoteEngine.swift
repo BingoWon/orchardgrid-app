@@ -1,10 +1,12 @@
 import Foundation
+import OrchardGridCore
 
 // MARK: - Remote Engine
+//
+// HTTP engine talking to an OpenAI-compatible OrchardGrid endpoint —
+// either a LAN peer or `https://orchardgrid.com`. Used whenever `--host`
+// is specified; otherwise `LocalEngine` runs in-process.
 
-/// HTTP engine talking to an OpenAI-compatible OrchardGrid endpoint —
-/// either a LAN peer or `https://orchardgrid.com`. Used whenever `--host`
-/// is specified; otherwise `LocalEngine` runs in-process.
 public struct RemoteEngine: LLMEngine {
   public let base: URL
   public let token: String?
@@ -53,19 +55,14 @@ public struct RemoteEngine: LLMEngine {
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     addAuth(&request)
     request.httpBody = try JSONEncoder().encode(body)
+    let frozen = request
 
-    let (bytes, response): (URLSession.AsyncBytes, URLResponse)
-    do {
-      (bytes, response) = try await session.bytes(for: request)
-    } catch {
-      throw OGError.serverUnreachable
-    }
-    guard let http = response as? HTTPURLResponse else { throw OGError.runtime("invalid response") }
-
-    if !(200...299).contains(http.statusCode) {
-      var errData = Data()
-      for try await byte in bytes { errData.append(byte) }
-      throw OGError.fromHTTP(status: http.statusCode, body: errData)
+    // Retry only the connection / pre-stream phase. Once bytes start
+    // flowing, retrying would duplicate `onDelta` output.
+    let bytes = try await Retry.withRetry(
+      isRetryable: { ($0 as? OGError)?.isRetryable == true }
+    ) {
+      try await self.openStream(request: frozen)
     }
 
     var content = ""
@@ -87,6 +84,23 @@ public struct RemoteEngine: LLMEngine {
   }
 
   // MARK: - Helpers
+
+  private func openStream(request: URLRequest) async throws -> URLSession.AsyncBytes {
+    let bytes: URLSession.AsyncBytes
+    let response: URLResponse
+    do {
+      (bytes, response) = try await session.bytes(for: request)
+    } catch {
+      throw OGError.serverUnreachable
+    }
+    guard let http = response as? HTTPURLResponse else { throw OGError.runtime("invalid response") }
+    if !(200...299).contains(http.statusCode) {
+      var errData = Data()
+      for try await byte in bytes { errData.append(byte) }
+      throw OGError.fromHTTP(status: http.statusCode, body: errData)
+    }
+    return bytes
+  }
 
   private func addAuth(_ request: inout URLRequest) {
     if let token, !token.isEmpty {
@@ -115,7 +129,7 @@ private struct RemoteHealth: Decodable {
 
 /// Request body for `POST /v1/chat/completions`.
 struct ChatRequestBody: Encodable {
-  let model = "apple-foundationmodel"
+  let model = AppIdentity.modelName
   let stream = true
   let messages: [ChatMessage]
   let temperature: Double?
@@ -151,90 +165,6 @@ struct StreamChunk: Decodable {
     let delta: Delta
     struct Delta: Decodable { let content: String? }
   }
-}
-
-// MARK: - Error mapping (HTTP)
-
-extension OGError {
-  public static func fromHTTP(status: Int, body: Data) -> OGError {
-    struct Envelope: Decodable {
-      let error: Info
-      struct Info: Decodable {
-        let message: String
-        let type: String
-      }
-    }
-    let envelope = try? JSONDecoder().decode(Envelope.self, from: body)
-    let message = envelope?.error.message ?? "HTTP \(status)"
-    let type = envelope?.error.type ?? ""
-    switch (status, type) {
-    case (400, "content_policy_violation"): return .guardrail(message)
-    case (400, "context_length_exceeded"): return .contextOverflow(message)
-    case (401, _):
-      return .runtime("authentication failed — run `og login` to re-authenticate")
-    case (403, _):
-      return .runtime(
-        "forbidden — your token lacks management scope; run `og login` to upgrade")
-    case (429, _): return .rateLimited(message)
-    case (503, _): return .modelUnavailable(message)
-    default: return .runtime(message)
-    }
-  }
-}
-
-// MARK: - OGError type
-
-public enum OGError: Error, Equatable {
-  case usage(String)
-  case runtime(String)
-  case guardrail(String)
-  case contextOverflow(String)
-  case modelUnavailable(String)
-  case rateLimited(String)
-  case serverUnreachable
-
-  public var label: String {
-    switch self {
-    case .usage: "[usage]"
-    case .runtime: "[error]"
-    case .guardrail: "[guardrail]"
-    case .contextOverflow: "[context overflow]"
-    case .modelUnavailable: "[model unavailable]"
-    case .rateLimited: "[rate limited]"
-    case .serverUnreachable: "[unreachable]"
-    }
-  }
-
-  public var message: String {
-    switch self {
-    case .usage(let m), .runtime(let m), .guardrail(let m),
-      .contextOverflow(let m), .modelUnavailable(let m), .rateLimited(let m):
-      m
-    case .serverUnreachable:
-      "could not reach the remote host"
-    }
-  }
-
-  public var exitCode: Int32 {
-    switch self {
-    case .usage: ExitCode.usage.rawValue
-    case .guardrail: ExitCode.guardrail.rawValue
-    case .contextOverflow: ExitCode.contextOverflow.rawValue
-    case .modelUnavailable: ExitCode.modelUnavailable.rawValue
-    case .rateLimited: ExitCode.rateLimited.rawValue
-    case .runtime, .serverUnreachable: ExitCode.runtime.rawValue
-    }
-  }
-}
-
-public enum ExitCode: Int32, Sendable {
-  case success = 0
-  case runtime = 1
-  case usage = 2
-  case guardrail = 3
-  case contextOverflow = 4
-  case modelUnavailable = 5
-  case rateLimited = 6
 }
 
 // MARK: - Engine Factory

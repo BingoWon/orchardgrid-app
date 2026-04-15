@@ -1,4 +1,5 @@
 import Foundation
+import OrchardGridCore
 
 // MARK: - Parsed Arguments
 
@@ -140,7 +141,7 @@ public func parseArguments(_ args: [String], env: [String: String]) throws -> Ar
       result.seed = n
     case "--context-strategy":
       let v = try nextValue(a)
-      guard ["newest-first", "oldest-first", "sliding-window", "strict", "summarize"].contains(v)
+      guard ContextStrategy.knownNames.contains(v)
       else { throw CLIError.invalidValue(a, v) }
       result.contextStrategy = v
     case "--context-max-turns":

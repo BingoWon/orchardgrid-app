@@ -1,4 +1,5 @@
 import Foundation
+import OrchardGridCore
 
 // MARK: - Inference commands
 //
@@ -19,8 +20,8 @@ public func runModelInfo(engine: LLMEngine) async throws {
     statusText, styles: statusStyle, enabled: !noColor && isatty(STDOUT_FILENO) != 0)
 
   var lines: [String] = [
-    "\(styled("og", .cyan, .bold)) v\(ogVersion) — model info",
-    "\(styled("├", .dim)) model:    apple-intelligence",
+    "\(styled(AppIdentity.cliName, .cyan, .bold)) v\(ogVersion) — model info",
+    "\(styled("├", .dim)) model:    \(AppIdentity.modelName)",
     "\(styled("├", .dim)) source:   \(sourceLabel)",
     "\(styled("├", .dim)) status:   \(statusLine)",
   ]
@@ -79,7 +80,8 @@ public func runChat(
 
   if !args.quiet {
     print(
-      styled("OrchardGrid Chat", .cyan, .bold) + styled(" · og v\(ogVersion)", .dim))
+      styled("OrchardGrid Chat", .cyan, .bold)
+        + styled(" · \(AppIdentity.cliName) v\(ogVersion)", .dim))
     print(styled(String(repeating: "─", count: 48), .dim))
     if let systemPrompt {
       print(styled("system: ", .magenta, .bold) + styled(systemPrompt, .dim))

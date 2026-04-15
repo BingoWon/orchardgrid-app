@@ -37,7 +37,7 @@ public func runMCPList(args: Arguments) async throws {
       print("No tools advertised.")
       return
     }
-    print("\(styled("og", .cyan, .bold)) v\(ogVersion) — MCP tools")
+    print("\(styled(AppIdentity.cliName, .cyan, .bold)) v\(ogVersion) — MCP tools")
     for schema in schemas {
       print("\(styled("•", .dim)) \(styled(schema.name, .cyan, .bold))")
       print("  \(styled("desc:", .dim)) \(schema.description)")

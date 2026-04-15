@@ -90,8 +90,12 @@ public final class LocalEngine: LLMEngine {
     }
 
     let historyEntries = ContextTools.transcriptEntries(from: history)
-    let strategy = try parseStrategy(
-      raw: options.contextStrategy, maxTurns: options.contextMaxTurns)
+    guard
+      let strategy = ContextStrategy.parse(
+        options.contextStrategy, maxTurns: options.contextMaxTurns)
+    else {
+      throw OGError.usage("unknown context strategy: \(options.contextStrategy ?? "")")
+    }
     let trimmed: [Transcript.Entry]
     do {
       trimmed = try await ContextTools.trim(
@@ -112,22 +116,6 @@ public final class LocalEngine: LLMEngine {
       tools: tools,
       transcript: Transcript(entries: [instrEntry] + trimmed)
     )
-  }
-
-  /// Map the CLI's string-form `--context-strategy` value (validated at
-  /// parse time to one of the five known tokens) onto the typed
-  /// `ContextStrategy` the shared package expects.
-  private func parseStrategy(
-    raw: String?, maxTurns: Int?
-  ) throws -> ContextStrategy {
-    switch raw ?? "newest-first" {
-    case "newest-first": .newestFirst
-    case "oldest-first": .oldestFirst
-    case "sliding-window": .slidingWindow(maxTurns: maxTurns)
-    case "summarize": .summarize
-    case "strict": .strict
-    default: throw OGError.usage("unknown context strategy: \(raw ?? "")")
-    }
   }
 
   // MARK: - Streaming + usage

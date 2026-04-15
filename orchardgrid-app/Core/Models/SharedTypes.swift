@@ -235,7 +235,7 @@ struct ChatResponse: Codable, Sendable {
       id: "chatcmpl-\(UUID().uuidString.prefix(8))",
       object: "chat.completion",
       created: Int(Date().timeIntervalSince1970),
-      model: "apple-foundationmodel",
+      model: AppIdentity.modelName,
       choices: [
         .init(
           index: 0,
@@ -276,7 +276,7 @@ struct StreamChunk: Codable, Sendable {
       id: id,
       object: "chat.completion.chunk",
       created: Int(Date().timeIntervalSince1970),
-      model: "apple-foundationmodel",
+      model: AppIdentity.modelName,
       choices: [
         .init(
           index: 0,
@@ -297,7 +297,7 @@ struct StreamChunk: Codable, Sendable {
       id: id,
       object: "chat.completion.chunk",
       created: Int(Date().timeIntervalSince1970),
-      model: "apple-foundationmodel",
+      model: AppIdentity.modelName,
       choices: [
         .init(
           index: 0,

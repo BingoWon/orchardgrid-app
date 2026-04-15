@@ -1,4 +1,5 @@
 import FoundationModels
+import OrchardGridCore
 import SwiftUI
 
 #if os(macOS)
@@ -204,7 +205,7 @@ struct LocalDeviceView: View {
           Divider()
 
           VStack(alignment: .leading, spacing: 12) {
-            InfoRow(label: "Model", value: "apple-foundationmodel")
+            InfoRow(label: "Model", value: AppIdentity.modelName)
             EndpointRow(
               label: "Local",
               url: "http://localhost:\(sharing.localPort)/v1/chat/completions"

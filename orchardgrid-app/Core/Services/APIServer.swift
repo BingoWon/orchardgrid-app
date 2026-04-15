@@ -1,6 +1,7 @@
 import Foundation
 @preconcurrency import FoundationModels
 import Network
+import OrchardGridCore
 
 // MARK: - HTTP Request
 
@@ -576,7 +577,7 @@ final class APIServer {
     }
     await sendJSON(
       HealthResponse(
-        status: "ok", model: "apple-foundationmodel", available: llmProcessor.isAvailable),
+        status: "ok", model: AppIdentity.modelName, available: llmProcessor.isAvailable),
       to: connection
     )
   }
@@ -587,7 +588,7 @@ final class APIServer {
 
     if enabledCapabilities.contains(.chat), llmProcessor.isAvailable {
       models.append(
-        .init(id: "apple-foundationmodel", object: "model", created: now, ownedBy: "apple"))
+        .init(id: AppIdentity.modelName, object: "model", created: now, ownedBy: "apple"))
     }
 
     for (path, capability) in Self.routeToCapability {
@@ -596,7 +597,7 @@ final class APIServer {
       }
       models.append(
         .init(
-          id: "apple-foundationmodel-\(capability.rawValue)", object: "model", created: now,
+          id: "\(AppIdentity.modelName)-\(capability.rawValue)", object: "model", created: now,
           ownedBy: "apple"))
     }
 

@@ -1,3 +1,4 @@
+import OrchardGridCore
 import SwiftUI
 
 struct APIKeysView: View {
@@ -174,7 +175,7 @@ struct APIKeysView: View {
           endpointSection(
             method: "POST",
             path: "/v1/chat/completions",
-            model: "apple-foundationmodel",
+            model: AppIdentity.modelName,
             fields: [
               ("messages", "array", "[{role, content}]"),
               ("stream", "bool?", "false — set true for SSE"),
@@ -186,7 +187,7 @@ struct APIKeysView: View {
           endpointSection(
             method: "POST",
             path: "/v1/images/generations",
-            model: "apple-foundationmodel-image",
+            model: "\(AppIdentity.modelName)-image",
             fields: [
               ("prompt", "string", "Text description"),
               ("n", "int?", "1 — number of images"),
