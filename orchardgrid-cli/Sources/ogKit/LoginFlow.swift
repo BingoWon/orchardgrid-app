@@ -215,16 +215,24 @@ final class LoopbackServer: @unchecked Sendable {
   ) {
     connection.receive(minimumIncompleteLength: 1, maximumLength: 16_384) {
       data, _, _, _ in
-      defer { connection.cancel() }
-      guard let data, let request = String(data: data, encoding: .utf8) else { return }
+      guard let data, let request = String(data: data, encoding: .utf8) else {
+        connection.cancel()
+        return
+      }
 
       let firstLine = request.components(separatedBy: "\r\n").first ?? ""
       let parts = firstLine.split(separator: " ")
-      guard parts.count >= 2 else { return }
+      guard parts.count >= 2 else {
+        connection.cancel()
+        return
+      }
       let path = String(parts[1])
 
       guard let urlComponents = URLComponents(string: "http://localhost\(path)")
-      else { return }
+      else {
+        connection.cancel()
+        return
+      }
       let items = urlComponents.queryItems ?? []
       let token = items.first(where: { $0.name == "token" })?.value ?? ""
       let state = items.first(where: { $0.name == "state" })?.value ?? ""
@@ -237,11 +245,19 @@ final class LoopbackServer: @unchecked Sendable {
         + "Connection: close\r\n"
         + "\r\n"
         + body
+
+      // Yield the callback only AFTER the response has been fully flushed
+      // to the kernel socket buffer. The outer `awaitCallback`'s defer
+      // cancels the listener as soon as it receives the callback; if we
+      // yielded before `send` drained, that cancellation would reset
+      // the in-flight TCP connection and the browser would see
+      // `RemoteDisconnected`.
       connection.send(
         content: Data(response.utf8),
-        completion: .contentProcessed { _ in })
-
-      continuation.yield(Callback(token: token, state: state))
+        completion: .contentProcessed { _ in
+          connection.cancel()
+          continuation.yield(Callback(token: token, state: state))
+        })
     }
   }
 
