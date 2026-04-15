@@ -148,7 +148,7 @@ Three test tiers:
 | og CLI unit | [orchardgrid-cli/Tests/ogKitTests/](orchardgrid-app/orchardgrid-cli/Tests/ogKitTests/) | Swift Testing | Argument parsing, error mapping, MCP protocol, benchmark stats, login flow, config store |
 | og CLI e2e | [orchardgrid-cli/Tests/integration/](orchardgrid-app/orchardgrid-cli/Tests/integration/) | pytest + mock HTTP server | Subprocess `og` behaviour against a scripted server; MCP via self-contained Python calculator |
 
-GitHub CI ([.github/workflows/test.yml](orchardgrid-app/.github/workflows/test.yml)) runs Xcode macOS tests and the full CLI suite on every push and PR. iOS simulator tests and `smoke-live` (live Apple Intelligence) stay local-only.
+GitHub CI ([.github/workflows/test.yml](orchardgrid-app/.github/workflows/test.yml)) runs the full CLI suite (127 unit + 96 e2e) on every push and PR. Xcode app tests stay local-only — the app's entitlements require a development signing certificate no CI runner has. Run `make test-xcode` locally before opening a PR. `smoke-live` (live Apple Intelligence) is release-gate only.
 
 **Swift version:** 5.0 (treat as Swift 6 concurrency — strict concurrency warnings enabled via @Observable).
 **Deployment targets:** macOS 26.0, iOS 26.0 (required for FoundationModels).

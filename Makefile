@@ -72,10 +72,13 @@ test: test-xcode test-cli ## Run every test in the repo (Xcode app + og CLI)
 test-xcode: test-xcode-macos test-xcode-ios ## Xcode app test target on macOS + iOS
 
 test-xcode-macos: ## Xcode app test target on macOS
-	$(XCB) -configuration Debug -destination 'platform=macOS' test
+	$(XCB) -configuration Debug -destination 'platform=macOS' \
+		CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO \
+		CODE_SIGNING_ALLOWED=YES test
 
 test-xcode-ios: ## Xcode app test target on iPhone 17 simulator
-	$(XCB) -configuration Debug -destination '$(IOS_DST)' test
+	$(XCB) -configuration Debug -destination '$(IOS_DST)' \
+		CODE_SIGNING_ALLOWED=NO test
 
 test-cli: ## og CLI Swift unit + pytest integration suites
 	$(MAKE) -C $(CLI_DIR) test

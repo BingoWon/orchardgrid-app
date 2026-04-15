@@ -21,19 +21,16 @@ jobs:
         with:
           xcode-version: latest-stable
 
+      - name: Install pytest
+        run: python3 -m pip install --break-system-packages --user pytest
+
       - name: Run CLI tests
         working-directory: orchardgrid-cli
         run: make test
 
-  xcode:
-    name: Xcode app tests (macOS)
-    runs-on: macos-26
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
-
-      - name: Run Xcode app tests
-        run: make test-xcode-macos
+  # The Xcode app test target can't run on CI: the app entitlements
+  # (App Group, hardened runtime, Clerk) require a development signing
+  # certificate that the runner doesn't have. Contributors are expected
+  # to run `make test-xcode` locally before opening a PR. Once the
+  # pure-logic types (APIClient, context trimming, etc.) are extracted
+  # into an SPM target, that target will be added to this workflow.
