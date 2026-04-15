@@ -27,7 +27,7 @@ def test_mcp_list_json(run_og):
 def test_mcp_list_requires_path(run_og):
     result = run_og("mcp", "list")
     assert result.returncode == 2
-    assert "mcp server path" in result.stderr
+    assert "server path" in result.stderr
 
 
 def test_mcp_requires_local_engine(run_og, mock_server):

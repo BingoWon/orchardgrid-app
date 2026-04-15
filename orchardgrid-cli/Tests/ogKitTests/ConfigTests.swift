@@ -79,50 +79,34 @@ struct ConfigTests {
 
   // MARK: - resolveManagement
 
-  @Test("resolveManagement falls back to config when args are empty")
+  @Test("resolveManagement falls back to config when explicit args are nil")
   func resolveUsesConfig() {
-    let args = Arguments()
     let cfg = ConfigFile(
       host: "http://saved:4399", token: "saved-tok",
       keyHint: "…", deviceLabel: "x")
     let resolved = resolveManagement(
-      args: args, config: cfg, defaultHost: "https://default.com")
+      host: nil, token: nil, config: cfg, defaultHost: "https://default.com")
     #expect(resolved.host == "http://saved:4399")
     #expect(resolved.token == "saved-tok")
   }
 
-  @Test("resolveManagement prefers explicit --host/--token over config")
+  @Test("resolveManagement prefers explicit --host / --token over config")
   func resolveExplicitWins() {
-    var args = Arguments()
-    args.host = "http://explicit:9000"
-    args.token = "explicit-tok"
     let cfg = ConfigFile(
       host: "http://saved:4399", token: "saved-tok",
       keyHint: "…", deviceLabel: "x")
     let resolved = resolveManagement(
-      args: args, config: cfg, defaultHost: "https://default.com")
+      host: "http://explicit:9000", token: "explicit-tok",
+      config: cfg, defaultHost: "https://default.com")
     #expect(resolved.host == "http://explicit:9000")
     #expect(resolved.token == "explicit-tok")
   }
 
-  @Test("resolveManagement falls back to defaultHost when neither args nor config set it")
+  @Test("resolveManagement falls back to defaultHost when neither explicit nor config set it")
   func resolveUsesDefault() {
-    let args = Arguments()
     let resolved = resolveManagement(
-      args: args, config: nil, defaultHost: "https://default.com")
+      host: nil, token: nil, config: nil, defaultHost: "https://default.com")
     #expect(resolved.host == "https://default.com")
     #expect(resolved.token == nil)
-  }
-
-  @Test("resolveManagement does NOT modify the inference args (host/token stay nil)")
-  func resolveDoesNotMutateArgs() {
-    let args = Arguments()
-    let cfg = ConfigFile(
-      host: "http://saved:4399", token: "tok",
-      keyHint: "…", deviceLabel: "x")
-    _ = resolveManagement(args: args, config: cfg, defaultHost: "x")
-    // The inference path still sees nil host → LocalEngine (on-device).
-    #expect(args.host == nil)
-    #expect(args.token == nil)
   }
 }

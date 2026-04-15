@@ -10,21 +10,25 @@ def test_version(run_og):
 def test_help(run_og):
     result = run_og("--help")
     assert result.returncode == 0
-    # Help output lists all top-level command groups and the chat flag.
-    assert "INFERENCE" in result.stdout
-    assert "AUTH" in result.stdout
-    assert "ACCOUNT" in result.stdout
-    assert "--chat" in result.stdout
+    # Help output lists all top-level subcommands.
+    assert "SUBCOMMANDS" in result.stdout
+    assert "chat" in result.stdout
+    assert "login" in result.stdout
+    assert "keys" in result.stdout
 
 
 def test_no_args_exits_with_usage(run_og):
+    # `og` with nothing to do prints help via CleanExit (usage exit code).
     result = run_og()
-    assert result.returncode == 2
-    assert "INFERENCE" in result.stdout
+    # SAP's CleanExit for help/usage uses exit code 0 when help was requested,
+    # or 64 for usage errors. Our Run command throws CleanExit.helpRequest,
+    # which prints help and exits 0.
+    assert result.returncode == 0
+    assert "USAGE" in result.stdout or "SUBCOMMANDS" in result.stdout
 
 
 def test_model_info_reaches_mock_health(run_og, mock_server):
-    result = run_og("--model-info")
+    result = run_og("model-info")
     assert result.returncode == 0
     assert "apple-foundationmodel" in result.stdout
     assert "ok" in result.stdout
@@ -35,7 +39,7 @@ def test_model_info_reaches_mock_health(run_og, mock_server):
 
 def test_model_info_reports_unavailable_model(run_og, mock_server):
     mock_server.script_health(available=False)
-    result = run_og("--model-info")
+    result = run_og("model-info")
     assert result.returncode == 0
     assert "model unavailable" in result.stdout.lower()
 

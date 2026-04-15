@@ -26,25 +26,25 @@ def test_http_error_maps_to_exit_code(
 def test_unknown_flag_exits_with_usage(run_og):
     result = run_og("--no-such-flag")
     assert result.returncode == 2
-    assert "unknown flag" in result.stderr
+    assert "Unknown option" in result.stderr
 
 
 def test_invalid_output_format_exits_with_usage(run_og):
     result = run_og("-o", "yaml", "hi")
     assert result.returncode == 2
-    assert "invalid value for -o" in result.stderr
+    assert "invalid for '-o" in result.stderr
 
 
 def test_invalid_temperature_exits_with_usage(run_og):
     result = run_og("--temperature", "hot", "hi")
     assert result.returncode == 2
-    assert "invalid value for --temperature" in result.stderr
+    assert "invalid for '--temperature" in result.stderr
 
 
 def test_missing_value_exits_with_usage(run_og):
     result = run_og("--temperature")
     assert result.returncode == 2
-    assert "--temperature requires a value" in result.stderr
+    assert "Missing value for '--temperature" in result.stderr
 
 
 def test_server_unreachable(run_og):

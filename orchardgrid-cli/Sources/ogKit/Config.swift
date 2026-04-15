@@ -84,11 +84,12 @@ public enum ConfigStore {
 /// does **not** read config.host — saved creds shouldn't silently redirect
 /// on-device inference to HTTP.
 public func resolveManagement(
-  args: Arguments,
+  host explicitHost: String?,
+  token explicitToken: String?,
   config: ConfigFile?,
   defaultHost: String
 ) -> (host: String, token: String?) {
-  let host = args.host ?? config?.host ?? defaultHost
-  let token = args.token ?? config?.token
+  let host = explicitHost ?? config?.host ?? defaultHost
+  let token = explicitToken ?? config?.token
   return (host, token)
 }

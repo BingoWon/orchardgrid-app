@@ -1,7 +1,7 @@
 import Foundation
 import OrchardGridCore
 
-// MARK: - OGError + ExitCode
+// MARK: - OGError + ExitStatus
 //
 // One CLI-wide error taxonomy. Network / HTTP errors hop in via
 // `fromHTTP`; FoundationModels errors via `fromModelError` (in
@@ -41,17 +41,17 @@ public enum OGError: Error, Equatable {
 
   public var exitCode: Int32 {
     switch self {
-    case .usage: ExitCode.usage.rawValue
-    case .guardrail: ExitCode.guardrail.rawValue
-    case .contextOverflow: ExitCode.contextOverflow.rawValue
-    case .modelUnavailable: ExitCode.modelUnavailable.rawValue
-    case .rateLimited: ExitCode.rateLimited.rawValue
-    case .runtime, .serverUnreachable: ExitCode.runtime.rawValue
+    case .usage: ExitStatus.usage.rawValue
+    case .guardrail: ExitStatus.guardrail.rawValue
+    case .contextOverflow: ExitStatus.contextOverflow.rawValue
+    case .modelUnavailable: ExitStatus.modelUnavailable.rawValue
+    case .rateLimited: ExitStatus.rateLimited.rawValue
+    case .runtime, .serverUnreachable: ExitStatus.runtime.rawValue
     }
   }
 }
 
-public enum ExitCode: Int32, Sendable {
+public enum ExitStatus: Int32, Sendable {
   case success = 0
   case runtime = 1
   case usage = 2

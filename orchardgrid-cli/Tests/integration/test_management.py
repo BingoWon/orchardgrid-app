@@ -182,7 +182,7 @@ def test_keys_delete_without_hint_errors(run_og, scratch_home):
     result = run_og("keys", "delete")
     assert not result.crashed
     assert result.returncode == 2  # usage error
-    assert "key hint" in result.stderr.lower() or "missing argument" in result.stderr.lower()
+    assert "hint" in result.stderr.lower() or "missing" in result.stderr.lower()
 
 
 def test_keys_delete_404(run_og, mock_server, config_for):

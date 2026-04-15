@@ -1,11 +1,11 @@
 import Foundation
 import OrchardGridCore
 
-// MARK: - Inference commands
+// MARK: - Inference runners
 //
-// `og --model-info`, `og "prompt"`, `og --chat`. All three use the same
+// `og model-info`, `og "prompt"`, `og chat`. All three use the same
 // `LLMEngine` abstraction — on-device FoundationModels by default, or
-// HTTP `RemoteEngine` when `--host` is set. No config-file coupling.
+// HTTP `RemoteEngine` when `--host` is set.
 
 public func runModelInfo(engine: LLMEngine) async throws {
   let info = try await engine.health()
@@ -36,9 +36,10 @@ public func runModelInfo(engine: LLMEngine) async throws {
 
 public func runPrompt(
   engine: LLMEngine,
-  args: Arguments,
   prompt: String,
   systemPrompt: String?,
+  chatOptions: ChatOptions,
+  outputFormat: OutputFormat,
   mcp: MCPManager? = nil
 ) async throws {
   var messages: [ChatMessage] = []
@@ -47,14 +48,14 @@ public func runPrompt(
   }
   messages.append(ChatMessage(role: "user", content: prompt))
 
-  let streamToStdout = args.outputFormat == .plain
+  let streamToStdout = outputFormat == .plain
   let result = try await engine.chat(
-    messages: messages, options: chatOptions(args), mcp: mcp
+    messages: messages, options: chatOptions, mcp: mcp
   ) { delta in
     if streamToStdout { writeStdout(delta) }
   }
 
-  switch args.outputFormat {
+  switch outputFormat {
   case .plain:
     print()
   case .json:
@@ -67,10 +68,14 @@ public func runPrompt(
 }
 
 public func runChat(
-  engine: LLMEngine, args: Arguments, systemPrompt: String?, mcp: MCPManager? = nil
+  engine: LLMEngine,
+  systemPrompt: String?,
+  chatOptions: ChatOptions,
+  quiet: Bool,
+  mcp: MCPManager? = nil
 ) async throws {
   guard isatty(STDIN_FILENO) != 0 else {
-    throw OGError.usage("--chat requires an interactive terminal")
+    throw OGError.usage("`og chat` requires an interactive terminal")
   }
 
   var messages: [ChatMessage] = []
@@ -78,7 +83,7 @@ public func runChat(
     messages.append(ChatMessage(role: "system", content: systemPrompt))
   }
 
-  if !args.quiet {
+  if !quiet {
     print(
       styled("OrchardGrid Chat", .cyan, .bold)
         + styled(" · \(AppIdentity.cliName) v\(ogVersion)", .dim))
@@ -90,9 +95,9 @@ public func runChat(
   }
 
   while true {
-    if !args.quiet { writeStdout(styled("you› ", .yellow, .bold)) }
+    if !quiet { writeStdout(styled("you› ", .yellow, .bold)) }
     guard let input = readLine() else {
-      if !args.quiet { print() }
+      if !quiet { print() }
       break
     }
     let trimmed = input.trimmingCharacters(in: .whitespaces)
@@ -100,11 +105,11 @@ public func runChat(
     if ["quit", "exit"].contains(trimmed.lowercased()) { break }
 
     messages.append(ChatMessage(role: "user", content: trimmed))
-    if !args.quiet { writeStdout(styled(" ai› ", .cyan, .bold)) }
+    if !quiet { writeStdout(styled(" ai› ", .cyan, .bold)) }
 
     do {
       let result = try await engine.chat(
-        messages: messages, options: chatOptions(args), mcp: mcp
+        messages: messages, options: chatOptions, mcp: mcp
       ) { delta in
         writeStdout(delta)
       }
@@ -116,41 +121,36 @@ public func runChat(
     }
   }
 
-  if !args.quiet { print(styled("Goodbye.", .dim)) }
+  if !quiet { print(styled("Goodbye.", .dim)) }
 }
 
-// MARK: - Helpers
+// MARK: - Prompt assembly helpers
 
-public func chatOptions(_ args: Arguments) -> ChatOptions {
-  ChatOptions(
-    temperature: args.temperature,
-    maxTokens: args.maxTokens,
-    seed: args.seed,
-    contextStrategy: args.contextStrategy,
-    contextMaxTurns: args.contextMaxTurns,
-    permissive: args.permissive
-  )
-}
-
-/// Resolve the effective system prompt: `--system-file` wins over `--system`
-/// (file is treated as the full text, trimmed).
-public func resolveSystemPrompt(_ args: Arguments) -> String? {
-  if let sysFile = args.systemFile {
-    if let text = try? String(contentsOfFile: sysFile, encoding: .utf8) {
+/// Resolve the effective system prompt: `--system-file` wins over
+/// `--system` (file is treated as the full text, trimmed).
+public func resolveSystemPrompt(
+  system: String?,
+  systemFile: String?
+) -> String? {
+  if let systemFile {
+    if let text = try? String(contentsOfFile: systemFile, encoding: .utf8) {
       return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
-    printErr("warning: could not read \(sysFile)")
+    printErr("warning: could not read \(systemFile)")
   }
-  return args.systemPrompt
+  return system
 }
 
-/// Assemble the final prompt: positional args + `-f` files + stdin.
-/// File / stdin content is prepended to the positional prompt text.
-public func assemblePrompt(_ args: Arguments) throws -> String {
-  var finalPrompt = args.prompt
+/// Assemble the final prompt: positional text + `-f` files + stdin (if
+/// piped). File / stdin content is prepended to the positional prompt.
+public func assemblePrompt(
+  positional: String,
+  filePaths: [String]
+) throws -> String {
+  var finalPrompt = positional
   var fileContents: [String] = []
 
-  for path in args.filePaths {
+  for path in filePaths {
     do {
       fileContents.append(try String(contentsOfFile: path, encoding: .utf8))
     } catch {

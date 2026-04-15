@@ -7,19 +7,23 @@ import OrchardGridCore
 // then shuts them down. Useful for verifying an MCP server works with og
 // before plumbing it into a live inference call.
 
-public func runMCPList(args: Arguments) async throws {
-  guard !args.mcpPaths.isEmpty else {
+public func runMCPList(
+  paths: [String],
+  timeoutSeconds: Int,
+  outputFormat: OutputFormat
+) async throws {
+  guard !paths.isEmpty else {
     throw OGError.usage("`og mcp list` requires at least one server path")
   }
   let manager = try await MCPManager(
-    paths: args.mcpPaths,
-    timeoutSeconds: args.mcpTimeoutSeconds,
+    paths: paths,
+    timeoutSeconds: timeoutSeconds,
     logHeader: false
   )
   defer { Task { await manager.shutdown() } }
 
   let schemas = await manager.schemas
-  switch args.outputFormat {
+  switch outputFormat {
   case .json:
     struct Entry: Encodable {
       let name: String

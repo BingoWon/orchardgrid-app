@@ -11,13 +11,15 @@ let package = Package(
     // OrchardGridCore hosts the on-device primitives shared with the
     // OrchardGrid menu-bar app (context trimming, token counting,
     // transcript assembly, summary-based trim fallback).
-    .package(path: "../Packages/OrchardGridCore")
+    .package(path: "../Packages/OrchardGridCore"),
+    .package(url: "https://github.com/apple/swift-argument-parser", from: "1.7.1"),
   ],
   targets: [
     .target(
       name: "ogKit",
       dependencies: [
-        .product(name: "OrchardGridCore", package: "OrchardGridCore")
+        .product(name: "OrchardGridCore", package: "OrchardGridCore"),
+        .product(name: "ArgumentParser", package: "swift-argument-parser"),
       ],
       path: "Sources/ogKit"),
     .executableTarget(

@@ -90,13 +90,13 @@ struct OGErrorTests {
   @Test(
     "exit codes align with documented taxonomy",
     arguments: [
-      (OGError.usage("x"), ExitCode.usage.rawValue),
-      (OGError.runtime("x"), ExitCode.runtime.rawValue),
-      (OGError.guardrail("x"), ExitCode.guardrail.rawValue),
-      (OGError.contextOverflow("x"), ExitCode.contextOverflow.rawValue),
-      (OGError.modelUnavailable("x"), ExitCode.modelUnavailable.rawValue),
-      (OGError.rateLimited("x"), ExitCode.rateLimited.rawValue),
-      (OGError.serverUnreachable, ExitCode.runtime.rawValue),
+      (OGError.usage("x"), ExitStatus.usage.rawValue),
+      (OGError.runtime("x"), ExitStatus.runtime.rawValue),
+      (OGError.guardrail("x"), ExitStatus.guardrail.rawValue),
+      (OGError.contextOverflow("x"), ExitStatus.contextOverflow.rawValue),
+      (OGError.modelUnavailable("x"), ExitStatus.modelUnavailable.rawValue),
+      (OGError.rateLimited("x"), ExitStatus.rateLimited.rawValue),
+      (OGError.serverUnreachable, ExitStatus.runtime.rawValue),
     ])
   func exitCodes(_ err: OGError, _ expected: Int32) {
     #expect(err.exitCode == expected)
@@ -104,13 +104,13 @@ struct OGErrorTests {
 
   @Test("ExitCode raw values are stable (0–6)")
   func exitCodeValues() {
-    #expect(ExitCode.success.rawValue == 0)
-    #expect(ExitCode.runtime.rawValue == 1)
-    #expect(ExitCode.usage.rawValue == 2)
-    #expect(ExitCode.guardrail.rawValue == 3)
-    #expect(ExitCode.contextOverflow.rawValue == 4)
-    #expect(ExitCode.modelUnavailable.rawValue == 5)
-    #expect(ExitCode.rateLimited.rawValue == 6)
+    #expect(ExitStatus.success.rawValue == 0)
+    #expect(ExitStatus.runtime.rawValue == 1)
+    #expect(ExitStatus.usage.rawValue == 2)
+    #expect(ExitStatus.guardrail.rawValue == 3)
+    #expect(ExitStatus.contextOverflow.rawValue == 4)
+    #expect(ExitStatus.modelUnavailable.rawValue == 5)
+    #expect(ExitStatus.rateLimited.rawValue == 6)
   }
 
   // MARK: - Labels + messages

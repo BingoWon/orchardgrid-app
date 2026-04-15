@@ -19,7 +19,7 @@ SUBCOMMANDS_WITHOUT_CONFIG = [
     # (argv, description)
     pytest.param(["--version"], id="version"),
     pytest.param(["--help"], id="help"),
-    pytest.param(["--model-info"], id="model-info"),
+    pytest.param(["model-info"], id="model-info"),
     pytest.param(["me"], id="me-no-config"),
     pytest.param(["keys"], id="keys-no-config"),
     pytest.param(["keys", "list"], id="keys-list-no-config"),

@@ -6,9 +6,14 @@ import Foundation
 // the token + host come from CLI flags, env vars, or the saved config —
 // resolved by `resolveManagement`.
 
-public func cloudClient(args: Arguments, config: ConfigFile?) throws -> CloudAPI {
+public func cloudClient(
+  host explicitHost: String?,
+  token explicitToken: String?,
+  config: ConfigFile?
+) throws -> CloudAPI {
   let (host, token) = resolveManagement(
-    args: args, config: config, defaultHost: defaultCloudHost())
+    host: explicitHost, token: explicitToken,
+    config: config, defaultHost: defaultCloudHost())
   guard let token, !token.isEmpty else {
     throw OGError.runtime("not logged in — run `og login`")
   }

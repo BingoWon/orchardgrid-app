@@ -57,11 +57,18 @@ public struct BenchmarkReport: Codable, Sendable {
   public let outputTokens: BenchmarkStat
 }
 
-public func runBenchmark(engine: LLMEngine, args: Arguments) async throws {
+public func runBenchmark(
+  engine: LLMEngine,
+  prompt customPrompt: String?,
+  runs customRuns: Int?,
+  chatOptions: ChatOptions,
+  outputFormat: OutputFormat,
+  quiet: Bool
+) async throws {
   let prompt =
-    args.benchPrompt
+    customPrompt
     ?? "Write a short paragraph about the Apple Silicon family of chips."
-  let runs = args.benchRuns ?? 5
+  let runs = customRuns ?? 5
 
   let health = try await engine.health()
   guard health.available else { throw OGError.modelUnavailable(health.detail) }
@@ -72,7 +79,7 @@ public func runBenchmark(engine: LLMEngine, args: Arguments) async throws {
     case .remote(let url): url.absoluteString
     }
 
-  let chrome = args.outputFormat == .plain && !args.quiet
+  let chrome = outputFormat == .plain && !quiet
   if chrome {
     print("\(styled(AppIdentity.cliName, .cyan, .bold)) v\(ogVersion) — benchmark")
     print("\(styled("├", .dim)) source:  \(sourceLabel)")
@@ -88,10 +95,10 @@ public func runBenchmark(engine: LLMEngine, args: Arguments) async throws {
   var tokens: [Double] = []
   // Default to deterministic sampling (temperature 0, max_tokens 256) so
   // runs are comparable. User overrides via --temperature / --max-tokens
-  // win — document in --help.
+  // win.
   let options = ChatOptions(
-    temperature: args.temperature ?? 0,
-    maxTokens: args.maxTokens ?? 256
+    temperature: chatOptions.temperature ?? 0,
+    maxTokens: chatOptions.maxTokens ?? 256
   )
 
   for i in 1...runs {
@@ -134,7 +141,7 @@ public func runBenchmark(engine: LLMEngine, args: Arguments) async throws {
     outputTokens: .of(tokens)
   )
 
-  switch args.outputFormat {
+  switch outputFormat {
   case .json:
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]

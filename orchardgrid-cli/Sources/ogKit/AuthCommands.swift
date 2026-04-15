@@ -44,8 +44,8 @@ public func deviceDisplayName() -> String {
 
 // MARK: - og login
 
-public func runLogin(args: Arguments) async throws {
-  let host = args.host ?? defaultCloudHost()
+public func runLogin(host customHost: String?) async throws {
+  let host = customHost ?? defaultCloudHost()
   let deviceLabel = deviceDisplayName()
 
   let result = try await LoginFlow.run(host: host, deviceLabel: deviceLabel)

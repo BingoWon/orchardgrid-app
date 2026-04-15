@@ -51,22 +51,39 @@ Apple 内置 AI **只能在 Apple 自家的 Neural Engine 上运行** —— 没
 
 ## ✨ 为什么选 OrchardGrid
 
-最接近的同类项目是 [`apfel`](https://github.com/Arthur-Ficial/apfel) —— 它也用 UNIX 风格的 CLI 暴露同一个 Apple 设备端基础模型。OrchardGrid 从相同前提出发,把能力、平台、设备维度都扩展了一层。
+最接近的同类项目是 [`apfel`](https://github.com/Arthur-Ficial/apfel) —— 一个 UNIX 风格的 CLI,暴露同一个 Apple 设备端基础模型。我们从相同前提出发,然后在**每一个维度都走得更远**:更多能力、更多平台、更多设备、更多分发渠道、更多集成点。逐项对比:
 
-| | [apfel](https://github.com/Arthur-Ficial/apfel) | **OrchardGrid** |
+| 维度 | [apfel](https://github.com/Arthur-Ficial/apfel) | **OrchardGrid** |
 |---|:---:|:---:|
-| 使用 Apple Neural Engine / 设备端基础模型 | ✅ | ✅ |
-| OpenAI 兼容 `/v1/*` | ✅ | ✅ |
-| MCP 工具调用 | ✅ | ✅ |
-| 流式对话 + 上下文策略 | ✅ | ✅ |
-| 能力范围 | 对话 | **对话 + 图像 + 视觉 + 语音 + 声音 + NLP** |
-| 平台 | macOS | **macOS + iOS + iPadOS** |
-| 菜单栏 App 一同分发 | — | ✅ |
-| 从别的设备 / CI / 同事那里可达 | 仅 localhost | ✅(LAN + 云端中继) |
-| 聚合多设备为单一 API | — | ✅ |
-| App Store 发行 | — | ✅ |
+| **Apple Neural Engine / Foundation Models** | ✅ | ✅ |
+| **OpenAI 兼容 `/v1/*` 接口** | ✅ | ✅ |
+| **MCP 工具调用(spec 2025-06-18)** | ✅ | ✅ |
+| **流式对话、上下文策略、seed 可复现** | ✅ | ✅ |
+| **CLI 参数解析** | 手写 | **[swift-argument-parser](https://github.com/apple/swift-argument-parser)** —— 声明式、自动 `--help`、shell 补全 |
+| **暴露的能力** | 仅对话 | **6 大能力**:对话 + 图像(ImagePlayground)+ 视觉(OCR / 分类 / 人脸 / 条码)+ 语音(Speech,50+ 语种)+ 声音(SoundAnalysis,~300 类别)+ NLP(NaturalLanguage) |
+| **运行平台** | macOS | **macOS + iOS + iPadOS** —— 你的 iPhone 也是设备池的一员 |
+| **配套 UI** | — | **原生 SwiftUI 菜单栏 App**:实时任务流、设备状态、能力开关 |
+| **模型可达性** | 仅 `localhost` | **本地 HTTP(`:8888`)+ LAN + 加密云端中继** —— CI 机、同事、Siri 快捷指令都能调用 |
+| **设备池化** | — | **多设备负载均衡**(Cloudflare Durable Object),加一台 Mac/iPhone 就能扩容 |
+| **云端 API(可选)** | — | **`https://orchardgrid.com/v1/*`** —— 即开即用的 OpenAI 兼容端点,流量打到你自己的设备,零第三方推理费 |
+| **认证 / 密钥管理** | — | **Clerk OAuth** + API Key(推理作用域 + 管理作用域)+ 服务端可撤销 |
+| **使用日志 / 可观测** | — | **完整日志视图**:每个请求的耗时、token、成败、消费/提供角色 |
+| **分发:Homebrew** | ✅(个人 tap) | ✅(`brew install --cask bingowon/orchardgrid/orchardgrid`,App 和 CLI 一起装) |
+| **分发:App Store** | — | ✅ iOS / iPadOS / macOS,一次安装全家共享 |
+| **自动更新** | 手动 `brew upgrade` | ✅ App Store 自动更新 **+** release pipeline 自动 bump Homebrew cask |
+| **认证 token** | — | **每次请求都现拉**,无过期 token 脚底陷阱 |
+| **测试覆盖** | 单元测试 | **四层 CI**:共享 core 单元(Swift Testing)+ CLI 单元(Swift Testing)+ CLI 集成(pytest + mock server + MCP 子进程)+ 实时烟雾测试(真 FoundationModels,6 能力全覆盖) |
+| **文档** | README | **独立文档站**(`/docs`)+ **自动生成的 OpenAPI 参考**(`/reference`)+ 仓内的架构 / 测试 / 发布 / 贡献指南 |
+| **后台执行** | — | **共享时阻止休眠**(NSProcessInfo + iOS BGTask),合盖也能服务请求 |
+| **并发模型** | GCD / callback | **Swift 6 严格并发**(`@Observable` + `@MainActor` + actor 隔离的 manager) |
+| **发布驱动** | — | **Conventional Commits** → 自动 bump 版本号 + 构建 DMG + 公证 + 更新 Homebrew cask |
 
-**一句话总结**。如果你只有一台 Mac,只想用命令行跑 Apple 内置 AI —— `apfel` 很优秀,放心用。如果你想让**同一个模型**也能**从 iPhone 调用**、也能走**图像 / 视觉 / 语音 / 声音 / NLP**、也能**作为统一 API 分享给团队**、也能**让家人从 App Store 装个菜单栏 App 直接用** —— 那就是 OrchardGrid。
+**实战里意味着什么?**
+
+- **如果你只是一个开发者 + 一台 Mac**:`apfel` 简洁扎实,放心用。
+- **只要你满足以下任何一条**:你随身带 iPhone、你有超过一台 Apple 设备、你想要对话之外的图像 / 视觉 / 语音 / 声音 / NLP、你想让同事或 CI 机调用*你本地*的模型、你想给家人一个能装的 UI、你想看到底发生了什么、你想把多设备算力聚为一个 API、你想要能撤销的 Key、你想要一个自己掌控的 OpenAI-兼容 URL —— **OrchardGrid 是为此而生的完整平台**。
+
+OrchardGrid 是 **超集**,不是替代品。`apfel` 做到"够用"的每一处我们都同样支持;真实产品需要更多的地方,我们都交付了。
 
 ## 🚀 快速上手
 
