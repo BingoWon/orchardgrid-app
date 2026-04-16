@@ -244,8 +244,8 @@ struct LogsView: View {
           .font(.caption2)
           .padding(.horizontal, 5)
           .padding(.vertical, 1)
-          .background(Color(role.color).opacity(0.15), in: Capsule())
-          .foregroundStyle(Color(role.color))
+          .background(role.color.opacity(0.15), in: Capsule())
+          .foregroundStyle(role.color)
       } else {
         Text("—").font(.caption2)
       }
@@ -341,8 +341,8 @@ private struct LogRow: View {
           .font(.system(size: 9, weight: .medium))
           .padding(.horizontal, 4)
           .padding(.vertical, 1)
-          .background(Color(role.color).opacity(0.15), in: Capsule())
-          .foregroundStyle(Color(role.color))
+          .background(role.color.opacity(0.15), in: Capsule())
+          .foregroundStyle(role.color)
           .fixedSize()
       }
 
@@ -405,4 +405,21 @@ private struct LogRow: View {
     .environment(AuthManager(api: .preview))
     .environment(LogsManager(api: .preview))
     .environment(ObserverClient())
+}
+
+// MARK: - LogRole presentation
+//
+// Kept inside the view file so the model layer stays free of
+// SwiftUI imports. Color names returned via the catalog lookup
+// (`Color("green")`) trip a runtime warning on iOS — built-in
+// SwiftUI colors are the only ones that always exist.
+
+private extension LogRole {
+  var color: Color {
+    switch self {
+    case .consumer: .blue
+    case .provider: .purple
+    case .`self`: .green
+    }
+  }
 }

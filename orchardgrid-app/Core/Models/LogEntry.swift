@@ -10,14 +10,6 @@ enum LogRole: String, Codable, Sendable, CaseIterable {
     case .`self`: String(localized: "Self")
     }
   }
-
-  var color: String {
-    switch self {
-    case .consumer: "blue"
-    case .provider: "purple"
-    case .`self`: "green"
-    }
-  }
 }
 
 struct LogEntry: Identifiable, Codable, Sendable {
@@ -72,15 +64,6 @@ struct LogEntry: Identifiable, Codable, Sendable {
     return "\(p) + \(c) = \(p + c)"
   }
 
-  var statusColor: String {
-    switch status {
-    case "completed": "green"
-    case "failed": "red"
-    case "processing": "orange"
-    case "pending": "gray"
-    default: "gray"
-    }
-  }
 }
 
 struct LogsResponse: Codable, Sendable {

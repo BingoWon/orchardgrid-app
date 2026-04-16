@@ -51,10 +51,6 @@ struct Device: Codable, Identifiable, Sendable {
     }
   }
 
-  var statusColor: String {
-    isOnline ? "green" : "gray"
-  }
-
   var statusText: String {
     isOnline ? String(localized: "Online") : String(localized: "Offline")
   }

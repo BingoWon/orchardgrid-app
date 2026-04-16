@@ -246,7 +246,7 @@ private struct DeviceCard: View {
   }
 
   private var statusColor: Color {
-    device.statusColor == "green" ? .green : .gray
+    device.isOnline ? .green : .gray
   }
 }
 
