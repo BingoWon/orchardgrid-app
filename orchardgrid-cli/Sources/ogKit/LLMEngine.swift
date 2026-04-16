@@ -8,7 +8,7 @@ import OrchardGridCore
 /// (HTTP) inference. Both back-ends stream content chunks and return
 /// usage counts.
 public protocol LLMEngine: Sendable {
-  /// Describe the engine's source + availability. Used by `og --model-info`.
+  /// Describe the engine's source + availability. Used by `og model-info`.
   func health() async throws -> EngineHealth
 
   /// Run a streaming chat completion. `onDelta` fires for each content chunk.

@@ -1,37 +1,27 @@
 import Foundation
+import OrchardGridCore
 
-/// Read-side mirror of the GUI app's `OGSharedDefaults`. Both processes
-/// agree on a single App Group suite + key constants — that's the entire
-/// "shared state" contract.
+/// CLI-side wrapper around the shared App Group `UserDefaults` suite.
+/// Constants live in `OrchardGridCore.SharedDefaultsKeys` so the GUI
+/// app sees the exact same keys — nothing here can drift from the
+/// app definition.
 ///
-/// On macOS, this requires the `com.apple.security.application-groups`
+/// On macOS this requires the `com.apple.security.application-groups`
 /// entitlement on the CLI binary, which is set when `og` is signed as
-/// part of `make bundle-cli` (or the CI release flow). When `og` is run
-/// outside the bundled context (e.g. `swift run` during dev) the App
-/// Group container is unavailable and every getter returns nil — the
-/// `og status` command surfaces this gracefully ("app not running /
-/// not installed").
+/// part of `make bundle-cli` (or the CI release flow). When `og` is
+/// run outside the bundled context (e.g. `swift run` during dev) the
+/// App Group container is unavailable and every getter returns nil —
+/// the `og status` command surfaces this gracefully ("app not running
+/// / not installed").
 public enum SharedDefaults {
-  public static let suiteName = "group.com.orchardgrid.shared"
+  public static let suiteName = SharedDefaultsKeys.suiteName
 
   /// nil when this binary doesn't have the App Group entitlement.
   public static var store: UserDefaults? {
     UserDefaults(suiteName: suiteName)
   }
 
-  public enum Key {
-    public static let localEnabled = "OG.local.enabled"
-    public static let localPort = "OG.local.port"
-    public static let localRunning = "OG.local.running"
-    public static let cloudEnabled = "OG.cloud.enabled"
-    public static let cloudConnected = "OG.cloud.connected"
-    /// `true` when the user has explicitly opted this device into the
-    /// community pool. Defaults `false` — cloud-shared devices serve
-    /// only their owner unless this is on.
-    public static let cloudPublic = "OG.cloud.public"
-    public static let enabledCapabilities = "OG.capabilities"
-    public static let apiServerAuthToken = "OG.api.authToken"
-  }
+  public typealias Key = SharedDefaultsKeys
 
   // MARK: - Convenience getters
 

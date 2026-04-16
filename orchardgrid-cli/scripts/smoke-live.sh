@@ -23,12 +23,12 @@ section "Using: $OG"
 "$OG" --version
 
 section "1. Reachability"
-if ! out=$("$OG" --model-info 2>&1); then
+if ! out=$("$OG" model-info 2>&1); then
   fail "model-info" "$out"
 fi
-pass "og --model-info succeeded"
+pass "og model-info succeeded"
 echo "$out" | grep -q "apple-foundationmodel" || fail "model id" "expected 'apple-foundationmodel'"
-pass "reports apple-intelligence"
+pass "reports apple-foundationmodel"
 echo "$out" | grep -q "ok" || fail "status" "expected 'ok'"
 pass "reports status=ok"
 

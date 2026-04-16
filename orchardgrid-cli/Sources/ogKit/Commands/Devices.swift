@@ -18,10 +18,7 @@ struct Devices: AsyncParsableCommand {
 
     func run() async throws {
       format.applyColor()
-      let (host, token) = network.resolved()
-      let client = try cloudClient(
-        host: host, token: token, config: ConfigStore.load())
-      try await runDevicesList(client: client)
+      try await runDevicesList(client: try network.makeCloudClient())
     }
   }
 }

@@ -29,7 +29,7 @@ Both back-ends stream deltas and return OpenAI-style usage counts. Swap via
 
 ```sh
 og "prompt"                              # on-device, streamed to stdout
-og --chat                                # interactive REPL (on-device)
+og chat                                # interactive REPL (on-device)
 og -f file.swift "explain this"          # attach file
 echo "summarize this" | og               # stdin pipe
 og -o json "hello" | jq .content         # JSON output

@@ -69,6 +69,16 @@ public struct NetworkOptions: ParsableArguments {
     let env = ProcessInfo.processInfo.environment
     return (host ?? env["ORCHARDGRID_HOST"], token ?? env["ORCHARDGRID_TOKEN"])
   }
+
+  /// One-line cloud-client construction for management commands.
+  /// Resolves host/token (explicit > env > saved config > default),
+  /// throws `OGError.runtime("not logged in...")` when no token is
+  /// available. Replaces the boilerplate that was repeated in every
+  /// management subcommand's `run()`.
+  public func makeCloudClient() throws -> CloudAPI {
+    let (host, token) = resolved()
+    return try cloudClient(host: host, token: token, config: ConfigStore.load())
+  }
 }
 
 /// MCP servers attached to on-device inference. Repeating `--mcp` adds

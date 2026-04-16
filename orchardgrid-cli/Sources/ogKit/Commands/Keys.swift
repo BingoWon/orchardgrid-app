@@ -20,10 +20,7 @@ struct Keys: AsyncParsableCommand {
 
     func run() async throws {
       format.applyColor()
-      let (host, token) = network.resolved()
-      let client = try cloudClient(
-        host: host, token: token, config: ConfigStore.load())
-      try await runKeysList(client: client)
+      try await runKeysList(client: try network.makeCloudClient())
     }
   }
 
@@ -41,10 +38,7 @@ struct Keys: AsyncParsableCommand {
 
     func run() async throws {
       format.applyColor()
-      let (host, token) = network.resolved()
-      let client = try cloudClient(
-        host: host, token: token, config: ConfigStore.load())
-      try await runKeysCreate(client: client, name: name)
+      try await runKeysCreate(client: try network.makeCloudClient(), name: name)
     }
   }
 
@@ -62,10 +56,7 @@ struct Keys: AsyncParsableCommand {
 
     func run() async throws {
       format.applyColor()
-      let (host, token) = network.resolved()
-      let client = try cloudClient(
-        host: host, token: token, config: ConfigStore.load())
-      try await runKeysDelete(client: client, hint: hint)
+      try await runKeysDelete(client: try network.makeCloudClient(), hint: hint)
     }
   }
 }

@@ -1,5 +1,6 @@
 import Foundation
 @preconcurrency import FoundationModels
+import OrchardGridCore
 
 @Observable
 @MainActor

@@ -117,7 +117,7 @@ og "奥地利的首都是哪里?"
 
 | 你想要 | 这样做 |
 |---|---|
-| 从终端调 Apple 内置 AI | `og "..."`(或 `og --chat`) |
+| 从终端调 Apple 内置 AI | `og "..."`(或 `og chat`) |
 | 让别的程序用 OpenAI SDK 调 | 开启 **本地分享** → 访问 `http://<mac>.local:8888/v1/chat/completions` |
 | 从手机 / CI / 别的电脑反向调你 Mac 的 AI | 开启 **云端分享** → `https://orchardgrid.com/v1/chat/completions` + API key |
 | 用图像 / 视觉 / 语音 / 声音 / NLP | 调对应的 `/v1/*` 端点(见 [能力一览](#-能力一览)) |
@@ -130,8 +130,8 @@ og "奥地利的首都是哪里?"
 
 ```bash
 og "prompt"                              # 单次,流式输出到 stdout
-og --chat                                # 交互式 REPL,Ctrl-C 退出
-og --model-info                          # 模型可用性、来源、上下文大小
+og chat                                # 交互式 REPL,Ctrl-C 退出
+og model-info                          # 模型可用性、来源、上下文大小
 og -s "你是一位海盗。" "解释 TCP"         # 系统提示
 og --system-file persona.txt "..."       # 从文件读系统提示
 og --permissive "创意写作..."             # 放宽安全护栏
@@ -165,11 +165,11 @@ og --seed 42 "..."                                 # 可复现运行
 ### 上下文策略 —— 五种长对话裁剪方案
 
 ```bash
-og --chat --context-strategy newest-first    # 默认:保留最近若干轮
-og --chat --context-strategy oldest-first    # 保留最早若干轮
-og --chat --context-strategy sliding-window --context-max-turns 20
-og --chat --context-strategy summarize       # 调用一次子会话摘要旧内容
-og --chat --context-strategy strict          # 不裁剪 —— 超长直接报错
+og chat --context-strategy newest-first    # 默认:保留最近若干轮
+og chat --context-strategy oldest-first    # 保留最早若干轮
+og chat --context-strategy sliding-window --context-max-turns 20
+og chat --context-strategy summarize       # 调用一次子会话摘要旧内容
+og chat --context-strategy strict          # 不裁剪 —— 超长直接报错
 ```
 
 ### MCP 工具调用(Model Context Protocol)

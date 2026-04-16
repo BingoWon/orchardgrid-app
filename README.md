@@ -117,7 +117,7 @@ That's it — the prompt runs **in-process** against `SystemLanguageModel.defaul
 
 | You want to… | Do this |
 |---|---|
-| Use Apple's built-in AI from the shell | `og "..."` (or `og --chat`) |
+| Use Apple's built-in AI from the shell | `og "..."` (or `og chat`) |
 | Call it from another app via OpenAI SDK | Enable **Share Locally** → hit `http://<mac>.local:8888/v1/chat/completions` |
 | Reach your Mac's AI from your iPhone / CI / a laptop | Enable **Share to Cloud** → `https://orchardgrid.com/v1/chat/completions` with your API key |
 | Do image / vision / speech / sound / NLP | Hit the corresponding `/v1/*` endpoint (see [Capabilities](#-capabilities)) |
@@ -130,8 +130,8 @@ That's it — the prompt runs **in-process** against `SystemLanguageModel.defaul
 
 ```bash
 og "prompt"                              # single-shot, streamed to stdout
-og --chat                                # interactive REPL, Ctrl-C to quit
-og --model-info                          # model availability, source, context size
+og chat                                # interactive REPL, Ctrl-C to quit
+og model-info                          # model availability, source, context size
 og -s "You are a pirate." "explain TCP"  # system prompt
 og --system-file persona.txt "..."       # system prompt from file
 og --permissive "creative writing..."    # relax safety guardrails
@@ -165,11 +165,11 @@ og --seed 42 "..."                                  # reproducible runs
 ### Context strategy — five ways to trim long conversations
 
 ```bash
-og --chat --context-strategy newest-first    # default: keep the most recent turns
-og --chat --context-strategy oldest-first    # keep the earliest turns
-og --chat --context-strategy sliding-window --context-max-turns 20
-og --chat --context-strategy summarize       # compress old turns via a side model call
-og --chat --context-strategy strict          # refuse to trim — throw on overflow
+og chat --context-strategy newest-first    # default: keep the most recent turns
+og chat --context-strategy oldest-first    # keep the earliest turns
+og chat --context-strategy sliding-window --context-max-turns 20
+og chat --context-strategy summarize       # compress old turns via a side model call
+og chat --context-strategy strict          # refuse to trim — throw on overflow
 ```
 
 ### Tool calling via MCP (Model Context Protocol)
