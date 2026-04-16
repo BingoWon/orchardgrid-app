@@ -33,6 +33,9 @@ enum OGSharedDefaults {
     static let localRunning = "OG.local.running"
     /// Cloud sharing toggle.
     static let cloudEnabled = "OG.cloud.enabled"
+    /// Community-pool opt-in. False (default) = device only serves
+    /// owner's own requests even when cloud-shared.
+    static let cloudPublic = "OG.cloud.public"
     /// Cloud connection state, surfaced as a string.
     static let cloudConnected = "OG.cloud.connected"
     /// Comma-separated list of capability raw values currently enabled.

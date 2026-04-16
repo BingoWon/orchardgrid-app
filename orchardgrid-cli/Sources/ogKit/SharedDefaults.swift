@@ -25,6 +25,10 @@ public enum SharedDefaults {
     public static let localRunning = "OG.local.running"
     public static let cloudEnabled = "OG.cloud.enabled"
     public static let cloudConnected = "OG.cloud.connected"
+    /// `true` when the user has explicitly opted this device into the
+    /// community pool. Defaults `false` — cloud-shared devices serve
+    /// only their owner unless this is on.
+    public static let cloudPublic = "OG.cloud.public"
     public static let enabledCapabilities = "OG.capabilities"
     public static let apiServerAuthToken = "OG.api.authToken"
   }
@@ -38,6 +42,7 @@ public enum SharedDefaults {
     return p > 0 ? p : nil
   }
   public static var cloudEnabled: Bool { store?.bool(forKey: Key.cloudEnabled) ?? false }
+  public static var cloudPublic: Bool { store?.bool(forKey: Key.cloudPublic) ?? false }
   public static var enabledCapabilities: [String] {
     (store?.string(forKey: Key.enabledCapabilities) ?? "")
       .split(separator: ",").map(String.init).filter { !$0.isEmpty }

@@ -47,9 +47,14 @@ struct LocalDeviceView: View {
         VStack(alignment: .leading, spacing: 4) {
           Text(String(localized: "Share to Cloud"))
             .font(.headline)
-          Text(String(localized: "Contribute computing power to OrchardGrid"))
-            .font(.caption)
-            .foregroundStyle(.secondary)
+          Text(
+            String(
+              localized:
+                "Connect this device to OrchardGrid so you can reach it from anywhere."
+            )
+          )
+          .font(.caption)
+          .foregroundStyle(.secondary)
         }
 
         Spacer()
@@ -66,12 +71,51 @@ struct LocalDeviceView: View {
 
       if sharing.wantsCloudSharing {
         Divider()
+        publicSharingRow
+        Divider()
         cloudConnectionStatus
       }
     }
     .padding()
     .frame(maxWidth: .infinity, alignment: .leading)
     .glassEffect(in: .rect(cornerRadius: 12, style: .continuous))
+  }
+
+  // MARK: - Community pool opt-in (informed consent)
+  //
+  // Off (default): cloud-shared, but only the owner's own requests
+  // route here. On: device joins the community pool, serves any
+  // signed-in OrchardGrid user.
+
+  private var publicSharingRow: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      HStack {
+        VStack(alignment: .leading, spacing: 4) {
+          Text(String(localized: "Make available to others"))
+            .font(.subheadline.weight(.medium))
+          Text(
+            String(
+              localized:
+                "When on, this device serves inference requests from any signed-in OrchardGrid user — not just you. Apple's built-in safety guardrails still apply, and you can turn this off anytime."
+            )
+          )
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+        }
+
+        Spacer()
+
+        Toggle(
+          "",
+          isOn: Binding(
+            get: { sharing.wantsPublicSharing },
+            set: { sharing.setPublicSharing($0) }
+          )
+        )
+        .toggleStyle(.switch)
+      }
+    }
   }
 
   @ViewBuilder

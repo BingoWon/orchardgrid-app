@@ -72,6 +72,18 @@ final class SharingManager {
     }
   }
 
+  /// Opt-in flag for the community pool. When false (default), the
+  /// device only serves the owner's own requests even while
+  /// cloud-shared. When true, any signed-in OrchardGrid user can
+  /// dispatch to this device.
+  private(set) var wantsPublicSharing: Bool {
+    didSet {
+      guard oldValue != wantsPublicSharing else { return }
+      defaults.set(wantsPublicSharing, forKey: OGSharedDefaults.Key.cloudPublic)
+      cloudService.updateShareScope(wantsPublicSharing ? .public : .private)
+    }
+  }
+
   private(set) var wantsLocalSharing: Bool {
     didSet {
       guard oldValue != wantsLocalSharing else { return }
@@ -113,6 +125,7 @@ final class SharingManager {
   init() {
     let store = OGSharedDefaults.store
     let wantsCloud = store.bool(forKey: OGSharedDefaults.Key.cloudEnabled)
+    let wantsPublic = store.bool(forKey: OGSharedDefaults.Key.cloudPublic)
     let wantsLocal = store.bool(forKey: OGSharedDefaults.Key.localEnabled)
 
     // Capabilities are stored as a comma-separated string in the App
@@ -125,9 +138,12 @@ final class SharingManager {
     }
 
     wantsCloudSharing = wantsCloud
+    wantsPublicSharing = wantsPublic
     wantsLocalSharing = wantsLocal
 
-    cloudService = WebSocketClient(llmProcessor: llmProcessor)
+    cloudService = WebSocketClient(
+      llmProcessor: llmProcessor,
+      shareScope: wantsPublic ? .public : .private)
     localService = APIServer(llmProcessor: llmProcessor)
 
     syncAllStates()
@@ -137,6 +153,10 @@ final class SharingManager {
 
   func setCloudSharing(_ enabled: Bool) {
     wantsCloudSharing = enabled
+  }
+
+  func setPublicSharing(_ enabled: Bool) {
+    wantsPublicSharing = enabled
   }
 
   func setLocalSharing(_ enabled: Bool) {

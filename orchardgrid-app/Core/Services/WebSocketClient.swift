@@ -6,10 +6,16 @@ import Network
 final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   // MARK: - Configuration
 
+  /// Wire value of the device's `share_scope` query param sent on
+  /// WebSocket connect. `private` (default) keeps the device serving
+  /// only its owner; `public` puts it in the community pool.
+  enum ShareScope: String, Sendable { case `private`, `public` }
+
   private let serverURL: String
   private let hardwareID: String
   private let platform: String
   private let osVersion: String
+  private(set) var shareScope: ShareScope
 
   // MARK: - Connection State
 
@@ -61,8 +67,9 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
   // MARK: - Initialization
 
-  init(llmProcessor: LLMProcessor) {
+  init(llmProcessor: LLMProcessor, shareScope: ShareScope = .private) {
     self.llmProcessor = llmProcessor
+    self.shareScope = shareScope
 
     serverURL =
       ProcessInfo.processInfo.environment["ORCHARDGRID_SERVER_URL"]
@@ -102,6 +109,16 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       stopConnection()
       if isEnabled { startConnection() }
     }
+  }
+
+  /// Toggle community-pool membership. Reconnects so the worker sees
+  /// the new `share_scope` query param on the next handshake.
+  func updateShareScope(_ scope: ShareScope) {
+    guard scope != shareScope else { return }
+    shareScope = scope
+    Logger.log(.websocket, "share_scope changed to \(scope.rawValue), reconnecting")
+    if isConnected { stopConnection() }
+    if isEnabled { startConnection() }
   }
 
   // MARK: - Capability Registration
@@ -244,6 +261,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       URLQueryItem(name: "chip_model", value: DeviceInfo.chipModel),
       URLQueryItem(name: "memory_gb", value: String(format: "%.0f", DeviceInfo.totalMemoryGB)),
       URLQueryItem(name: "capabilities", value: activeCapabilityNames.joined(separator: ",")),
+      URLQueryItem(name: "share_scope", value: shareScope.rawValue),
     ]
     if let token {
       queryItems.insert(URLQueryItem(name: "token", value: token), at: 0)
