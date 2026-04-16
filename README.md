@@ -38,15 +38,15 @@ Apple's built-in AI runs **only on Apple's Neural Engine** — it cannot be ship
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/ios-devices.png" width="200" alt="Devices on iOS" />
+  <img src=".github/assets/ios-devices.png" width="200" alt="Devices on iOS" />
   &nbsp;&nbsp;
-  <img src="docs/screenshots/ios-device-detail.png" width="200" alt="Device detail" />
+  <img src=".github/assets/ios-device-detail.png" width="200" alt="Device detail" />
   &nbsp;&nbsp;
-  <img src="docs/screenshots/ios-api-keys.png" width="200" alt="API keys" />
+  <img src=".github/assets/ios-api-keys.png" width="200" alt="API keys" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/macos-devices.png" width="720" alt="OrchardGrid on macOS" />
+  <img src=".github/assets/macos-devices.png" width="720" alt="OrchardGrid on macOS" />
 </p>
 
 ## ✨ Why OrchardGrid?

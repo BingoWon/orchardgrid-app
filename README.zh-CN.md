@@ -38,15 +38,15 @@ Apple 内置 AI **只能在 Apple 自家的 Neural Engine 上运行** —— 没
 ## 截图
 
 <p align="center">
-  <img src="docs/screenshots/ios-devices.png" width="200" alt="iOS 设备列表" />
+  <img src=".github/assets/ios-devices.png" width="200" alt="iOS 设备列表" />
   &nbsp;&nbsp;
-  <img src="docs/screenshots/ios-device-detail.png" width="200" alt="设备详情" />
+  <img src=".github/assets/ios-device-detail.png" width="200" alt="设备详情" />
   &nbsp;&nbsp;
-  <img src="docs/screenshots/ios-api-keys.png" width="200" alt="API 密钥" />
+  <img src=".github/assets/ios-api-keys.png" width="200" alt="API 密钥" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/macos-devices.png" width="720" alt="macOS 端 OrchardGrid" />
+  <img src=".github/assets/macos-devices.png" width="720" alt="macOS 端 OrchardGrid" />
 </p>
 
 ## ✨ 为什么选 OrchardGrid

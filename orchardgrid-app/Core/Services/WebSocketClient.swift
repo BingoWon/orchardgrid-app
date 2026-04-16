@@ -28,7 +28,13 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
   }
 
   private(set) var connectionState: ConnectionState = .disconnected
+  /// Total successfully completed tasks since launch (self + community).
   private(set) var logsProcessed = 0
+  /// Subset of `logsProcessed` where the requester was someone other
+  /// than the device's own owner — i.e. genuine community-pool work.
+  /// Powers the "served this session" counter under the public toggle
+  /// so the number can't include the user's own self-served requests.
+  private(set) var communityTasksProcessed = 0
   /// Timestamp of the most recent successfully completed task. Powers
   /// the "last served · 12 min ago" badge in the cloud-share card so
   /// the provider can see the community pool is actually using their
@@ -439,6 +445,11 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     else { return }
 
     let stream = (json["stream"] as? Bool) ?? false
+    // Worker tags every dispatched task with whether the requester
+    // is the device's own owner. Defaults true for safety: an
+    // older worker that doesn't send the field is treated as a
+    // self-request, so the community counter never over-reports.
+    let requesterIsOwner = (json["requester_is_owner"] as? Bool) ?? true
     let payloadData: Data
     do {
       payloadData = try JSONSerialization.data(withJSONObject: payloadObj)
@@ -451,15 +462,20 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       .websocket, "Task \(id.prefix(8)): \(capability.rawValue)\(stream ? " [stream]" : "")")
 
     if capability == .chat, stream {
-      await handleStreamingChat(id: id, payload: payloadData)
+      await handleStreamingChat(
+        id: id, payload: payloadData, requesterIsOwner: requesterIsOwner)
     } else {
-      await handleCapabilityTask(id: id, capability: capability, payload: payloadData)
+      await handleCapabilityTask(
+        id: id, capability: capability, payload: payloadData,
+        requesterIsOwner: requesterIsOwner)
     }
   }
 
   // MARK: - Unified Task Dispatch
 
-  private func handleCapabilityTask(id: String, capability: Capability, payload: Data) async {
+  private func handleCapabilityTask(
+    id: String, capability: Capability, payload: Data, requesterIsOwner: Bool
+  ) async {
     guard let handler = handlers[capability] else {
       await sendError(id: id, error: "Unsupported capability: \(capability.rawValue)")
       return
@@ -469,8 +485,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     do {
       let result = try await handler(payload)
       await sendResponse(id: id, payload: result)
-      logsProcessed += 1
-      lastTaskAt = Date()
+      recordSuccess(requesterIsOwner: requesterIsOwner)
       let duration = Date().timeIntervalSince(start)
       Logger.success(
         .websocket,
@@ -482,7 +497,9 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
     }
   }
 
-  private func handleStreamingChat(id: String, payload: Data) async {
+  private func handleStreamingChat(
+    id: String, payload: Data, requesterIsOwner: Bool
+  ) async {
     let start = Date()
     do {
       let req = try JSONDecoder().decode(ChatRequest.self, from: payload)
@@ -497,8 +514,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       )
 
       await sendStreamEnd(id: id, usage: usage)
-      logsProcessed += 1
-      lastTaskAt = Date()
+      recordSuccess(requesterIsOwner: requesterIsOwner)
       let duration = Date().timeIntervalSince(start)
       Logger.success(
         .websocket, "chat stream \(id.prefix(8)) completed in \(String(format: "%.2f", duration))s")
@@ -506,6 +522,18 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       Logger.error(.websocket, "chat stream \(id.prefix(8)) failed: \(error)")
       await sendError(id: id, error: error.localizedDescription)
     }
+  }
+
+  /// Bump counters after a successful task. `logsProcessed` counts
+  /// every task; `communityTasksProcessed` only the ones served for
+  /// other users (community pool). The provider's UI reads the
+  /// community count so the "served this session" badge is honest.
+  private func recordSuccess(requesterIsOwner: Bool) {
+    logsProcessed += 1
+    if !requesterIsOwner {
+      communityTasksProcessed += 1
+    }
+    lastTaskAt = Date()
   }
 
   // MARK: - Chat Processing

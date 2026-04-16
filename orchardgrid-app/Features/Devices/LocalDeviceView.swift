@@ -124,11 +124,13 @@ struct LocalDeviceView: View {
 
   // MARK: - Live community-pool activity counter
   //
-  // Pure local readout of `WebSocketClient.logsProcessed` and
-  // `lastTaskAt`. No new server query — both values are bumped in-
-  // process when the WebSocket finishes a task. The TimelineView
-  // re-renders the relative time every minute so "12 min ago" stays
-  // current without us hand-rolling a timer.
+  // Pure local readout of `WebSocketClient.communityTasksProcessed`
+  // and `lastTaskAt`. The counter only ticks for tasks where the
+  // requester was someone OTHER than this device's owner — set on the
+  // wire by the worker via `requester_is_owner: false`. Self-served
+  // tasks are deliberately excluded so "served this session" can't
+  // over-report the community contribution. TimelineView re-renders
+  // the relative time every minute without a hand-rolled timer.
 
   private var publicActivityRow: some View {
     TimelineView(.periodic(from: .now, by: 60)) { context in
@@ -139,10 +141,13 @@ struct LocalDeviceView: View {
         Text(
           String(
             localized:
-              "\(sharing.cloudLogsProcessed) request(s) served this session"))
+              "\(sharing.cloudCommunityTasksProcessed) community request(s) served this session"
+          ))
           .font(.caption)
           .foregroundStyle(.secondary)
-        if let last = sharing.cloudLastTaskAt {
+        if let last = sharing.cloudLastTaskAt,
+          sharing.cloudCommunityTasksProcessed > 0
+        {
           Text("·").font(.caption).foregroundStyle(.tertiary)
           Text(last, format: .relative(presentation: .named, unitsStyle: .narrow))
             .font(.caption)

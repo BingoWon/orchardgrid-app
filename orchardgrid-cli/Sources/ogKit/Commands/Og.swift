@@ -10,14 +10,14 @@ import OrchardGridCore
 
 public struct Og: AsyncParsableCommand {
   public static let configuration = CommandConfiguration(
-    commandName: "og",
+    commandName: AppIdentity.cliName,
     abstract: "OrchardGrid CLI for Apple Foundation Model.",
     discussion: """
       Run inference on-device by default; set --host to target a peer or
-      the OrchardGrid cloud. Sign in with `og login` to manage API keys,
-      devices, and usage logs.
+      the OrchardGrid cloud. Sign in with `\(AppIdentity.cliName) login` \
+      to manage API keys, devices, and usage logs.
       """,
-    version: "og v\(ogVersion) (\(ogBuildCommit), \(ogBuildDate))",
+    version: "\(AppIdentity.cliName) v\(ogVersion) (\(ogBuildCommit), \(ogBuildDate))",
     subcommands: [
       Run.self,
       Chat.self,
