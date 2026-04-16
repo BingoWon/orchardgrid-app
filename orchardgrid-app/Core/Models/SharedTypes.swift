@@ -134,6 +134,7 @@ struct ChatRequest: Codable, Sendable {
   let model: String
   let messages: [ChatMessage]
   let stream: Bool?
+  let streamOptions: StreamOptions?
   let responseFormat: ResponseFormat?
   let temperature: Double?
   let maxTokens: Int?
@@ -144,10 +145,25 @@ struct ChatRequest: Codable, Sendable {
 
   enum CodingKeys: String, CodingKey {
     case model, messages, stream, temperature, seed, permissive
+    case streamOptions = "stream_options"
     case responseFormat = "response_format"
     case maxTokens = "max_tokens"
     case contextStrategy = "context_strategy"
     case contextMaxTurns = "context_max_turns"
+  }
+}
+
+/// OpenAI `stream_options` —— controls extra streaming behaviour.
+/// Currently only one knob: `include_usage`. Per OpenAI spec, when
+/// true the server emits an additional chunk with `choices: []` and
+/// the cumulative `usage` object before `[DONE]`. We do NOT include
+/// `usage` in the final stop chunk (which would break naive SDK
+/// consumers that do `chunk.choices[0]`).
+struct StreamOptions: Codable, Sendable {
+  let includeUsage: Bool?
+
+  enum CodingKeys: String, CodingKey {
+    case includeUsage = "include_usage"
   }
 }
 
@@ -288,10 +304,13 @@ struct StreamChunk: Codable, Sendable {
     )
   }
 
+  /// Final stop chunk. **Never carries usage** — per OpenAI spec the
+  /// usage payload lives in a separate `choices: []` chunk, emitted
+  /// only when the consumer set `stream_options.include_usage=true`.
+  /// See `usageOnly(_:usage:)`.
   static func end(
     _ id: String,
-    finishReason: String = "stop",
-    usage: TokenUsage? = nil
+    finishReason: String = "stop"
   ) -> StreamChunk {
     StreamChunk(
       id: id,
@@ -305,6 +324,20 @@ struct StreamChunk: Codable, Sendable {
           finishReason: finishReason
         )
       ],
+      usage: nil
+    )
+  }
+
+  /// Optional post-stop chunk that carries token counts. Spec-pattern:
+  /// `{ choices: [], usage: { ... } }`. Consumers must opt in via
+  /// `stream_options.include_usage=true`.
+  static func usageOnly(_ id: String, usage: TokenUsage) -> StreamChunk {
+    StreamChunk(
+      id: id,
+      object: "chat.completion.chunk",
+      created: Int(Date().timeIntervalSince1970),
+      model: AppIdentity.modelName,
+      choices: [],
       usage: usage
     )
   }

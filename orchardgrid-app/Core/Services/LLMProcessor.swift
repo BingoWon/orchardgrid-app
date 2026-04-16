@@ -100,7 +100,17 @@ final class LLMProcessor {
         }
       }
 
-      return await measureUsage(content: content, session: session)
+      // OpenAI spec: `response_format: { "type": "json_object" }`
+      // requires the assistant message to be raw JSON. Apple's model
+      // often wraps in ```json ... ``` despite the prompt — strip it.
+      // Streaming json_object is rare and harder to fix mid-chunk;
+      // matches apfel's behaviour of stripping only on the final
+      // accumulated string.
+      let final =
+        responseFormat?.type == "json_object"
+        ? JSONFenceStripper.strip(content) : content
+
+      return await measureUsage(content: final, session: session)
     } catch {
       throw LLMError.classify(error)
     }

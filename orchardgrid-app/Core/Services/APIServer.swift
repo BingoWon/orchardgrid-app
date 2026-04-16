@@ -484,6 +484,7 @@ final class APIServer {
           systemPrompt: chatRequest.systemPrompt,
           responseFormat: chatRequest.responseFormat,
           options: chatRequest.sessionOptions,
+          includeUsage: chatRequest.streamOptions?.includeUsage == true,
           connection: connection
         )
       } else {
@@ -536,6 +537,7 @@ final class APIServer {
     systemPrompt: String,
     responseFormat: ResponseFormat?,
     options: SessionOptions,
+    includeUsage: Bool,
     connection: NWConnection
   ) async {
     let id = "chatcmpl-\(UUID().uuidString.prefix(8))"
@@ -553,12 +555,15 @@ final class APIServer {
           await self?.sendSSE(StreamChunk.delta(id, content: delta), to: connection)
         }
       }
-      let usage = TokenUsage(
-        promptTokens: result.promptTokens,
-        completionTokens: result.completionTokens,
-        totalTokens: result.totalTokens
-      )
-      await sendSSE(StreamChunk.end(id, usage: usage), to: connection)
+      await sendSSE(StreamChunk.end(id), to: connection)
+      if includeUsage {
+        let usage = TokenUsage(
+          promptTokens: result.promptTokens,
+          completionTokens: result.completionTokens,
+          totalTokens: result.totalTokens
+        )
+        await sendSSE(StreamChunk.usageOnly(id, usage: usage), to: connection)
+      }
       await send("data: [DONE]\n\n", to: connection, closeAfter: false)
     } catch {
       await sendSSE(StreamChunk.end(id, finishReason: "error"), to: connection)
