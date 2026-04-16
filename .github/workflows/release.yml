@@ -153,7 +153,12 @@ jobs:
           # Build the universal og binary from the in-repo SPM package.
           # Bundled inside the .app + signed in the next steps so a single
           # `brew install --cask orchardgrid` gives the user both.
+          # generate-build-info.sh writes the gitignored BuildInfo.swift
+          # that defines `ogBuildCommit` / `ogBuildDate` — without it,
+          # Og.swift's CommandConfiguration `version:` literal fails to
+          # compile on a clean checkout.
           cd orchardgrid-cli
+          scripts/generate-build-info.sh
           swift build -c release --arch arm64 --arch x86_64
 
       - name: Bundle og into the .app
