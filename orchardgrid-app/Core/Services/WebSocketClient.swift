@@ -29,6 +29,11 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
   private(set) var connectionState: ConnectionState = .disconnected
   private(set) var logsProcessed = 0
+  /// Timestamp of the most recent successfully completed task. Powers
+  /// the "last served · 12 min ago" badge in the cloud-share card so
+  /// the provider can see the community pool is actually using their
+  /// device. Resets to nil on each app launch (in-memory only).
+  private(set) var lastTaskAt: Date?
 
   var isConnected: Bool {
     if case .connected = connectionState { return true }
@@ -465,6 +470,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
       let result = try await handler(payload)
       await sendResponse(id: id, payload: result)
       logsProcessed += 1
+      lastTaskAt = Date()
       let duration = Date().timeIntervalSince(start)
       Logger.success(
         .websocket,
@@ -492,6 +498,7 @@ final class WebSocketClient: NSObject, URLSessionWebSocketDelegate {
 
       await sendStreamEnd(id: id, usage: usage)
       logsProcessed += 1
+      lastTaskAt = Date()
       let duration = Date().timeIntervalSince(start)
       Logger.success(
         .websocket, "chat stream \(id.prefix(8)) completed in \(String(format: "%.2f", duration))s")

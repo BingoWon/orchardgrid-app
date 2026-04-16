@@ -110,6 +110,7 @@ final class SharingManager {
   var isAnySharingActive: Bool { wantsCloudSharing || wantsLocalSharing }
   var cloudConnectionState: WebSocketClient.ConnectionState { cloudService.connectionState }
   var cloudLogsProcessed: Int { cloudService.logsProcessed }
+  var cloudLastTaskAt: Date? { cloudService.lastTaskAt }
   var localRequestCount: Int { localService.requestCount }
   var localPort: UInt16 { localService.port }
   var localIPAddress: String? { localService.localIPAddress }

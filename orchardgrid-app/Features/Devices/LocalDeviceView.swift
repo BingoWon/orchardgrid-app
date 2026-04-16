@@ -115,6 +115,43 @@ struct LocalDeviceView: View {
         )
         .toggleStyle(.switch)
       }
+
+      if sharing.wantsPublicSharing {
+        publicActivityRow
+      }
+    }
+  }
+
+  // MARK: - Live community-pool activity counter
+  //
+  // Pure local readout of `WebSocketClient.logsProcessed` and
+  // `lastTaskAt`. No new server query — both values are bumped in-
+  // process when the WebSocket finishes a task. The TimelineView
+  // re-renders the relative time every minute so "12 min ago" stays
+  // current without us hand-rolling a timer.
+
+  private var publicActivityRow: some View {
+    TimelineView(.periodic(from: .now, by: 60)) { context in
+      HStack(spacing: 6) {
+        Circle()
+          .fill(.green)
+          .frame(width: 6, height: 6)
+        Text(
+          String(
+            localized:
+              "\(sharing.cloudLogsProcessed) request(s) served this session"))
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        if let last = sharing.cloudLastTaskAt {
+          Text("·").font(.caption).foregroundStyle(.tertiary)
+          Text(last, format: .relative(presentation: .named, unitsStyle: .narrow))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .id(context.date)
+        }
+        Spacer()
+      }
+      .padding(.top, 4)
     }
   }
 
