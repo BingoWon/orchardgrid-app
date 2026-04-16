@@ -1,11 +1,5 @@
 import Foundation
 
-// MARK: - Version
-
-/// CLI version. Exposed from the library so both main.swift's usage banner
-/// and subcommand output (model-info, etc.) reference the same string.
-public let ogVersion = "0.1.0"
-
 // MARK: - ANSI Styling
 
 public enum Style: String, Sendable {
